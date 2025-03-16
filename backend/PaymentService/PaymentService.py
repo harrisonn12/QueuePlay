@@ -8,7 +8,7 @@ class PaymentService:
     def createPaymentMethod():
         stripe.api_key =    "pk_test_51PRGvfBwG19OgdeMfVJPMyPleuHZ5BpjNWLmY7EeNLhcudaFZIvslqy8NyKa8NOBSkT7n4a6A9Y1qn40HIHLQJt600uKc8qeXR"
         
-        return  stripe.PaymentMethod.create(
+        return stripe.PaymentMethod.create(
             type="card",
             billing_details={
                 "name": "John Doe",
@@ -21,7 +21,19 @@ class PaymentService:
             }
         )
     
-    def createIntent(paymentMethodID):
+    def createIntent(paymentMethodID, customerId = customerId):
+        # creating intent requires secret key
         stripe.api_key = "sk_test_51PRGvfBwG19OgdeM0xDu2vd19OEO5gxh1fXOPMAXZmvJrIX31MlT6twogvrHcPCsujo8VXjKj5Hk1CYHfKyTWSVH0072YeGqfc"
         
-        return stripe.SetupIntent.create(payment_method=paymentMethodID);
+        intent = stripe.SetupIntent.create(
+            customer = customerId,
+            payment_method = paymentMethodID
+            );
+        
+        return stripe.SetupIntent.confirm(
+            intent.id,
+            payment_method = paymentMethodID
+            )
+
+    def getAllCustomers():
+        pass
