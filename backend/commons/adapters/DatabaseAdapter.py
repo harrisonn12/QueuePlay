@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from backend.commons.enums.DatabaseType import DatabaseType
 
 

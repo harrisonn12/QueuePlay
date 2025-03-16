@@ -38,8 +38,8 @@ class GoogleSheetDatabaseAdapter(DatabaseAdapter):
 
     def __getSpreadSheetId(self, database: DatabaseType):
         match database:
-            case DatabaseType:
-                return os.environ['VIDEO_TRANSCRIPT_SPREADSHEET_ID']
+            case DatabaseType.COUPONS:
+                return DatabaseType.COUPONS.value
 
             case _:
                 raise ValueError("Unsupported DatabaseType")
