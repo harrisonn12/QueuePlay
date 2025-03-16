@@ -5,10 +5,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from PaymentService.PaymentService import PaymentService
+from QuestionService.QuestionService import QuestionService
+from commons.adapters.ChatGptAdapter import ChatGptAdapter
+from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 from stripe import PaymentIntent
 from LobbyService.LobbyService import LobbyService
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
+
 
 app = FastAPI()
 
@@ -24,6 +28,14 @@ def createPaymentMethod():
 @app.post("/createIntent")
 def setUpPaymentIntent(paymentMethodID):
     return PaymentService.createIntent(paymentMethodID)
+
+@app.post("/getQuestionAnswerSet")
+def getQuestionAnswerSet():
+    chatGptAdapter = ChatGptAdapter()
+    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
+    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
+
+    return questionService.getQuestionAnswerSet(10)
 
 
 if __name__ == '__main__':

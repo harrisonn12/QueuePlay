@@ -1,44 +1,33 @@
 import openai 
-from enums import QuestionTopic
-from backend.commons.adapters import ChatGptAdapter
-from enums import QuestionTopic
-
+from commons.adapters import ChatGptAdapter
+from QuestionService.src.enums.QuestionTopic import QuestionTopic
+from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 
 class QuestionService:
     #there should not be any business logic in the service, so
-        #the only 2 methods we need
-        #get quesiton asnwer set
-        #get available topics
+        #the methods we need are 
+        #get quesiton answer set
+        #get random question
+        # (might not need this) get available topics
 
     
-    #this is dependency injection
     def __init__(self, chatGptAdapter : ChatGptAdapter , questionAnswerSetGenerator : QuestionAnswerSetGenerator):
 
-        """constructor and also for declaring instance variables
-            questionAnswerSetGenerator is dependency injection
-            
-        """
-        #self.client = use adapter for openai
-            #we use adapter so we can change the api provider if we need to 
+        """uses dependency injection"""
         
+        #we use adapter so we can change the api provider if we need to 
         self.chatGptAdapter = chatGptAdapter
         
         #initialize the questionAnswerSetGenerator here
         self.questionAnswerSetGenerator = questionAnswerSetGenerator
 
-    def getQuestionAnswerSet(self):
-        '''gets all the question answer set from the questionanswersetgenerator
+    def getQuestionAnswerSet(self, numQuestions : int):
+        '''gets all the question answer set from the chosen topic by random'''
 
-        from the available topics, get a topic by random.
-
-        '''
-
-        #call getAvailableTopic and choiose a random one from the list
-        #then, pass it in the generate all 
         
-        topic = getRandomTopic()
+        topic = self.getRandomTopic()
         
-        return self.questionAnswerSetGenerator.generateQuestionAnswerSet(topic, questions_per_topic)
+        return self.questionAnswerSetGenerator.generateQuestionAnswerSet(topic, numQuestions)
 
     
     def getRandomTopic(self):
@@ -47,7 +36,7 @@ class QuestionService:
 
     
     def getAvailableTopics(self):
-        '''gets the available topics from the enum'''
+        '''gets all topics from the enum'''
         return QuestionTopic.getAllTopicValues()
 
 
