@@ -8,7 +8,7 @@ class CouponService:
         self.availableOffersAdapter = availableOffersAdapter  
         self.offerSelectionProcessor = offerSelectionProcessor 
         self.couponIdGenerator = couponIdGenerator  
-        self.couponsDatabase = couponsDatabase  
+        self.couponsDatabase = couponsDatabase
 
     def createCoupon(self, db: Session, storeId: int, gameId: int):
         availableOffers = self.availableOffersAdapter.get(storeId, gameId)
@@ -23,6 +23,7 @@ class CouponService:
             couponId=couponId,
             storeId=storeId,
             gameId=gameId,
+            winnerId=None,
             type=chosenOffer.type,
             value=chosenOffer.value,
             productId=chosenOffer.productId,
@@ -31,11 +32,29 @@ class CouponService:
             expirationDate = chosenOffer.expirationDate
         )
         
-        self.couponsDatabase.post(newCoupon)
+        self.couponsDatabase.addCoupon(newCoupon)
         return newCoupon.__dict__
     
-    def assignCoupon(self, couponId: str, gamerId: int):
-        coupon = self.couponsDatabase.get(couponId)
+    def assignCoupon(self, couponId: str, winnerId: int):
+        coupon = self.couponsDatabase.getCouponById(couponId)
+
+        if coupon.assigned:
+            return {"error": "Coupon already assigned"}
+
+        assignedCoupon = Coupon(
+            couponId=couponId,
+            storeId=coupon.storeId,
+            gameId=coupon.gameId,
+            winnerId=winnerId,
+            type=coupon.type,
+            value=coupon.value,
+            productId=coupon.productId,
+            assigned=True,
+            createdAt = coupon.createdAt,
+            expirationDate = coupon.expirationDate
+        )
+
+
 
     def getCoupon(self, storeId: int, gamerId: int):
         pass
