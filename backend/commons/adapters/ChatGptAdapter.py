@@ -3,6 +3,7 @@ from openai import OpenAI
 from ..enums.LLMModel import LLMModel
 from ..enums.Prompt import Prompt
 from ..enums.Role import Role
+import json
 
 # https://dagster.io/blog/python-environment-variables
 class ChatGptAdapter:
@@ -28,3 +29,19 @@ class ChatGptAdapter:
         )
 
         return response.choices[0].message.content
+
+
+    def call(self, prompt : str):
+      response = self.client.chat.completions.create(
+            model= LLMModel.GPT_35_TURBO.value,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            response_format = {"type": "json_object"}
+
+        )
+
+        return response.choices[0].message.content
+        
+
+      
