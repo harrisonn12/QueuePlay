@@ -2,8 +2,8 @@ import os
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-from backend.commons.adapters.DatabaseAdapter import DatabaseAdapter
-from backend.commons.enums.DatabaseType import DatabaseType
+from commons.adapters.DatabaseAdapter import DatabaseAdapter
+from commons.enums.DatabaseType import DatabaseType
 
 
 class GoogleSheetDatabaseAdapter(DatabaseAdapter):

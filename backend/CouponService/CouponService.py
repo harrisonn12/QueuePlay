@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from CouponService.models import Coupon
 import time
 
 class CouponService:
@@ -13,7 +12,7 @@ class CouponService:
         self.couponRedemptionAdapter = couponRedemptionAdapter
         self.customerMessagingProcessor = customerMessagingProcessor
 
-    def createCoupon(self, db: Session, storeId: int, gameId: int):
+    def createCoupon(self, storeId: int, gameId: int):
         availableOffers = self.availableOffersAdapter.get(storeId, gameId)
         
         if not availableOffers:
@@ -67,3 +66,4 @@ class CouponService:
     
     def destroyCoupon(self, couponId: str):
         self.assignedCouponDatabase.deleteCoupon(couponId)
+        

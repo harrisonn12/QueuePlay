@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from backend.commons.enums.DatabaseType import DatabaseType
+from commons.enums.DatabaseType import DatabaseType
 
 
 class DatabaseAdapter:

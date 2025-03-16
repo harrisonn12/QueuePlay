@@ -1,5 +1,5 @@
 from CouponService.src.models.Offer import Offer
-from backend.CouponService.src.enums.OfferType import OfferType
+from CouponService.src.enums.OfferType import OfferType
 
 class AvailableOffersAdapter:
     def __init__(self) -> None:

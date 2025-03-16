@@ -2,6 +2,15 @@ import argparse
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
+from CouponService.CouponService import CouponService
+from CouponService.src.CouponIdGenerator import CouponIdGenerator
+from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
+from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
+from CouponService.src.adapters.CouponRedemptionAdapter import CouponRedemptionAdapter
+from CouponService.src.databases import AssignedCouponsDatabase
+from CouponService.src.databases.AssignedCouponsDatabase import CouponsDatabase
+from CouponService.src.models.CustomerMessagingProcessor import CustomerMessagingProcessor
+from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,8 +32,23 @@ tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
     {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
 ]
+from pydantic import BaseModel
 
 app = FastAPI(openapi_tags=tags_metadata)
+class CreateCouponRequest(BaseModel):
+    storeId: int
+    gameId: str
+
+class AssignCouponRequest(BaseModel):
+    couponId: str
+    winnerId: int
+
+class GetCouponRequest(BaseModel):
+    storeId: int
+    gamerId: str
+
+class DestroyCouponRequest(BaseModel):
+    couponId: str
 
 @app.get("/generateLobbyQRCode")
 def generateLobbyQRCode(gameSessionId: str) -> str:
@@ -79,6 +103,21 @@ def deletePaymentMethod(paymentMethodId):
 def deleteAllPaymentMethods(customerId):
     """ Detaches all Payment Methods attached to a Customer """
     return stripeAdapter.detachAllPaymentMethods(customerId)
+@app.post("/createCoupon")
+def createCoupon(createCouponRequest: CreateCouponRequest):
+    return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
+
+@app.post("/assignCoupon")
+def assignCoupon(assignCouponRequest: AssignCouponRequest):
+    return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
+
+@app.post("/getCoupon")
+def getCoupon(getCouponRequest: GetCouponRequest):
+    return couponService.getCoupon(getCouponRequest.storeId, getCouponRequest.gameId)
+
+@app.post("/destroyCoupon")
+def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
+    return couponService.destroyCoupon(destroyCouponRequest.couponId)
 
 if __name__ == '__main__':
 
@@ -120,4 +159,14 @@ if __name__ == '__main__':
     paymentService = PaymentService()
     stripeAdapter = stripeAdapter()
     
+
+    availableOffersAdapter = AvailableOffersAdapter()
+    offerSelectionProcessor = OfferSelectionProcessor()
+    couponIdGenerator = CouponIdGenerator()
+    googleSheetDatabaseAdapter = GoogleSheetDatabaseAdapter()
+    couponsDatabase = CouponsDatabase(googleSheetDatabaseAdapter)
+    assignedCouponsDatabase = AssignedCouponsDatabase(googleSheetDatabaseAdapter)
+    couponRedemptionAdapter = CouponRedemptionAdapter()
+    customerMessagingProcessor = CustomerMessagingProcessor()
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, assignedCouponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
     uvicorn.run(app, host="0.0.0.0", port=8000)

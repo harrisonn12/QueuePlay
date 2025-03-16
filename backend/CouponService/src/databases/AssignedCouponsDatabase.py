@@ -1,8 +1,8 @@
-from backend.CouponService.src.databases.Coupon import Coupon
-from backend.commons.enums.DatabaseType import DatabaseType
+from CouponService.src.databases.Coupon import Coupon
 from pydantic import BaseModel, ValidationError
-from backend.commons import DatabaseAdapter
-from backend.commons.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
+from commons.adapters import GoogleSheetDatabaseAdapter
+from commons.enums.DatabaseType import DatabaseType
+from commons.adapters.DatabaseAdapter import DatabaseAdapter
 
 class CouponsDatabase(DatabaseAdapter):
 
@@ -37,4 +37,5 @@ class CouponsDatabase(DatabaseAdapter):
 
     def deleteCoupon(self, couponId: str):
         pass
+        return couponId
     

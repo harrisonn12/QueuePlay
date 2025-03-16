@@ -1,8 +1,8 @@
-from backend.CouponService.src.databases.Coupon import Coupon
-from backend.commons.enums.DatabaseType import DatabaseType
+from CouponService.src.databases.Coupon import Coupon
+from commons.enums.DatabaseType import DatabaseType
 from pydantic import BaseModel, ValidationError
-from backend.commons import DatabaseAdapter
-from backend.commons.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
+from commons import DatabaseAdapter
+from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 
 class CouponsDatabase(DatabaseAdapter):
 
