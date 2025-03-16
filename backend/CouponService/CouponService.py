@@ -17,7 +17,7 @@ class CouponService:
         availableOffers = self.availableOffersAdapter.get(storeId, gameId)
         
         if not availableOffers:
-            return {"error": "No available coupons for this store"}
+            raise ValueError("No available coupons for this store")
 
         chosenOffer = self.offerSelectionProcessor.pick(availableOffers)
         couponId = self.couponIdGenerator.generate(storeId)
@@ -42,13 +42,14 @@ class CouponService:
         coupon = self.couponsDatabase.getCouponById(couponId)
 
         if coupon is None:
-            return {"error: Coupon not found"}
+            raise ValueError("Coupon not found")
         
-        if coupon["assigned"]:
-            return {"error": "Coupon already assigned"}
+        if coupon.assigned:
+            raise ValueError("Coupon already assigned")
 
-        coupon["assigned"] = True
-        coupon["winnerId"] = winnerId
+        coupon.assigned = True
+        coupon.winnerId = winnerId
+       
         self.assignedCouponDatabase.addCoupon(coupon)
 
         self.couponRedemptionAdapter.redeem(couponId)
@@ -56,14 +57,13 @@ class CouponService:
 
         return coupon
 
-    def getCoupon(self, couponId: str):
-        coupon = self.couponsDatabase.getCouponById(couponId)
+    def getCoupon(self, storeId: int, gamerId: str):
+        coupon = self.assignedCouponsDatabase.getCoupon(storeId, gamerId)
 
         if coupon is None:
-            return {"error: Coupon not found"}
+            raise ValueError("Coupon not found")
         
         return coupon
     
     def destroyCoupon(self, couponId: str):
         self.assignedCouponDatabase.deleteCoupon(couponId)
-

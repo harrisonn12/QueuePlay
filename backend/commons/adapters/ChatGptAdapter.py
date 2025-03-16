@@ -7,41 +7,36 @@ import json
 
 # https://dagster.io/blog/python-environment-variables
 class ChatGptAdapter:
+  def __init__(self):
+    try:
+        apiKey = os.environ['CHATGPT_KEY']
+    except KeyError:
+        print("Environment variable does not exist")
+        os.environ['CHATGPT_KEY'] = input("What is your OpenAI key?\n")
+        apiKey = os.environ['CHATGPT_KEY']
 
-    def __init__(self):
-        try:
-            apiKey = os.environ['CHATGPT_KEY']
-        except KeyError:
-            print("Environment variable does not exist")
-            os.environ['CHATGPT_KEY'] = input("What is your OpenAI key?\n")
-            apiKey = os.environ['CHATGPT_KEY']
+    self.client = OpenAI(api_key=apiKey)
 
-        self.client = OpenAI(api_key=apiKey)
+  def generateSummary(self, message: str):
+    response = self.client.chat.completions.create(
+      model= LLMModel.GPT_35_TURBO.value,
+      messages=[
+        {"role": "system", "content": Role.JOURNALIST.value},
+        {"role": "assistant", "content": Prompt.SUMMARY_BULLETPOINTS_250.value},
+        {"role": "user", "content": message}
+      ]
+    )
 
-    def generateSummary(self, message: str):
-        response = self.client.chat.completions.create(
-          model= LLMModel.GPT_35_TURBO.value,
-          messages=[
-            {"role": "system", "content": Role.JOURNALIST.value},
-            {"role": "assistant", "content": Prompt.SUMMARY_BULLETPOINTS_250.value},
-            {"role": "user", "content": message}
-          ]
-        )
-
-        return response.choices[0].message.content
+    return response.choices[0].message.content
 
 
-    def call(self, prompt : str):
-      response = self.client.chat.completions.create(
-            model= LLMModel.GPT_35_TURBO.value,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            response_format = {"type": "json_object"}
-
-        )
-
-        return response.choices[0].message.content
-        
-
-      
+  def generateJson(self, prompt : str):
+    response = self.client.chat.completions.create(
+      model= LLMModel.GPT_35_TURBO.value,
+      messages=[
+        {"role": "user", "content": prompt}
+      ],
+      response_format = {"type": "json_object"}
+    )
+    
+    return response.choices[0].message.content

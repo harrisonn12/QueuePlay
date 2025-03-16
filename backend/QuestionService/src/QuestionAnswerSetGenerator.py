@@ -1,12 +1,12 @@
 import json
-from enums import QuestionTopic
-
+from QuestionService.src.enums import QuestionTopic
+from commons.adapters import ChatGptAdapter
 
 #core logic of how I get answer and question
 class QuestionAnswerSetGenerator:
 
-    def __init__(self):
-        pass
+    def __init__(self, chatGptAdapter : ChatGptAdapter):
+        self.chatGptAdapter = chatGptAdapter
 
     
     # def generateAllQuestionAnswerSets(self, topics: list[QuestionTopic], questionsPerTopic: int) -> dict:
@@ -20,53 +20,48 @@ class QuestionAnswerSetGenerator:
     #     return allQuestions
 
 
-    #generate answer question set
-    #generate quesiton answer set, no topic generate necessary because in enum
     def generateQuestionAnswerSet(self, topic : QuestionTopic, questionsPerTopic : int) -> dict:
-        '''for topic, generate set amount of questions
-
-            answer would return an index instead of a string because its
-            easier to search and more efficeint
-
-            the prompt for openai should be: give me a question and answer set in json format 
-            about given topic. tell me which one is right answer by giving me an index.
-
-        '''
+        '''from topic, generate set amount of question answer set'''
 
         prompt = f"""
-        Create {questionsPerTopic} questions and answers set in json format about {topic.value}, so 
+        Create {questionsPerTopic} questions and answers set in json format about {topic.value}, so
         the structure should be like this:
         {{
-        "topic": "{"topic value"}",
-        "questions": [
-            {{
-                "question": "question text",
-                "options": ["Option A", "Option B", "Option C", "Option D"],
-                "answer_index": 0 
-            }},
-            // more questions...
-        ]
-        }}
-
-        Example:
-        {{
-            "topic": "Science",
+            "topic": "{{{topic.value}}}",
             "questions": [
-                {
-                    "question": "Which of the following is NOT a state of matter?",
-                    "options": ["Solid", "Liquid", "Gas", "Force"],
-                    "answer_index": 3
-                }
+                {{
+                    "question": "question text",
+                    "options": ["Option A", "Option B", "Option C", "Option D"],
+                    "answerIndex": 0
+                }},
+                "more questions..."
             ]
         }}
 
-        Always mix up where the answer is located in the list of options.
+        An example is like this:
+        {{
+            "topic": "Music",
+            "questions": [
+                {{
+                    "question": "Who is the lead singer of the band Coldplay?",
+                    "options": ["Micheal Jackson", "Chris Martin", "Billy Joel", "Skrillex"],
+                    "answerIndex": 1
+                }}
+            ]
+        }}
+        
+        Always mix up where answerIndex is located in the list of options.
         """
-
-        ans = self.chatGptAdapter.call(prompt)
-
+        
+        #the response in json format
+        ans = self.chatGptAdapter.generateJson(prompt)
+        
+        #parses json to dict
         res = json.loads(ans)
+
         return res
+        
+
 
 
 
