@@ -34,4 +34,7 @@ class CouponsDatabase(DatabaseAdapter):
 
     def addCoupon(self, data: BaseModel):
         self.googleSheetDatabaseAdapter.post(DatabaseType.COUPONS, data)
+
+    def deleteCoupon(self, couponId: str):
+        pass
     

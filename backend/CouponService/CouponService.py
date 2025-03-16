@@ -4,11 +4,14 @@ import time
 
 class CouponService:
     
-    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase) -> None:
+    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, assignedCouponDatabase, couponRedemptionAdapter, customerMessagingProcessor) -> None:
         self.availableOffersAdapter = availableOffersAdapter  
         self.offerSelectionProcessor = offerSelectionProcessor 
         self.couponIdGenerator = couponIdGenerator  
         self.couponsDatabase = couponsDatabase
+        self.assignedCouponDatabase = assignedCouponDatabase
+        self.couponRedemptionAdapter = couponRedemptionAdapter
+        self.customerMessagingProcessor = customerMessagingProcessor
 
     def createCoupon(self, db: Session, storeId: int, gameId: int):
         availableOffers = self.availableOffersAdapter.get(storeId, gameId)
@@ -38,27 +41,29 @@ class CouponService:
     def assignCoupon(self, couponId: str, winnerId: int):
         coupon = self.couponsDatabase.getCouponById(couponId)
 
-        if coupon.assigned:
+        if coupon is None:
+            return {"error: Coupon not found"}
+        
+        if coupon["assigned"]:
             return {"error": "Coupon already assigned"}
 
-        assignedCoupon = Coupon(
-            couponId=couponId,
-            storeId=coupon.storeId,
-            gameId=coupon.gameId,
-            winnerId=winnerId,
-            type=coupon.type,
-            value=coupon.value,
-            productId=coupon.productId,
-            assigned=True,
-            createdAt = coupon.createdAt,
-            expirationDate = coupon.expirationDate
-        )
+        coupon["assigned"] = True
+        coupon["winnerId"] = winnerId
+        self.assignedCouponDatabase.addCoupon(coupon)
 
+        self.couponRedemptionAdapter.redeem(couponId)
+        self.customerMessagingProcessor.sendWinnerCoupon(couponId, winnerId)
 
+        return coupon
 
-    def getCoupon(self, storeId: int, gamerId: int):
-        pass
+    def getCoupon(self, couponId: str):
+        coupon = self.couponsDatabase.getCouponById(couponId)
+
+        if coupon is None:
+            return {"error: Coupon not found"}
+        
+        return coupon
     
-    def destroyCoupon(self, storeId: int, couponId: int):
-        pass
+    def destroyCoupon(self, couponId: str):
+        self.assignedCouponDatabase.deleteCoupon(couponId)
 

@@ -1,6 +1,5 @@
 from CouponService.src.models.Offer import Offer
 
-
 class AvailableOffersAdapter:
     def __init__(self) -> None:
         pass
