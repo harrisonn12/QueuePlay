@@ -10,8 +10,8 @@ class CouponsDatabase(DatabaseAdapter):
         self.database = DatabaseType.COUPONS
         self.googleSheetDatabaseAdapter = googleSheetDatabaseAdapter
 
-    def getCouponById(self, database: DatabaseType, couponId: str):
-        values = self.get(database)  # Retrieve all rows
+    def getCouponById(self, couponId: str) -> Coupon:
+        values = self.googleSheetDatabaseAdapter.get(DatabaseType.COUPONS)  
         for row in values:
             if row[0] == couponId:  
                 try:
@@ -27,7 +27,7 @@ class CouponsDatabase(DatabaseAdapter):
                         createdAt=float(row[8]),
                         expirationDate=str(row[9])
                     )
-                    return coupon.dict()  
+                    return coupon 
                 except ValidationError as e:
                     return {"error": f"Invalid data format: {e}"}
         return None  
