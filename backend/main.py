@@ -6,17 +6,13 @@ from stripe import PaymentIntent
 
 app = FastAPI()
 
-@app.get("/exampleGetAPI")
-def exampleGetAPI() -> str:
-    return "Hello"
+@app.post("/setupDefaultPaymentMethod")
+def setupDefaultPaymentMethod():
+    paymentMethod = PaymentService.createPaymentMethod();
+    setupIntent = PaymentService.createSetupIntent(paymentMethod.id);
+    paymentIntent = PaymentService.createPaymentIntent(setupIntent.customer, paymentMethod.id)
 
-@app.post("/createPaymentMethod")
-def createPaymentMethod():
-    return PaymentService.createPaymentMethod()
-
-@app.post("/createIntent")
-def setUpPaymentIntent(paymentMethodID):
-    return PaymentService.createIntent(paymentMethodID)
+    return paymentIntent;
 
 
 if __name__ == '__main__':
