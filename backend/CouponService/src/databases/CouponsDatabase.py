@@ -1,5 +1,6 @@
+from backend.CouponService.src.databases.Coupon import Coupon
 from backend.commons.enums.DatabaseType import DatabaseType
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from backend.commons import DatabaseAdapter
 from backend.commons.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 
@@ -9,13 +10,28 @@ class CouponsDatabase(DatabaseAdapter):
         self.database = DatabaseType.COUPONS
         self.googleSheetDatabaseAdapter = googleSheetDatabaseAdapter
 
-    def get_coupon_by_id(self, database: DatabaseType, coupon_id: str):
+    def getCouponById(self, database: DatabaseType, couponId: str):
         values = self.get(database)  # Retrieve all rows
         for row in values:
-            if row[0] == coupon_id:  # Assuming coupon_id is in the first column (A)
-                return row
+            if row[0] == couponId:  
+                try:
+                    coupon = Coupon(
+                        couponId=str(row[0]),
+                        storeId=int(row[1]),
+                        gameId=int(row[2]),
+                        winnerId=str(row[3]),
+                        type=str(row[4]),
+                        value=str(row[5]),
+                        productId=int(row[6]),
+                        assigned=bool(row[7]),
+                        createdAt=float(row[8]),
+                        expirationDate=str(row[9])
+                    )
+                    return coupon.dict()  
+                except ValidationError as e:
+                    return {"error": f"Invalid data format: {e}"}
         return None  
 
-    def post(self, data: BaseModel):
+    def addCoupon(self, data: BaseModel):
         self.googleSheetDatabaseAdapter.post(DatabaseType.COUPONS, data)
     
