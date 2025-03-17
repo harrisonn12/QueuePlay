@@ -22,7 +22,7 @@ cardDeets = {
 
 class PaymentService:
     # PaymentMethod object can only be attached to one customer
-    def createPaymentMethod(billingDetails=billingDeets, cardDetails=cardDeets):
+    def createPaymentMethod(self, billingDetails=billingDeets, cardDetails=cardDeets)-> stripe.PaymentMethod:
         stripe.api_key = publishKey
         
         return stripe.PaymentMethod.create(
@@ -32,7 +32,7 @@ class PaymentService:
         )
 
     # Acquires customer payment method without charging
-    def createSetupIntent(paymentMethodId, customerId = customerId):
+    def createSetupIntent(self, paymentMethodId, customerId = customerId) -> stripe.SetupIntent:
         # creating intent requires secret key
         stripe.api_key = secretKey
         
@@ -47,11 +47,11 @@ class PaymentService:
                 confirm=True
             )
         
-        PaymentService.setDefaultPaymentMethod(customerId, paymentMethodId)
+        PaymentService.setDefaultPaymentMethod(self, customerId, paymentMethodId)
         
         return intent
 
-    def setDefaultPaymentMethod(customerId, paymentMethodId):
+    def setDefaultPaymentMethod(self, customerId, paymentMethodId) -> stripe.Customer:
         return stripe.Customer.modify(
             customerId,
             invoice_settings={
@@ -60,7 +60,7 @@ class PaymentService:
         )
     
     # Triggers a charge to a PaymentMethod (upon confirmation)
-    def createPaymentIntent(customerId, paymentMethodId):
+    def createPaymentIntent(self, customerId, paymentMethodId) -> stripe.PaymentIntent:
         stripe.api_key = secretKey;
     
         paymentIntent = stripe.PaymentIntent.create(
@@ -76,12 +76,12 @@ class PaymentService:
 
         return stripe.PaymentIntent.confirm(paymentIntent.id)
 
-    def displayAllSetupIntents():
+    def displayAllSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
         stripe.api_key = secretKey
 
         return stripe.SetupIntent.list()
 
-    def cancelAllSetupIntents():
+    def cancelAllSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
         stripe.api_key = secretKey
 
         # get all SetupIntents
