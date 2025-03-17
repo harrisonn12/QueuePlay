@@ -1,4 +1,5 @@
-import stripe;
+import stripe
+
 
 # Client-side operations
 publishKey ="pk_test_51PRGvfBwG19OgdeMfVJPMyPleuHZ5BpjNWLmY7EeNLhcudaFZIvslqy8NyKa8NOBSkT7n4a6A9Y1qn40HIHLQJt600uKc8qeXR"
