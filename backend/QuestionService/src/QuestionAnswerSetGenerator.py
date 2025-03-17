@@ -1,6 +1,6 @@
 import json
 from QuestionService.src.enums import QuestionTopic
-from commons.adapters import ChatGptAdapter
+from commons.adapters.ChatGptAdapter import ChatGptAdapter
 
 #core logic of how I get answer and question
 class QuestionAnswerSetGenerator:
@@ -8,7 +8,7 @@ class QuestionAnswerSetGenerator:
     def __init__(self, chatGptAdapter : ChatGptAdapter):
         self.chatGptAdapter = chatGptAdapter
 
-    
+
     # def generateAllQuestionAnswerSets(self, topics: list[QuestionTopic], questionsPerTopic: int) -> dict:
     #     #for type hint, cant do list(QuestionTopic) because converts enum to list.
     #     allQuestions = {}
@@ -49,26 +49,14 @@ class QuestionAnswerSetGenerator:
                 }}
             ]
         }}
-        
+
         Always mix up where answerIndex is located in the list of options.
         """
-        
+
         #the response in json format
         ans = self.chatGptAdapter.generateJson(prompt)
-        
+
         #parses json to dict
         res = json.loads(ans)
 
         return res
-        
-
-
-
-
-
-
-
-
-
-
-

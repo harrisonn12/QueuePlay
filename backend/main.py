@@ -1,17 +1,17 @@
 import argparse
-from LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from commons.adapters.ChatGptAdapter import ChatGptAdapter
+from configuration.AppConfig import AppConfig
+from configuration.AppConfig import Stage
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+from LobbyService.LobbyService import LobbyService
+from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from PaymentService.PaymentService import PaymentService
 from QuestionService.QuestionService import QuestionService
-from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+import uvicorn
 from stripe import PaymentIntent
-from LobbyService.LobbyService import LobbyService
-from configuration.AppConfig import AppConfig
-from configuration.AppConfig import Stage
 
 
 app = FastAPI()
@@ -39,10 +39,6 @@ def setupDefaultPaymentMethod():
 
 @app.post("/getQuestionAnswerSet")
 def getQuestionAnswerSet():
-    chatGptAdapter = ChatGptAdapter()
-    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
-    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
-
     return questionService.getQuestionAnswerSet(10)
 
 
@@ -78,4 +74,8 @@ if __name__ == '__main__':
     load_dotenv()
     qrCodeGenerator = QRCodeGenerator(appConfig)
     lobbyService = LobbyService(qrCodeGenerator)
+
+    chatGptAdapter = ChatGptAdapter()
+    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
+    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
     uvicorn.run(app, host="0.0.0.0", port=8000)
