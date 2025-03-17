@@ -20,22 +20,18 @@ app = FastAPI()
 def generateLobbyQRCode(gameSessionId: str) -> str:
     return lobbyService.generateLobbyQRCode(gameSessionId)
 
-
-@app.post("/createPaymentMethod")
-def createPaymentMethod():
-    return PaymentService.createPaymentMethod()
-
-@app.post("/createIntent")
-def setUpPaymentIntent(paymentMethodID):
-    return PaymentService.createIntent(paymentMethodID)
+@app.get("/displaySetupIntents")
+def displaySetupIntents():
+    PaymentService.displayAllSetupIntents()
 
 @app.post("/setupDefaultPaymentMethod")
-def setupDefaultPaymentMethod():
+def generateSetupIntent():
     paymentMethod = PaymentService.createPaymentMethod();
     setupIntent = PaymentService.createSetupIntent(paymentMethod.id);
+    """ 
     paymentIntent = PaymentService.createPaymentIntent(setupIntent.customer, paymentMethod.id)
-
-    return paymentIntent;
+    """
+    return setupIntent
 
 @app.post("/getQuestionAnswerSet")
 def getQuestionAnswerSet():

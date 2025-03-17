@@ -21,7 +21,7 @@ cardDeets = {
     }
 
 class PaymentService:
-    
+    # PaymentMethod object can only be attached to one customer
     def createPaymentMethod(billingDetails=billingDeets, cardDetails=cardDeets):
         stripe.api_key = publishKey
         
@@ -30,9 +30,9 @@ class PaymentService:
             billing_details=billingDetails,
             card=cardDetails
         )
-    
-    # Acquire customer payment method without charging
-    def createSetupIntent(paymentMethodID, customerId = customerId):
+
+    # Acquires customer payment method without charging
+    def createSetupIntent(paymentMethodId, customerId = customerId):
         # creating intent requires secret key
         stripe.api_key = secretKey
         
@@ -42,20 +42,24 @@ class PaymentService:
                     "allow_redirects": "never"
                 },
                 customer = customerId,
-                payment_method = paymentMethodID,
+                payment_method = paymentMethodId,
                 usage="off_session",
                 confirm=True
             )
         
-        stripe.Customer.modify(
-            customerId,
-            invoice_settings={
-                "default_payment_method": paymentMethodID
-            }
-        )
+        PaymentService.setDefaultPaymentMethod(customerId, paymentMethodId)
         
         return intent
 
+    def setDefaultPaymentMethod(customerId, paymentMethodId):
+        return stripe.Customer.modify(
+            customerId,
+            invoice_settings={
+                "default_payment_method": paymentMethodId
+            }
+        )
+    
+    # Triggers a charge to a PaymentMethod (upon confirmation)
     def createPaymentIntent(customerId, paymentMethodId):
         stripe.api_key = secretKey;
     
@@ -72,11 +76,10 @@ class PaymentService:
 
         return stripe.PaymentIntent.confirm(paymentIntent.id)
 
-
     def displayAllSetupIntents():
         stripe.api_key = secretKey
 
-        return stripe.SetupIntent.list();
+        return stripe.SetupIntent.list()
 
     def cancelAllSetupIntents():
         stripe.api_key = secretKey
@@ -91,4 +94,4 @@ class PaymentService:
         for intent in setupIntents:
             stripe.SetupIntent.cancel(intent.id)
 
-        return stripe.SetupIntent.list();
+        return stripe.SetupIntent.list()
