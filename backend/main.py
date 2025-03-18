@@ -7,12 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
-from backend.PaymentService.adapter.PaymentService import PaymentService
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from PaymentService.adapters.StripeAdapter import StripeAdapter as strAdp
 import uvicorn
-from stripe import PaymentIntent
 
+
+stripeAdapter = strAdp()
 
 app = FastAPI()
 
@@ -20,22 +21,16 @@ app = FastAPI()
 def generateLobbyQRCode(gameSessionId: str) -> str:
     return lobbyService.generateLobbyQRCode(gameSessionId)
 
-@app.get("/displaySetupIntents")
-def displaySetupIntents():
-    PaymentService.displayAllSetupIntents()
-
-@app.post("/setupDefaultPaymentMethod")
-def generateSetupIntent():
-    paymentMethod = PaymentService.createPaymentMethod();
-    setupIntent = PaymentService.createSetupIntent(paymentMethod.id);
-    """ 
-    paymentIntent = PaymentService.createPaymentIntent(setupIntent.customer, paymentMethod.id)
-    """
-    return setupIntent
-
 @app.post("/getQuestionAnswerSet")
 def getQuestionAnswerSet():
     return questionService.getQuestionAnswerSet(10)
+
+@app.post("/createNewUser")
+def setupIntent(customerID):
+    # get payment method
+    payment = stripeAdapter.createPaymentMethod()
+    # setup intent
+    return stripeAdapter.createSetupIntent(payment.id, customerID)
 
 
 if __name__ == '__main__':
