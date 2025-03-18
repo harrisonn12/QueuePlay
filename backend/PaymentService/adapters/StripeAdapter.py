@@ -1,6 +1,7 @@
 import stripe
 import os
-from ..enums.StripeTestDeets import StripeTestDeets as STD
+from ..testData.StripeTestDeets import StripeTestDeets as STD
+from ..exceptions.PaymentMethodExistsException import PaymentMethodExistsException
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,12 +22,13 @@ class StripeAdapter:
             card=cardDetails
         )
 
-    # Acquires customer payment method without charging
-    def createSetupIntent(self, paymentMethodId, customerId = STD.CUSTOMERID) -> stripe.SetupIntent:
+    # Acquires payment method without charging and attaches to a customer
+    def createSetupIntent(self, paymentMethodId, customerId = STD.CUSTOMERID, defaultMethod=True) -> stripe.SetupIntent:
         # creating intent requires secret key
         stripe.api_key = self.SECRETKEY
         
-        intent = stripe.SetupIntent.create(
+        try:
+            intent = stripe.SetupIntent.create(
                 automatic_payment_methods={
                     "enabled": True,
                     "allow_redirects": "never"
@@ -34,12 +36,55 @@ class StripeAdapter:
                 customer = customerId,
                 payment_method = paymentMethodId,
                 usage="off_session",
-                confirm=True
             )
+            
+            if self.customerHasThisPaymentMethod(customerId, paymentMethodId):
+                raise PaymentMethodExistsException('Customer already has this payment card.', paymentMethodId, intent.id)
+            
+            stripe.SetupIntent.confirm(intent.id, paymentMethodId)
+            
+            if defaultMethod:
+                self.setDefaultPaymentMethod(customerId, paymentMethodId)
+            
+            return intent
+        except PaymentMethodExistsException as e:
+            print(f"Unexpected Error: {str(e)}")
+            stripe.SetupIntent.cancel(e.setupIntentId)
+            return None
+        except Exception as e:
+            print(f"Unexpected Error: {str(e)}")
+            return None
         
-        self.setDefaultPaymentMethod(self, customerId, paymentMethodId)
+    def getPaymentMethodFingerPrint(self, paymentMethodId)->str:
+        try:
+            paymentMethod = stripe.PaymentMethod.retrieve(paymentMethodId)
+            paymentType = paymentMethod.type
+            return paymentMethod[paymentType].fingerprint
+        except Exception as e:
+            print(f"Unable to retrieve payment method fingerprint: {str(e)}")
+            return None
+
+    def customerHasThisPaymentMethod(self, customerId, paymentMethodId):
+        stripe.api_key = self.SECRETKEY
+
+        # get card fingerprint of new payment method
+        newPrint = self.getPaymentMethodFingerPrint(paymentMethodId)
         
-        return intent
+        # if new payment method does not have a fingerprint
+        if newPrint == None:
+            return False
+        
+        # get payment method list from customer
+        paymentMethods = stripe.Customer.list_payment_methods(customerId).data
+        if len(paymentMethods) == 0: return False
+
+        # check if customer has payment method
+        for method in paymentMethods:
+            existingPrint = self.getPaymentMethodFingerPrint(method.id)
+            if existingPrint == newPrint:
+                return True
+        
+        return False
 
     def setDefaultPaymentMethod(self, customerId, paymentMethodId) -> stripe.Customer:
         return stripe.Customer.modify(

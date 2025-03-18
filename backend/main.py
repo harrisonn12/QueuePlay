@@ -26,13 +26,11 @@ def getQuestionAnswerSet():
     return questionService.getQuestionAnswerSet(10)
 
 @app.post("/createNewUser")
-def createNewUser(name, email):
-    user = {
-        "name": name,
-        "email": email
-    }
-
-    return stripeAdapter.createCustomer(user)
+def setupIntent(customerID):
+    # get payment method
+    payment = stripeAdapter.createPaymentMethod()
+    # setup intent
+    return stripeAdapter.createSetupIntent(payment.id, customerID)
 
 
 if __name__ == '__main__':
