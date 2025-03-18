@@ -1,10 +1,19 @@
 import stripe
+import os
 from ..enums.StripeTestDeets import StripeTestDeets as STD
+from dotenv import load_dotenv
 
-class PaymentService:
+load_dotenv()
+
+class StripeAdapter:
+    def __init__(self):
+        # Stripe Keys
+        self.PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+        self.SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
+
     # PaymentMethod object can only be attached to one customer
     def createPaymentMethod(self, billingDetails=STD.BILLINGDEETS, cardDetails=STD.CARDDEETS)-> stripe.PaymentMethod:
-        stripe.api_key = STD.PUBLISHKEY
+        stripe.api_key = self.PUBLISHKEY
         
         return stripe.PaymentMethod.create(
             type="card",
@@ -15,7 +24,7 @@ class PaymentService:
     # Acquires customer payment method without charging
     def createSetupIntent(self, paymentMethodId, customerId = STD.CUSTOMERID) -> stripe.SetupIntent:
         # creating intent requires secret key
-        stripe.api_key = STD.SECRETKEY
+        stripe.api_key = self.SECRETKEY
         
         intent = stripe.SetupIntent.create(
                 automatic_payment_methods={
@@ -28,7 +37,7 @@ class PaymentService:
                 confirm=True
             )
         
-        PaymentService.setDefaultPaymentMethod(self, customerId, paymentMethodId)
+        self.setDefaultPaymentMethod(self, customerId, paymentMethodId)
         
         return intent
 
@@ -42,7 +51,7 @@ class PaymentService:
     
     # Triggers a charge to a PaymentMethod (upon confirmation)
     def createPaymentIntent(self, customerId, paymentMethodId) -> stripe.PaymentIntent:
-        stripe.api_key = STD.SECRETKEY;
+        stripe.api_key = self.SECRETKEY
     
         paymentIntent = stripe.PaymentIntent.create(
             amount=985,
@@ -58,12 +67,12 @@ class PaymentService:
         return stripe.PaymentIntent.confirm(paymentIntent.id)
 
     def displayAllSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
-        stripe.api_key = STD.SECRETKEY
+        stripe.api_key = self.SECRETKEY
 
         return stripe.SetupIntent.list()
 
     def cancelAllSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
-        stripe.api_key = STD.SECRETKEY
+        stripe.api_key = self.SECRETKEY
 
         # get all SetupIntents
         setupIntents = stripe.SetupIntent.list().data
@@ -76,3 +85,19 @@ class PaymentService:
             stripe.SetupIntent.cancel(intent.id)
 
         return stripe.SetupIntent.list()
+    
+    def createCustomer(self, user) -> stripe.Customer:
+        stripe.api_key = self.SECRETKEY
+
+        try:
+            customer = stripe.Customer.create(
+                name = user.get('name'),
+                email = user.get('email')
+            )
+
+            return customer
+        except Exception as e:
+            # print(f"Unexpected error: {str(e)}")
+            return str(e)
+
+

@@ -13,7 +13,7 @@ class StripeTestDeets(Enum):
         "email": "dandcalvo@gmail.com"
     }
 
-    # Card Details
+    # Card Details; Test Card
     CARDDEETS={
         "number": "378282246310005",
         "exp_month": "02",
