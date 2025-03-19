@@ -12,8 +12,8 @@ class StripeAdapter:
         self.PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
         self.SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
 
-    # PaymentMethod object can only be attached to one customer
-    def createPaymentMethod(self, billingDetails=STD.BILLINGDEETS, cardDetails=STD.CARDDEETS)-> stripe.PaymentMethod:
+    def createPaymentMethod(self, billingDetails=STD.BILLINGDEETS, cardDetails=STD.CARDDEETS2)-> stripe.PaymentMethod:
+        """ PaymentMethod object can only be attached to one customer """
         stripe.api_key = self.PUBLISHKEY
         
         return stripe.PaymentMethod.create(
@@ -22,8 +22,8 @@ class StripeAdapter:
             card=cardDetails
         )
 
-    # Acquires payment method without charging and attaches to a customer
     def createSetupIntent(self, paymentMethodId, customerId = STD.CUSTOMERID, defaultMethod=True) -> stripe.SetupIntent:
+        """ Acquires payment method without charging and attaches to a customer; Use Payment Intent if charging immediately. """
         # creating intent requires secret key
         stripe.api_key = self.SECRETKEY
         
@@ -47,14 +47,24 @@ class StripeAdapter:
                 self.setDefaultPaymentMethod(customerId, paymentMethodId)
             
             return intent
+        
         except PaymentMethodExistsException as e:
             print(f"Unexpected Error: {str(e)}")
             stripe.SetupIntent.cancel(e.setupIntentId)
             return None
+        
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return None
         
+    def detachPaymentMethod(paymentMethodId: str) -> bool:
+        try:
+            stripe.PaymentMethod.detach(paymentMethodId)
+            return True
+        except Exception as e:
+            print(f'Unable to detach: {str(e)}')
+            return False
+
     def getPaymentMethodFingerPrint(self, paymentMethodId)->str:
         try:
             paymentMethod = stripe.PaymentMethod.retrieve(paymentMethodId)
@@ -94,24 +104,25 @@ class StripeAdapter:
             }
         )
     
-    # Triggers a charge to a PaymentMethod (upon confirmation)
-    def createPaymentIntent(self, customerId, paymentMethodId) -> stripe.PaymentIntent:
+    def createPaymentIntent(self, customerId, paymentMethodId, chargeAmt = 999) -> stripe.PaymentIntent:
+        """ Triggers a charge to a PaymentMethod (upon confirmation) """
         stripe.api_key = self.SECRETKEY
     
         paymentIntent = stripe.PaymentIntent.create(
-            amount=985,
+            amount=chargeAmt,
             currency="usd",
             customer=customerId,
             payment_method=paymentMethodId,
             automatic_payment_methods={
                 "enabled": True,
                 "allow_redirects": "never"
-            }
+            },
+            setup_future_usage="off_session"
         )
 
         return stripe.PaymentIntent.confirm(paymentIntent.id)
 
-    def displayAllSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
+    def getAllSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
         stripe.api_key = self.SECRETKEY
 
         return stripe.SetupIntent.list()
@@ -129,20 +140,20 @@ class StripeAdapter:
         for intent in setupIntents:
             stripe.SetupIntent.cancel(intent.id)
 
-        return stripe.SetupIntent.list()
+        return self.getAllSetupIntents()
     
     def createCustomer(self, user) -> stripe.Customer:
         stripe.api_key = self.SECRETKEY
 
         try:
             customer = stripe.Customer.create(
-                name = user.get('name'),
-                email = user.get('email')
+                name = user.get('name', ''),
+                email = user.get('email', '')
             )
 
             return customer
         except Exception as e:
-            # print(f"Unexpected error: {str(e)}")
+            print(f"Unexpected error: {str(e)}")
             return str(e)
 
 

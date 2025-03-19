@@ -9,13 +9,20 @@ from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from PaymentService.adapters.StripeAdapter import StripeAdapter as strAdp
+from PaymentService.PaymentService import PaymentService
+from PaymentService.adapters.StripeAdapter import StripeAdapter
 import uvicorn
 
+tags_metadata = [
+    {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
+    {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
+]
 
-stripeAdapter = strAdp()
+paymentService = PaymentService()
+stripeAdapter = StripeAdapter()
 
 app = FastAPI()
+app = FastAPI(openapi_tags=tags_metadata)
 
 @app.get("/generateLobbyQRCode")
 def generateLobbyQRCode(gameSessionId: str) -> str:
@@ -25,12 +32,15 @@ def generateLobbyQRCode(gameSessionId: str) -> str:
 def getQuestionAnswerSet():
     return questionService.getQuestionAnswerSet(10)
 
-@app.post("/createNewUser")
-def setupIntent(customerID):
-    # get payment method
-    payment = stripeAdapter.createPaymentMethod()
-    # setup intent
-    return stripeAdapter.createSetupIntent(payment.id, customerID)
+@app.post("/createNewUser", tags=["Payment Service"])
+def createNewUser(name: str, email: str):
+    """ Generate a new user account """
+    return paymentService.createAccount(name, email)
+
+@app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def deletePaymentMethod(paymenMethodId):
+    """ Detaches a payment method from Customer """
+    return stripeAdapter.detachPaymentMethod(paymenMethodId)
 
 
 if __name__ == '__main__':
