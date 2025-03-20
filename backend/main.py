@@ -9,8 +9,12 @@ from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+
+""" PaymentService """
 from PaymentService.PaymentService import PaymentService
 from PaymentService.adapters.StripeAdapter import StripeAdapter
+""" PaymentService """
+
 import uvicorn
 
 tags_metadata = [
@@ -37,10 +41,37 @@ def createNewUser(name: str, email: str):
     """ Generate a new user account """
     return paymentService.createAccount(name, email)
 
+@app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
+    """ Attach Payment Method to a Customer"""
+    return paymentService.addPaymentMethod(customerId, paymentId, defaultMethod)
+
 @app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
-def deletePaymentMethod(paymenMethodId):
-    """ Detaches a payment method from Customer """
-    return stripeAdapter.detachPaymentMethod(paymenMethodId)
+def deletePaymentMethod(paymentMethodId):
+    """ Detaches a Payment Method from Customer; Not Retachable """
+    return stripeAdapter.detachPaymentMethod(paymentMethodId)
+
+@app.post("/createPaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def createPaymentMethod(
+    cardNumber: str,
+    expMonth: str = "04",
+    expYear: str = "2044",
+    cvc: str = "939"):
+    """ Generate a Payment Method """
+    
+    cardDetails = {
+        "number": cardNumber,
+        "exp_month": expMonth,
+        "exp_year": expYear,
+        "cvc": cvc
+    }
+
+    return stripeAdapter.createPaymentMethod(cardDetails)
+
+@app.post("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
+def listPaymentMethod():
+    """ Display all Payment Methods """
+    return stripeAdapter.listPaymentMethods()
 
 
 if __name__ == '__main__':

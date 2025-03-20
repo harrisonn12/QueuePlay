@@ -19,10 +19,10 @@ class PaymentService:
 
         return f'New customer ID: {stripeCustomer.id}'
     
-    def addCustomerPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
+    def addPaymentMethod(self, customerId: str, paymentId: str, defaultMethod: bool):
         """ Attach a Stripe Payment Method to a Stripe Customer """
         try:
-            stripeAdapter.createSetupIntent(paymentId, customerId, defaultMethod)
+            return stripeAdapter.createSetupIntent(paymentId, customerId, defaultMethod)
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return False

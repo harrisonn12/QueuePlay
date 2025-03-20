@@ -14,9 +14,9 @@ class StripeTestDeets():
     # Card Details; Test Card
     CARDDEETS={
         "number": "378282246310005",
-        "exp_month": "02",
-        "exp_year": "2035",
-        "cvc": "215"
+        "exp_month": "03",
+        "exp_year": "2026",
+        "cvc": "587"
     }
 
     CARDDEETS2={
