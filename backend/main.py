@@ -41,15 +41,15 @@ def createNewUser(name: str, email: str):
     """ Generate a new user account """
     return paymentService.createAccount(name, email)
 
+@app.get("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
+def listPaymentMethod(customerId):
+    """ Display all Payment Methods """
+    return stripeAdapter.listPaymentMethods(customerId)
+
 @app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
     """ Attach Payment Method to a Customer"""
     return paymentService.addPaymentMethod(customerId, paymentId, defaultMethod)
-
-@app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
-def deletePaymentMethod(paymentMethodId):
-    """ Detaches a Payment Method from Customer; Not Retachable """
-    return stripeAdapter.detachPaymentMethod(paymentMethodId)
 
 @app.post("/createPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def createPaymentMethod(
@@ -68,11 +68,15 @@ def createPaymentMethod(
 
     return stripeAdapter.createPaymentMethod(cardDetails)
 
-@app.post("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
-def listPaymentMethod():
-    """ Display all Payment Methods """
-    return stripeAdapter.listPaymentMethods()
+@app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def deletePaymentMethod(paymentMethodId):
+    """ Detaches a Payment Method from Customer; Not Retachable """
+    return stripeAdapter.detachPaymentMethod(paymentMethodId)
 
+@app.delete("/deleteAllPaymentMethods", tags=["Payment Service: Stripe Adapter"])
+def deleteAllPaymentMethods(customerId):
+    """ Detaches all Payment Methods attached to a Customer """
+    return stripeAdapter.detachAllPaymentMethods(customerId)
 
 if __name__ == '__main__':
 

@@ -1,7 +1,7 @@
 import stripe
 import os
 from ..testData.StripeTestDeets import StripeTestDeets as STD
-from ..exceptions.PaymentMethodExistsException import PaymentMethodExistsException
+from ..exceptions.DuplicatePaymentException import DuplicatePaymentException
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,29 +27,28 @@ class StripeAdapter:
         stripe.api_key = self.SECRETKEY
         
         try:
-            stripe.PaymentMethod.attach(paymentMethodId, customer=customerId) # double check
-            
+            if self.customerHasThisPaymentMethod(customerId, paymentMethodId):
+                raise DuplicatePaymentException('Customer already has this payment card', paymentMethodId, customerId)
+
             intent = stripe.SetupIntent.create(
                 automatic_payment_methods={
                     "enabled": True,
                     "allow_redirects": "never"
                 },
+                confirm=True,
                 customer = customerId,
                 payment_method = paymentMethodId,
                 usage="off_session",
             )
 
-            if self.customerHasThisPaymentMethod(customerId, paymentMethodId):
-                raise PaymentMethodExistsException('Customer already has this payment card.', paymentMethodId, intent.id)
             
             if defaultMethod:
                 self.setDefaultPaymentMethod(customerId, paymentMethodId)
             
-            return stripe.SetupIntent.confirm(intent.id, payment_method=paymentMethodId)
+            return intent
 
-        except PaymentMethodExistsException as e:
-            print(f"Unexpected Error: {str(e)}")
-            stripe.SetupIntent.cancel(e.setupIntentId)
+        except DuplicatePaymentException as e:
+            print(e)
             return None
         
         except Exception as e:
@@ -65,12 +64,26 @@ class StripeAdapter:
         except Exception as e:
             print(f'Unable to detach: {str(e)}')
             return False
+        
+    def detachAllPaymentMethods(self, customerId) -> None:
+        stripe.api_key = self.SECRETKEY
+
+        try:
+            methods = stripe.Customer.list_payment_methods(customerId).data
+
+            for method in methods:
+                id = method.id
+                self.detachPaymentMethod(id)
+        except Exception as e:
+            print(f'Unable to detach all payment methods: {str(e)}')
 
     def getPaymentMethodFingerPrint(self, paymentMethodId)->str:
         try:
             paymentMethod = stripe.PaymentMethod.retrieve(paymentMethodId)
             paymentType = paymentMethod.type
-            return paymentMethod[paymentType].fingerprint
+            fingerprint = paymentMethod[paymentType].fingerprint
+
+            return fingerprint
         except Exception as e:
             print(f"Unable to retrieve payment method fingerprint: {str(e)}")
             return None
@@ -123,10 +136,12 @@ class StripeAdapter:
 
         return stripe.PaymentIntent.confirm(paymentIntent.id)
 
-    def listPaymentMethods(self) -> stripe.ListObject[stripe.PaymentMethod]:
+    def listPaymentMethods(self, customerId) -> stripe.ListObject[stripe.PaymentMethod]:
         stripe.api_key = self.SECRETKEY
 
-        return stripe.PaymentMethod.list()
+        return stripe.PaymentMethod.list(
+            customer=customerId
+        )
 
     def listSetupIntents(self) -> stripe.ListObject[stripe.PaymentIntent]:
         stripe.api_key = self.SECRETKEY
