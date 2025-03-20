@@ -1,10 +1,10 @@
 import './App.css';
-import { StripePaymentInformationSubmitter } from './components/StripePaymentInformationSubmitter';
+import { CheckoutForm } from './components/CheckoutForm';
 
 function App() {
     return (
         <>
-            <StripePaymentInformationSubmitter />
+            <CheckoutForm />
         </>
     );
 }
