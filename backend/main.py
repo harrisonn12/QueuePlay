@@ -25,7 +25,6 @@ tags_metadata = [
 paymentService = PaymentService()
 stripeAdapter = StripeAdapter()
 
-app = FastAPI()
 app = FastAPI(openapi_tags=tags_metadata)
 
 @app.get("/generateLobbyQRCode")
