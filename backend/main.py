@@ -9,21 +9,14 @@ from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-
-""" PaymentService """
 from PaymentService.PaymentService import PaymentService
 from PaymentService.adapters.StripeAdapter import StripeAdapter
-""" PaymentService """
-
 import uvicorn
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
     {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
 ]
-
-paymentService = PaymentService()
-stripeAdapter = StripeAdapter()
 
 app = FastAPI(openapi_tags=tags_metadata)
 
@@ -113,4 +106,8 @@ if __name__ == '__main__':
     chatGptAdapter = ChatGptAdapter()
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
+
+    paymentService = PaymentService()
+    stripeAdapter = StripeAdapter()
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
