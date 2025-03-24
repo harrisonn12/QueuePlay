@@ -1,4 +1,3 @@
-import './App.css';
 import { CheckoutForm } from './components/CheckoutForm';
 
 function App() {
