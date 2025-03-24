@@ -25,5 +25,3 @@ class PaymentService:
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return False
-        
-        return True

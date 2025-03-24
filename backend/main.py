@@ -14,12 +14,10 @@ from PaymentService.adapters.StripeAdapter import StripeAdapter
 
 import stripe
 import os
-
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
-""" PaymentService """
-
 import uvicorn
+
+stripeAdapter = StripeAdapter()
+paymentService = PaymentService()
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
@@ -41,30 +39,14 @@ def createNewUser(name: str, email: str):
     """ Generate a new user account """
     return paymentService.createAccount(name, email)
 
-@app.route('/create-checkout-session', methods=['POST'], tags=["Payment Service"])
-def create_checkout_session():
-    try:
-        session = stripe.checkout.Session.create(
-            ui_mode = 'embedded',
-            line_items=[
-                {
-                    # Provide the exact Price ID (for example, pr_1234) of the product you want to sell
-                    'price': '{{PRICE_ID}}',
-                    'quantity': 1,
-                },
-            ],
-            mode='payment',
-            return_url=YOUR_DOMAIN + '/return?session_id={CHECKOUT_SESSION_ID}',
-        )
-    except Exception as e:
-        return str(e)
-    
-    return session.client_secret
-
 @app.get("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
-def listPaymentMethod(customerId):
+def listPaymentMethod(customerId: str):
     """ Display all Payment Methods """
     return stripeAdapter.listPaymentMethods(customerId)
+
+@app.put("/createPaymentIntent", tags=["Payment Service: Stripe Adapter"])
+def createPaymentIntent(customerId, paymentMethodId, charge):
+    return stripeAdapter.createPaymentIntent(customerId, paymentMethodId, charge)
 
 @app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
@@ -136,6 +118,6 @@ if __name__ == '__main__':
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
 
     paymentService = PaymentService()
-    stripeAdapter = StripeAdapter()
+    stripeAdapter = stripeAdapter()
     
     uvicorn.run(app, host="0.0.0.0", port=8000)

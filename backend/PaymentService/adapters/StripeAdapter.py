@@ -126,6 +126,7 @@ class StripeAdapter:
             amount=chargeAmt,
             currency="usd",
             customer=customerId,
+            confirm=True,
             payment_method=paymentMethodId,
             automatic_payment_methods={
                 "enabled": True,
@@ -134,7 +135,8 @@ class StripeAdapter:
             setup_future_usage="off_session"
         )
 
-        return stripe.PaymentIntent.confirm(paymentIntent.id)
+        """ return stripe.PaymentIntent.confirm(paymentIntent.id) """
+        return paymentIntent
 
     def listPaymentMethods(self, customerId) -> stripe.ListObject[stripe.PaymentMethod]:
         stripe.api_key = self.SECRETKEY
