@@ -2,7 +2,6 @@ from .adapters.StripeAdapter import StripeAdapter
 
 stripeAdapter = StripeAdapter()
 
-
 class PaymentService:
     def createAccount(self, name, email):
         user = {"name": name, "email": email}

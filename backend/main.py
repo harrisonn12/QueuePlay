@@ -13,6 +13,12 @@ from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGene
 """ PaymentService """
 from PaymentService.PaymentService import PaymentService
 from PaymentService.adapters.StripeAdapter import StripeAdapter
+
+import stripe
+import os
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
 """ PaymentService """
 
 import uvicorn
@@ -39,6 +45,26 @@ def getQuestionAnswerSet():
 def createNewUser(name: str, email: str):
     """ Generate a new user account """
     return paymentService.createAccount(name, email)
+
+@app.route('/create-checkout-session', methods=['POST'], tags=["Payment Service"])
+def create_checkout_session():
+    try:
+        session = stripe.checkout.Session.create(
+            ui_mode = 'embedded',
+            line_items=[
+                {
+                    # Provide the exact Price ID (for example, pr_1234) of the product you want to sell
+                    'price': '{{PRICE_ID}}',
+                    'quantity': 1,
+                },
+            ],
+            mode='payment',
+            return_url=YOUR_DOMAIN + '/return?session_id={CHECKOUT_SESSION_ID}',
+        )
+    except Exception as e:
+        return str(e)
+    
+    return session.client_secret
 
 @app.get("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
 def listPaymentMethod(customerId):
