@@ -41,7 +41,7 @@ from routers import StripeRouter, PaymentDatabaseRouter, PaymentServiceRouter
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
     {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
-    {"name": "Supabase", "description": "Database actions"},
+    {"name": "Payment Service: Supabase", "description": "Database actions"},
 ]
 from pydantic import BaseModel
 
@@ -61,9 +61,9 @@ class GetCouponRequest(BaseModel):
 class DestroyCouponRequest(BaseModel):
     couponId: str
 
-app.include_router(StripeRouter.router)
-app.include_router(PaymentDatabaseRouter.router)
 app.include_router(PaymentServiceRouter.router)
+app.include_router(PaymentDatabaseRouter.router)
+app.include_router(StripeRouter.router)
 
 @app.get("/generateLobbyQRCode")
 def generateLobbyQRCode(gameSessionId: str) -> str:

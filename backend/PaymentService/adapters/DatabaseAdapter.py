@@ -10,4 +10,4 @@ class DatabaseAdapter():
         self.supabase: Client = create_client(self.url, self.key)
 
     def firstFetch(self, table = Database.clients):
-        return self.supabase.table(table).select("*").execute()
+        return self.supabase.table(Database.clients).select("*").execute()
