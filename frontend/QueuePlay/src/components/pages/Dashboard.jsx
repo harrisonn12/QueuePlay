@@ -1,11 +1,12 @@
 import { LogoutButton } from '../LogoutButton';
-import Profile from '../Profile';
+import Profile from '../features/Profile';
 
-export function Dashboard() {
+export const Dashboard = ({ children }) => {
     return (
         <>
             <LogoutButton />
             <Profile />
+            {children}
         </>
     );
-}
+};

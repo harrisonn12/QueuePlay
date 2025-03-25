@@ -3,14 +3,9 @@ from .adapters.StripeAdapter import StripeAdapter
 stripeAdapter = StripeAdapter()
 
 class PaymentService:
-    def createAccount(self, name, email):
-        user = {"name": name, "email": email}
-
-        # Auth0 generate account
-            # checks for existing user
-            # raise error if user exists
-            # cancel everything
-
+    def createAccount(self, auth0ID):
+        """ Use Auth0 user ID to create a new Stripe Customer """
+        
         # Create Stripe customer
         stripeCustomer = stripeAdapter.createCustomer(user)
 
