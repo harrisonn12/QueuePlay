@@ -1,6 +1,6 @@
 from enum import Enum
 
 class Database(Enum):
-    clients = ''
-    membership = ''
-    offers = ''
+    clients = 'clients'
+    membership = 'membership'
+    offers = 'offers'
