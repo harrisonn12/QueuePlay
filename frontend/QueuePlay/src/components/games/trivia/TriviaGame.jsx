@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Question from './components/Question.jsx';
-import QuestionService from '../../services/QuestionService';
+import QuestionService from '../../../services/QuestionService.jsx';
 
 const TriviaGame = () => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);

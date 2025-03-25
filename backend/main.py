@@ -19,6 +19,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from routers import StripeRouter, PaymentDatabaseRouter, PaymentServiceRouter
 import argparse, uvicorn
+from LobbyService.LobbyService import LobbyService
+from LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from QuestionService.QuestionService import QuestionService
+from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from PaymentService.PaymentService import PaymentService
+from PaymentService.adapters.StripeAdapter import StripeAdapter
+
+import stripe
+import os
+import uvicorn
+
+
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
@@ -131,4 +143,7 @@ if __name__ == '__main__':
     couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
     
     gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
+    paymentService = PaymentService()
+    stripeAdapter = StripeAdapter()
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
