@@ -1,9 +1,20 @@
+<<<<<<< HEAD
 import argparse
 from CouponService.src.databases.CouponsDatabase import CouponsDatabase
+=======
+import argparse, uvicorn
+from commons.adapters.ChatGptAdapter import ChatGptAdapter
+from configuration.AppConfig import AppConfig
+from configuration.AppConfig import Stage
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+>>>>>>> c0b4eea (fix: create routers for FastAPI to clean up main file)
 from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+<<<<<<< HEAD
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
@@ -22,17 +33,15 @@ import uvicorn
 from PaymentService.PaymentService import PaymentService
 from PaymentService.adapters.StripeAdapter import StripeAdapter
 from fastapi.middleware.cors import CORSMiddleware
+=======
+from routers import StripeRouter, PaymentDatabaseRouter, PaymentServiceRouter
+>>>>>>> c0b4eea (fix: create routers for FastAPI to clean up main file)
 
-import stripe
-import os
-import uvicorn
-
-stripeAdapter = StripeAdapter()
-paymentService = PaymentService()
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
     {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
+    {"name": "Supabase", "description": "Database actions"},
 ]
 from pydantic import BaseModel
 
@@ -52,6 +61,10 @@ class GetCouponRequest(BaseModel):
 class DestroyCouponRequest(BaseModel):
     couponId: str
 
+app.include_router(StripeRouter.router)
+app.include_router(PaymentDatabaseRouter.router)
+app.include_router(PaymentServiceRouter.router)
+
 @app.get("/generateLobbyQRCode")
 def generateLobbyQRCode(gameSessionId: str) -> str:
     return lobbyService.generateLobbyQRCode(gameSessionId)
@@ -60,6 +73,7 @@ def generateLobbyQRCode(gameSessionId: str) -> str:
 def getQuestionAnswerSet():
     return questionService.getQuestionAnswerSet(10)
 
+<<<<<<< HEAD
 @app.post("/createNewUser", tags=["Payment Service"])
 def createNewUser(name: str, email: str):
     """ Generate a new user account """
@@ -107,6 +121,8 @@ def getCoupon(getCouponRequest: GetCouponRequest):
 def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
     return couponService.destroyCoupon(destroyCouponRequest.couponId)
 
+=======
+>>>>>>> c0b4eea (fix: create routers for FastAPI to clean up main file)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configure environment for the application.')
     parser.add_argument('--env', type=str, choices=['dev', 'prod'], default='dev', help='Select the environment: dev or prod')
@@ -142,9 +158,12 @@ if __name__ == '__main__':
     chatGptAdapter = ChatGptAdapter()
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
+<<<<<<< HEAD
 
     paymentService = PaymentService()
     stripeAdapter = StripeAdapter()
+=======
+>>>>>>> c0b4eea (fix: create routers for FastAPI to clean up main file)
     
     availableOffersAdapter = AvailableOffersAdapter()
     offerSelectionProcessor = OfferSelectionProcessor()
