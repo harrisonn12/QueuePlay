@@ -16,8 +16,7 @@ import stripe
 import os
 import uvicorn
 
-stripeAdapter = StripeAdapter()
-paymentService = PaymentService()
+
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
@@ -118,6 +117,6 @@ if __name__ == '__main__':
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
 
     paymentService = PaymentService()
-    stripeAdapter = stripeAdapter()
+    stripeAdapter = StripeAdapter()
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
