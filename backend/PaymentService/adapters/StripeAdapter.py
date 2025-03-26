@@ -1,6 +1,5 @@
 import stripe
 import os
-from ..testData.StripeTestDeets import StripeTestDeets as STD
 from ..exceptions.DuplicatePaymentException import DuplicatePaymentException
 from dotenv import load_dotenv
 
@@ -12,7 +11,7 @@ class StripeAdapter:
         self.PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
         self.SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
 
-    def createPaymentMethod(self, cardDetails: dict, billingDetails=STD.BILLINGDEETS)-> stripe.PaymentMethod:
+    def createPaymentMethod(self, cardDetails: dict, billingDetails)-> stripe.PaymentMethod:
         """ PaymentMethod object can only be attached to one customer """
         stripe.api_key = self.PUBLISHKEY
         
@@ -22,7 +21,7 @@ class StripeAdapter:
             billing_details=billingDetails,
         )
 
-    def createSetupIntent(self, paymentMethodId, customerId = STD.CUSTOMERID, defaultMethod=True) -> stripe.SetupIntent:
+    def createSetupIntent(self, paymentMethodId, customerId, defaultMethod=True) -> stripe.SetupIntent:
         """ Acquires payment method without charging and attaches to a customer; Use Payment Intent if charging immediately. """
         stripe.api_key = self.SECRETKEY
         
