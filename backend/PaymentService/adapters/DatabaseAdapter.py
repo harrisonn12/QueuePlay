@@ -7,7 +7,41 @@ class DatabaseAdapter():
     def __init__(self):
         self.url: str = os.environ.get("SUPABASE_URL")
         self.key: str = os.environ.get("SUPABASE_KEY")
+
         self.supabase: Client = create_client(self.url, self.key)
 
-    def firstFetch(self, table = Database.clients.value):
-        return self.supabase.table(table).select("*").execute()
+        self.email: str = os.environ.get("SUPABASE_USERNAME")
+        self.password: str = os.environ.get("SUPABASE_PASSWORD")
+        
+        self.supabase.auth.sign_in_with_password({
+            "email": self.email,
+            "password": self.password,
+        })
+
+    def getTable(self, table):
+        response = (
+            self.supabase.table(table)
+            .select("*")
+            .execute()
+        )
+
+        return response
+    
+    def insertData(self, table, data):
+        response = (
+            self.supabase.table(table)
+            .insert(data)
+            .execute()
+        )
+
+        return response
+    
+    def deleteData(self, table, field, value):
+        response = (
+            self.supabase.table(table)
+            .delete()
+            .eq(field, value)
+            .execute()
+        )
+
+        return response

@@ -11,5 +11,20 @@ router = APIRouter(
 databaseAdapter = DatabaseAdapter()
 
 @router.get('/')
-def firstFetch():
-    return databaseAdapter.firstFetch()
+def getTable(table = 'membership'):
+    return databaseAdapter.getTable(table)
+
+@router.put('/insert')
+def insertData(
+        table = 'membership' ,
+        data = {"tier_name": "super max ultra+",}
+    ):
+    return databaseAdapter.insertData(table, data)
+
+@router.delete('/deleteData')
+def deleteData(
+        table = 'membership',
+        field = 'tier_name',
+        data = 'super max ultra+'
+    ):
+    return databaseAdapter.deleteData(table, field, data)
