@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
 import time
+from CouponService.src.databases.Coupon import Coupon
 
 class CouponService:
     
@@ -19,14 +19,14 @@ class CouponService:
             raise ValueError("No available coupons for this store")
 
         chosenOffer = self.offerSelectionProcessor.pick(availableOffers)
-        couponId = self.couponIdGenerator.generate(storeId)
+        couponId = self.couponIdGenerator.generate(storeId, gameId)
 
         newCoupon = Coupon(
             couponId=couponId,
             storeId=storeId,
             gameId=gameId,
-            winnerId=None,
-            type=chosenOffer.type,
+            winnerId="no winner",  # If set to 'None', posting to Google Sheets starts at the wrong column starting at row 2
+            type=chosenOffer.offerType,
             value=chosenOffer.value,
             productId=chosenOffer.productId,
             assigned=False,
@@ -37,12 +37,12 @@ class CouponService:
         self.couponsDatabase.addCoupon(newCoupon)
         return newCoupon.__dict__
     
+    # Currently just adding a new row to database instead of modifying old row's assigned value / winnerId
     def assignCoupon(self, couponId: str, winnerId: int):
         coupon = self.couponsDatabase.getCouponById(couponId)
 
         if coupon is None:
             raise ValueError("Coupon not found")
-        
         if coupon.assigned:
             raise ValueError("Coupon already assigned")
 
@@ -57,7 +57,8 @@ class CouponService:
         return coupon
 
     def getCoupon(self, storeId: int, gamerId: str):
-        coupon = self.assignedCouponsDatabase.getCoupon(storeId, gamerId)
+        print("hiiiiii")
+        coupon = self.assignedCouponDatabase.getCoupon(storeId, gamerId)
 
         if coupon is None:
             raise ValueError("Coupon not found")

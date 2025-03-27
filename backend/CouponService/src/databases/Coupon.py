@@ -1,10 +1,11 @@
+from typing import Optional
 from pydantic import BaseModel
 
 class Coupon(BaseModel):
     couponId: str
     storeId: int
     gameId: int
-    winnerId: str  
+    winnerId: Optional[str] = None
     type: str
     value: str
     productId: int

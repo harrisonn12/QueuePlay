@@ -1,4 +1,9 @@
 import argparse
+from CouponService.src.databases.CouponsDatabase import CouponsDatabase
+from LobbyService.LobbyService import LobbyService
+from LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from QuestionService.QuestionService import QuestionService
+from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
@@ -8,18 +13,15 @@ from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
 from CouponService.src.adapters.CouponRedemptionAdapter import CouponRedemptionAdapter
 from CouponService.src.databases import AssignedCouponsDatabase
-from CouponService.src.databases.AssignedCouponsDatabase import CouponsDatabase
+from CouponService.src.databases.AssignedCouponsDatabase import AssignedCouponsDatabase
 from CouponService.src.models.CustomerMessagingProcessor import CustomerMessagingProcessor
 from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from LobbyService.LobbyService import LobbyService
-from LobbyService.src.QRCodeGenerator import QRCodeGenerator
-from QuestionService.QuestionService import QuestionService
-from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+import uvicorn
 from PaymentService.PaymentService import PaymentService
 from PaymentService.adapters.StripeAdapter import StripeAdapter
+from fastapi.middleware.cors import CORSMiddleware
 
 import stripe
 import os
@@ -68,31 +70,17 @@ def listPaymentMethod(customerId: str):
     """ Display all Payment Methods """
     return stripeAdapter.listPaymentMethods(customerId)
 
-@app.put("/createPaymentIntent", tags=["Payment Service: Stripe Adapter"])
-def createPaymentIntent(customerId, paymentMethodId, charge):
-    return stripeAdapter.createPaymentIntent(customerId, paymentMethodId, charge)
+@app.post("/createIntent")
+def setUpPaymentIntent(paymentMethodID):
+    return PaymentService.createIntent(paymentMethodID)
 
-@app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
-def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
-    """ Attach Payment Method to a Customer"""
-    return paymentService.addPaymentMethod(customerId, paymentId, defaultMethod)
+@app.post("/createCoupon")
+def createCoupon(createCouponRequest: CreateCouponRequest):
+    return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
 
-@app.post("/createPaymentMethod", tags=["Payment Service: Stripe Adapter"])
-def createPaymentMethod(
-    cardNumber: str,
-    expMonth: str = "04",
-    expYear: str = "2044",
-    cvc: str = "939"):
-    """ Generate a Payment Method """
-    
-    cardDetails = {
-        "number": cardNumber,
-        "exp_month": expMonth,
-        "exp_year": expYear,
-        "cvc": cvc
-    }
-
-    return stripeAdapter.createPaymentMethod(cardDetails)
+@app.post("/assignCoupon")
+def assignCoupon(assignCouponRequest: AssignCouponRequest):
+    return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
 
 @app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def deletePaymentMethod(paymentMethodId):
@@ -120,7 +108,6 @@ def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
     return couponService.destroyCoupon(destroyCouponRequest.couponId)
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Configure environment for the application.')
     parser.add_argument('--env', type=str, choices=['dev', 'prod'], default='dev', help='Select the environment: dev or prod')
     args = parser.parse_args()
@@ -130,23 +117,23 @@ if __name__ == '__main__':
     if args.env == 'prod':
         appConfig.stage = Stage.PROD
         origins = [
-            "https://your-production-site.com",  # Update with your production site
+            "https://your-production-site.com/",  # Update with your production site
         ]
 
     else:
         appConfig.stage = Stage.DEVO
         origins = [
-            "http://localhost:5173",
-            "http://localhost",
-            "http://localhost:8080",
+            "http://localhost:5173/",
+            "http://localhost/",
+            "http://localhost:8080/",
         ]
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=[""],
+        allow_headers=[""],
     )
     load_dotenv()
     qrCodeGenerator = QRCodeGenerator(appConfig)
@@ -157,9 +144,8 @@ if __name__ == '__main__':
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
 
     paymentService = PaymentService()
-    stripeAdapter = stripeAdapter()
+    stripeAdapter = StripeAdapter()
     
-
     availableOffersAdapter = AvailableOffersAdapter()
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
