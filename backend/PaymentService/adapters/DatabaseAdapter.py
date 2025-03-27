@@ -9,8 +9,8 @@ class DatabaseAdapter():
 
         self.supabase: Client = create_client(self.url, self.key)
 
-        self.email: str = os.environ.get("SUPABASE_USERNAME")
-        self.password: str = os.environ.get("SUPABASE_PASSWORD")
+        self.email: str = os.environ.get("SUPABASE_USER_USERNAME")
+        self.password: str = os.environ.get("SUPABASE_USER_PASSWORD")
         
         self.supabase.auth.sign_in_with_password({
             "email": self.email,
@@ -30,6 +30,16 @@ class DatabaseAdapter():
         response = self.supabase.table(table).insert(data).execute()
         return response
     
+    def updateTable(self, table, fieldFilter, valueFilter, data):
+        response = (
+            self.supabase.table(table)
+            .update(data)
+            .eq(fieldFilter, valueFilter)
+            .execute()
+        )
+
+        return response
+
     def deleteData(self, table, field, value):
         response = (
             self.supabase.table(table)

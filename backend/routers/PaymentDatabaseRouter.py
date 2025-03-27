@@ -10,17 +10,28 @@ router = APIRouter(
 
 databaseAdapter = DatabaseAdapter()
 
-@router.get('/')
-def getTable(table = 'testingTable'):
-    return databaseAdapter.getTable(table)
-
-@router.put('/insert')
+@router.post('/insert')
 def insertData(
         table = 'testingTable' ,
         data = {"name": "this is a newName"}
     ):
     data = ast.literal_eval(data) # for testing purposes need to delete
     return databaseAdapter.insertData(table, data)
+
+@router.get('/read')
+def getTable(table = 'testingTable'):
+    return databaseAdapter.getTable(table)
+
+@router.put('/update')
+def updateTable(
+        table = 'testingTable',
+        fieldFilter="id",
+        valueFilter=100,
+        data = {"name":"this one was just changed"}
+    ):
+    data = ast.literal_eval(data) # for testing purposes need to delete
+    
+    return databaseAdapter.updateTable(table, fieldFilter, valueFilter, data)
 
 @router.delete('/deleteData')
 def deleteData(
