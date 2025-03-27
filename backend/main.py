@@ -127,9 +127,5 @@ if __name__ == '__main__':
     couponRedemptionAdapter = CouponRedemptionAdapter()
     customerMessagingProcessor = CustomerMessagingProcessor()
     couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, assignedCouponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
-
-    app.include_router(PaymentServiceRouter.router)
-    app.include_router(PaymentDatabaseRouter.router)
-    app.include_router(StripeRouter.router)
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
