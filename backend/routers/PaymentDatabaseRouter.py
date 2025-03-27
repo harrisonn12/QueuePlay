@@ -15,7 +15,7 @@ def insertData(
         table = 'testingTable' ,
         data = {"name": "this is a newName"}
     ):
-    data = ast.literal_eval(data) # for testing purposes need to delete
+    data = ast.literal_eval(data)
     return databaseAdapter.insertData(table, data)
 
 @router.get('/read')
