@@ -26,3 +26,10 @@ class PaymentService:
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return False
+        
+    def userLogin(self, auth0Id):
+        # user has auth0Id in database
+        #   check if they have a Stripe account
+        #       if not, then create one and pair it with auth0Id
+
+        #  
