@@ -1,5 +1,4 @@
 import os
-from ..enums.Database import Database
 from supabase import create_client, Client
 
 
@@ -28,12 +27,7 @@ class DatabaseAdapter():
         return response
     
     def insertData(self, table, data):
-        response = (
-            self.supabase.table(table)
-            .insert(data)
-            .execute()
-        )
-
+        response = self.supabase.table(table).insert(data).execute()
         return response
     
     def deleteData(self, table, field, value):
