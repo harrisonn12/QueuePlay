@@ -9,8 +9,8 @@ class DatabaseAdapter():
 
         self.supabase: Client = create_client(self.url, self.key)
 
-        self.email: str = os.environ.get("SUPABASE_USER_USERNAME")
-        self.password: str = os.environ.get("SUPABASE_USER_PASSWORD")
+        self.email: str = os.environ.get("SUPABASE_USERNAME")
+        self.password: str = os.environ.get("SUPABASE_PASSWORD")
         
         self.supabase.auth.sign_in_with_password({
             "email": self.email,

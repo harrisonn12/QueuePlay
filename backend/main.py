@@ -95,7 +95,13 @@ if __name__ == '__main__':
 
     else:
         appConfig.stage = Stage.DEVO
-        origins = ["*"]
+        origins = [
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+                    "http://localhost",
+                    "http://localhost:8080",
+                    "http://127.0.0.1:8080",
+                ]
 
     app.add_middleware(
         CORSMiddleware,
@@ -104,12 +110,6 @@ if __name__ == '__main__':
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    """ "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost",
-            "http://localhost:8080",
-            "http://127.0.0.1:8080", """
     
     load_dotenv()
 

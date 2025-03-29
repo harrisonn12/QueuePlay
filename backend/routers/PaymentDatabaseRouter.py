@@ -1,6 +1,9 @@
 import ast
+from dotenv import load_dotenv
 from fastapi import APIRouter
 from PaymentService.adapters.DatabaseAdapter import DatabaseAdapter
+
+load_dotenv()
 
 router = APIRouter(
     prefix="/paymentDatabase",
