@@ -7,7 +7,7 @@ import axios from 'axios';
 
 export const MainContainer = () => {
     const { isAuthenticated, user } = useAuth0();
-    const { data, setData } = useState();
+    const [data, setData] = useState('');
 
     const userLogin = () => {
         console.log('Making request to backend...');
@@ -23,15 +23,22 @@ export const MainContainer = () => {
 
     useEffect(() => {
         userLogin();
+
         return () => {};
-    }, [user]);
+    }, []);
+
+    /*
+        - create authenticationScreener component
+            - checks if you're authenticated
+            - encapsulates authentication (accepts children)
+     */
 
     return (
         <>
             {isAuthenticated ? (
                 <Dashboard>
                     <TriviaGame />
-                    <p>Data: {JSON.stringify(data)}</p>
+                    <p>Data: {JSON.stringify(data.data)}</p>
                 </Dashboard>
             ) : (
                 <Login />
