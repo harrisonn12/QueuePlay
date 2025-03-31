@@ -27,6 +27,24 @@ class SupabaseDatabaseAdapter():
         response = self.supabase.table(table).insert(data).execute()
         return response
     
+    def queryTable(self, table, filters=None, columns="*"):
+        """
+        Query a table with optional filters and specific columns.
+
+        :param table: The name of the table to query.
+        :param filters: A dictionary of field-value pairs to filter the query.
+        :param columns: The columns to select, defaults to all columns ("*").
+        :return: The query response.
+        """
+        query = self.supabase.table(table).select(columns)
+        
+        if filters:
+            for field, value in filters.items():
+                query = query.eq(field, value)
+        
+        response = query.execute()
+        return response
+    
     def updateTable(self, table, fieldFilter, valueFilter, data):
         response = (
             self.supabase.table(table)
