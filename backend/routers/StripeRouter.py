@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 from PaymentService.adapters.StripeAdapter import StripeAdapter
+from ..commons.models.CreditCardDetails import CreditCardDetails
+
 
 router = APIRouter(
     prefix="/payments",
@@ -21,17 +23,12 @@ def createPaymentIntent(customerId, paymentMethodId, charge):
 @router.post("/createPaymentMethod")
 def createPaymentMethod(
     cardNumber: str,
-    expMonth: str = "04",
-    expYear: str = "2044",
-    cvc: str = "939"):
+    expMonth: str,
+    expYear: str,
+    cvc: str):
     """ Generate a Payment Method """
-    
-    cardDetails = {
-        "number": cardNumber,
-        "exp_month": expMonth,
-        "exp_year": expYear,
-        "cvc": cvc
-    }
+
+    cardDetails = CreditCardDetails(cardNumber, expMonth, expYear, cvc)
 
     return stripeAdapter.createPaymentMethod(cardDetails)
 

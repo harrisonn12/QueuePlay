@@ -1,17 +1,19 @@
 import stripe
 import os
 from ..exceptions.DuplicatePaymentException import DuplicatePaymentException
+from ...commons.models.PaymentMethodRequest import PaymentMethodRequest
+from ...commons.models.CreditCardDetails import CreditCardDetails
+from ...commons.models.BillingDetails import BillingDetails
 from dotenv import load_dotenv
 
 load_dotenv()
 
 class StripeAdapter:
-    def __init__(self):
-        # Stripe Keys
-        self.PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
-        self.SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
+    # Stripe Keys
+    PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+    SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
 
-    def createPaymentMethod(self, cardDetails: dict, billingDetails)-> stripe.PaymentMethod:
+    def createPaymentMethod(self, cardDetails: CreditCardDetails, billingDetails: BillingDetails)-> stripe.PaymentMethod:
         """ PaymentMethod object can only be attached to one customer """
         stripe.api_key = self.PUBLISHKEY
         
@@ -21,10 +23,14 @@ class StripeAdapter:
             billing_details=billingDetails,
         )
 
-    def createSetupIntent(self, paymentMethodId, customerId, defaultMethod=True) -> stripe.SetupIntent:
+    def createSetupIntent(self, PaymentMethodRequest: PaymentMethodRequest) -> stripe.SetupIntent:
         """ Acquires payment method without charging and attaches to a customer; Use Payment Intent if charging immediately. """
         stripe.api_key = self.SECRETKEY
-        
+
+        customerId = PaymentMethodRequest.customerId
+        paymentMethodId = PaymentMethodRequest.paymentMethodId
+        defaultPaymentMethod = PaymentMethodRequest.defaultPaymentMethod
+
         try:
             if self.customerHasThisPaymentMethod(customerId, paymentMethodId):
                 raise DuplicatePaymentException('Customer already has this payment card', paymentMethodId, customerId)
@@ -41,7 +47,7 @@ class StripeAdapter:
             )
 
             
-            if defaultMethod:
+            if defaultPaymentMethod:
                 self.setDefaultPaymentMethod(customerId, paymentMethodId)
             
             return intent
@@ -64,7 +70,7 @@ class StripeAdapter:
             print(f'Unable to detach: {str(e)}')
             return False
         
-    def detachAllPaymentMethods(self, customerId) -> None:
+    def detachAllPaymentMethods(self, customerId: str) -> None:
         stripe.api_key = self.SECRETKEY
 
         try:
@@ -76,7 +82,7 @@ class StripeAdapter:
         except Exception as e:
             print(f'Unable to detach all payment methods: {str(e)}')
 
-    def getPaymentMethodFingerPrint(self, paymentMethodId)->str:
+    def getPaymentMethodFingerPrint(self, paymentMethodId: str)->str:
         try:
             paymentMethod = stripe.PaymentMethod.retrieve(paymentMethodId)
             paymentType = paymentMethod.type
@@ -109,7 +115,7 @@ class StripeAdapter:
         
         return False
 
-    def setDefaultPaymentMethod(self, customerId, paymentMethodId) -> stripe.Customer:
+    def setDefaultPaymentMethod(self, customerId: str, paymentMethodId: str) -> stripe.Customer:
         return stripe.Customer.modify(
             customerId,
             invoice_settings={

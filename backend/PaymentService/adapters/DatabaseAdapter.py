@@ -2,20 +2,17 @@ import os
 from supabase import create_client, Client
 
 
-class DatabaseAdapter():
-    def __init__(self):
-        self.url: str = os.environ.get("SUPABASE_URL")
-        self.key: str = os.environ.get("SUPABASE_KEY")
-
-        self.supabase: Client = create_client(self.url, self.key)
-
-        self.email: str = os.environ.get("SUPABASE_USERNAME")
-        self.password: str = os.environ.get("SUPABASE_PASSWORD")
+class SupabaseDatabaseAdapter():
+    url: str = os.environ.get("SUPABASE_URL")
+    key: str = os.environ.get("SUPABASE_KEY")
+    supabase: Client = create_client(url, key)
+    email: str = os.environ.get("SUPABASE_USERNAME")
+    password: str = os.environ.get("SUPABASE_PASSWORD")
         
-        self.supabase.auth.sign_in_with_password({
-            "email": self.email,
-            "password": self.password,
-        })
+    supabase.auth.sign_in_with_password({
+        "email": email,
+        "password": password,
+    })
 
     def getTable(self, table):
         response = (
