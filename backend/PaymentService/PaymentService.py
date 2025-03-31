@@ -1,5 +1,5 @@
-from .adapters.StripeAdapter import StripeAdapter
-from ..commons.models.PaymentMethodRequest import PaymentMethodRequest
+from commons.adapters.StripeAdapter import StripeAdapter
+from commons.models.PaymentMethodRequest import PaymentMethodRequest
 
 
 class PaymentService:

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from PaymentService.adapters.StripeAdapter import StripeAdapter
-from ..commons.models.CreditCardDetails import CreditCardDetails
+from commons.adapters.StripeAdapter import StripeAdapter
+from commons.models.CreditCardDetails import CreditCardDetails
 
 
 router = APIRouter(
