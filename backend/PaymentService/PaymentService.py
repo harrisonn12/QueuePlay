@@ -1,28 +1,29 @@
 from .adapters.StripeAdapter import StripeAdapter
-from .enums.Database import Database
+from ..commons.models.PaymentMethodRequest import PaymentMethodRequest
 
-stripeAdapter = StripeAdapter()
 
 class PaymentService:
-    def __init__(self):
-        self.clientsDb: str = Database.clients.value
-        self.membershipDb: str = Database.membership.value
-        self.offersDb: str = Database.offers.value
+    clientsDbName = 'clients'
+    membershipDbName = 'membership'
+    offersDbName = 'offers'
 
-    def createAccount(self, auth0ID):
+    def __init__(self):
+        self.stripeAdapter = StripeAdapter()
+
+    def createAccount(self, auth0ID: str):
         """ Use Auth0 user ID to create a new Stripe Customer """
         
         # Create Stripe customer
-        stripeCustomer = stripeAdapter.createCustomer(user)
+        stripeCustomer = self.stripeAdapter.createCustomer(user)
 
         # store Auth0 id and Stripe customer id
 
         return f'New customer ID: {stripeCustomer.id}'
     
-    def addPaymentMethod(self, customerId: str, paymentId: str, defaultMethod: bool):
+    def addPaymentMethod(self, paymentMethodRequest: PaymentMethodRequest):
         """ Attach a Stripe Payment Method to a Stripe Customer """
         try:
-            return stripeAdapter.createSetupIntent(paymentId, customerId, defaultMethod)
+            return self.stripeAdapter.createSetupIntent(paymentMethodRequest)
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return False
