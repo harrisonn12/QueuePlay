@@ -32,6 +32,4 @@ class PaymentService:
         # user has auth0Id in database
         #   check if they have a Stripe account
         #       if not, then create one and pair it with auth0Id
-
-        #  
         pass

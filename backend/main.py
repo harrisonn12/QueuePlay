@@ -45,8 +45,8 @@ class DestroyCouponRequest(BaseModel):
 
 app = FastAPI(openapi_tags=tags_metadata)
 app.include_router(PaymentServiceRouter.router)
-""" app.include_router(PaymentDatabaseRouter.router)
-app.include_router(StripeRouter.router) """
+app.include_router(PaymentDatabaseRouter.router)
+app.include_router(StripeRouter.router)
 
 @app.get("/generateLobbyQRCode")
 def generateLobbyQRCode(gameSessionId: str) -> str:
