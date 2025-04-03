@@ -4,5 +4,11 @@ import { Login } from './Login';
 export const AuthenticationScreener = ({ children }) => {
     const { isAuthenticated } = useAuth0();
 
-    return isAuthenticated ? <>{children}</> : <Login />;
+    return isAuthenticated ? (
+        <>
+            {children}
+        </>
+    ) : (
+        <Login />
+    );
 };
