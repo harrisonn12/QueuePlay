@@ -1,31 +1,17 @@
-import { useAuth0 } from '@auth0/auth0-react';
 import { Dashboard } from './Dashboard';
-import { Login } from './Login';
 import TriviaGame from '../../games/trivia/TriviaGame';
-import { useEffect, useState } from 'react';
+import useFetchDatabase from '../../hooks/useFetchDatabase';
+import { AuthenticationScreener } from './AuthenticationScreener';
 
 export const MainContainer = () => {
-    const { isAuthenticated, user } = useAuth0();
-    const [data, setData] = useState('');
-
-    
-
-    /*
-        - create authenticationScreener component
-            - checks if you're authenticated
-            - encapsulates authentication (accepts children)
-     */
+    const data = useFetchDatabase('paymentDatabase/read?table=membership');
 
     return (
-        <>
-            {isAuthenticated ? (
-                <Dashboard>
-                    <TriviaGame />
-                    <p>Data: {JSON.stringify(data.data)}</p>
-                </Dashboard>
-            ) : (
-                <Login />
-            )}
-        </>
+        <AuthenticationScreener>
+            <Dashboard>
+                <TriviaGame />
+                <p>Data: {JSON.stringify(data.data)}</p>
+            </Dashboard>
+        </AuthenticationScreener>
     );
 };
