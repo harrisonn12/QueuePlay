@@ -1,6 +1,6 @@
 import json
-from QuestionService.src.enums import QuestionTopic
-from commons.adapters.ChatGptAdapter import ChatGptAdapter
+from backend.QuestionService.src.enums import QuestionTopic
+from backend.commons.adapters.ChatGptAdapter import ChatGptAdapter
 
 #core logic of how I get answer and question
 class QuestionAnswerSetGenerator:
