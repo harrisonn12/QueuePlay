@@ -25,7 +25,7 @@ class CouponsDatabase(DatabaseAdapter):
                     coupon = Coupon(
                         couponId=str(row[0]),
                         storeId=int(row[1]),
-                        gameId=int(row[2]),
+                        gameId=(row[2]),
                         winnerId=str(row[3]),
                         type=str(row[4]),
                         value=str(row[5]),

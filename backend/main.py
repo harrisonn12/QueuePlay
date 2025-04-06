@@ -74,7 +74,7 @@ def assignCoupon(assignCouponRequest: AssignCouponRequest):
 
 @app.post("/getCoupon")
 def getCoupon(getCouponRequest: GetCouponRequest):
-    return couponService.getCoupon(getCouponRequest.storeId, getCouponRequest.gameId)
+    return couponService.getCoupon(getCouponRequest.storeId, getCouponRequest.gamerId)
 
 @app.post("/destroyCoupon")
 def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):

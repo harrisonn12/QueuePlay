@@ -10,11 +10,12 @@ class AssignedCouponsDatabase(DatabaseAdapter):
         self.database = DatabaseType.COUPONS
         self.googleSheetDatabaseAdapter = googleSheetDatabaseAdapter
 
-    def getCoupon(self, storeId: int, winnerId: str):
+    def getCoupon(self, storeId: int, gamerId: str):
         values = self.googleSheetDatabaseAdapter.get(DatabaseType.COUPONS)
+        print("amanda's values", values)
         for row in values:
-            if int(row[1]) == storeId and row[3] == winnerId:  
-                print()
+            if int(row[1]) == storeId and row[3] == gamerId:  
+                print("okay now")
                 try:
                     if row[7] == 'TRUE':  
                         assigned = True
@@ -23,8 +24,8 @@ class AssignedCouponsDatabase(DatabaseAdapter):
                     coupon = Coupon(
                         couponId=str(row[0]),
                         storeId=int(row[1]),
-                        gameId=int(row[2]),
-                        winnerId=str(row[3]),
+                        gameId=str(row[2]),
+                        gamerId=str(row[3]),
                         type=str(row[4]),
                         value=str(row[5]),
                         productId=int(row[6]),

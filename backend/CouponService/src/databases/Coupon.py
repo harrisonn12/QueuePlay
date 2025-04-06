@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class Coupon(BaseModel):
     couponId: str
     storeId: int
-    gameId: int
+    gameId: str
     winnerId: Optional[str] = None
     type: str
     value: str

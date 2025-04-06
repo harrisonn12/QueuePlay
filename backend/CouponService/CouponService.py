@@ -1,5 +1,6 @@
 import time
 from CouponService.src.databases.Coupon import Coupon
+import os
 
 class CouponService:
     
@@ -28,7 +29,7 @@ class CouponService:
             winnerId="no winner",  # If set to 'None', posting to Google Sheets starts at the wrong column starting at row 2
             type=chosenOffer.offerType,
             value=chosenOffer.value,
-            productId=chosenOffer.productId,
+            productId=chosenOffer.productgiId,
             assigned=False,
             createdAt = time.time(),
             expirationDate = chosenOffer.expirationDate
@@ -57,7 +58,6 @@ class CouponService:
         return coupon
 
     def getCoupon(self, storeId: int, gamerId: str):
-        print("hiiiiii")
         coupon = self.assignedCouponDatabase.getCoupon(storeId, gamerId)
 
         if coupon is None:
