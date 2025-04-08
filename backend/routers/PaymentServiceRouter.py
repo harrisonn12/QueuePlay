@@ -18,17 +18,15 @@ clientTableName = PaymentServiceTableNames.CLIENTS.value
 @router.post("/handleUserLogin")
 def handleUserLogin(auth0Id: str):
     # check if user exists in client database
-    client = supabaseDatabaseAdapter.queryTable(
+    queryResponse = supabaseDatabaseAdapter.queryTable(
             clientTableName,
             {
-                "auth0_id": "test_auth_",
-                "stripe_customer_id": "test_customer_id2"
+                "auth0_id": auth0Id,
             },
-            "auth0_id"
         )
-    
-    # if not , insert new client into client db
-    if (len(client) == 0):
+
+    # if user does not exist, insert new client into client db
+    if (not queryResponse.data):
         return supabaseDatabaseAdapter.insertData(
                 clientTableName,
                 { "auth0_id": auth0Id }
