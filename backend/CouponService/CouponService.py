@@ -1,4 +1,3 @@
-import time
 from CouponService.src.databases.Coupon import Coupon
 from datetime import datetime, timezone
 
@@ -57,6 +56,11 @@ class CouponService:
     def getCoupon(self, storeId: int, gamerId: str):
         return self.couponsDatabase.getGamerCoupons(storeId, gamerId)
     
+    # Destroys the coupon if it exists
     def destroyCoupon(self, couponId: str):
-        self.assignedCouponDatabase.deleteCoupon(couponId)
+        response = self.couponsDatabase.destroyCoupon(couponId)
+        if response:
+            return response
+        else:
+            return None
         
