@@ -3,8 +3,6 @@ from CouponService.src.CouponIdGenerator import CouponIdGenerator
 from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
 from CouponService.src.adapters.CouponRedemptionAdapter import CouponRedemptionAdapter
-from CouponService.src.databases import AssignedCouponsDatabase
-from CouponService.src.databases.AssignedCouponsDatabase import AssignedCouponsDatabase
 from CouponService.src.databases.CouponsDatabase import CouponsDatabase
 from CouponService.src.models.CustomerMessagingProcessor import CustomerMessagingProcessor
 from LobbyService.LobbyService import LobbyService
@@ -13,7 +11,6 @@ from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
-from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
 from dotenv import load_dotenv
@@ -126,9 +123,6 @@ if __name__ == '__main__':
     couponIdGenerator = CouponIdGenerator()
     supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
     couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
-
-    googleSheetDatabaseAdapter = GoogleSheetDatabaseAdapter()
-    assignedCouponsDatabase = AssignedCouponsDatabase(googleSheetDatabaseAdapter)
 
     couponRedemptionAdapter = CouponRedemptionAdapter()
     customerMessagingProcessor = CustomerMessagingProcessor()
