@@ -10,5 +10,5 @@ class Coupon(BaseModel):
     value: str
     productId: int
     assigned: bool
-    createdAt: float
+    createdAt: str
     expirationDate: str

@@ -11,6 +11,7 @@ from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 from configuration.AppConfig import AppConfig
@@ -123,11 +124,14 @@ if __name__ == '__main__':
     availableOffersAdapter = AvailableOffersAdapter()
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
+    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
+
     googleSheetDatabaseAdapter = GoogleSheetDatabaseAdapter()
-    couponsDatabase = CouponsDatabase(googleSheetDatabaseAdapter)
     assignedCouponsDatabase = AssignedCouponsDatabase(googleSheetDatabaseAdapter)
+
     couponRedemptionAdapter = CouponRedemptionAdapter()
     customerMessagingProcessor = CustomerMessagingProcessor()
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, assignedCouponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
