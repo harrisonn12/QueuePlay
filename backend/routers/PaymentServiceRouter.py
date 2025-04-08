@@ -11,6 +11,7 @@ paymentService = PaymentService()
 
 @router.post("/handleUserLogin")
 def handleUserLogin(auth0Id: str):
+    pass
     # check if user exists in client database
     # if not , insert new client into client db
 
