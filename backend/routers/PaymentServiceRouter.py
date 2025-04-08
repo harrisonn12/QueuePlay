@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 from PaymentService.PaymentService import PaymentService
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
+from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
 
 router = APIRouter(
     prefix="/paymentdb",
@@ -8,14 +10,33 @@ router = APIRouter(
 )
 
 paymentService = PaymentService()
+supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+clientTableName = PaymentServiceTableNames.CLIENTS.value
+
+
 
 @router.post("/handleUserLogin")
 def handleUserLogin(auth0Id: str):
     # check if user exists in client database
+    client = supabaseDatabaseAdapter.queryTable(
+            clientTableName,
+            {
+                "auth0_id": "test_auth_",
+                "stripe_customer_id": "test_customer_id2"
+            },
+            "auth0_id"
+        )
+    
     # if not , insert new client into client db
+    if (len(client) == 0):
+        return supabaseDatabaseAdapter.insertData(
+                clientTableName,
+                { "auth0_id": auth0Id }
+            )
 
     # check if user has stripe account
     # if not, generate a new customer obj, then link customer id to client id
+    pass
 
 @router.post("/createNewUser")
 def createNewUser(name: str, email: str):
