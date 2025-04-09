@@ -5,7 +5,7 @@ import { useHandleLogin } from '../../hooks/useHandleLogin';
 
 export const Dashboard = ({ children }) => {
     const { user } = useAuth0();
-    const data = useHandleLogin(user.sub);
+    const data = useHandleLogin(user);
 
     return (
         <>

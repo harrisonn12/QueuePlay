@@ -1,4 +1,4 @@
-class Customer():
+class StripeCustomer():
     def __init__(
             self,
             name:  str = '',

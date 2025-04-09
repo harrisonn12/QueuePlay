@@ -1,21 +1,26 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export const useHandleLogin = (auth0Id) => {
-    const [userData, setUserData] = useState();
+export const useHandleLogin = (user) => {
+    const [userOutputData, setUserOutputData] = useState();
+    const payload = {
+        name: user.name,
+        email: user.email,
+        phone: user.phone_number,
+        auth0Id: user.auth0Id,
+    };
 
     useEffect(() => {
         axios
-            .post(
-                `http://127.0.0.1:8000/paymentdb/handleUserLogin?auth0Id=${auth0Id}`
-            )
+            .post(`http://127.0.0.1:8000/paymentdb/handleUserLogin`, payload)
             .then((response) => {
-                setUserData(response.data.data);
+                console.log(response);
+                setUserOutputData(response.data);
             })
             .catch((e) => {
                 console.error('Error fetching data:', e);
             });
-    }, [auth0Id]);
+    }, [user]);
 
-    return JSON.stringify(userData);
+    return JSON.stringify(userOutputData);
 };
