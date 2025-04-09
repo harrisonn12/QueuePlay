@@ -176,14 +176,12 @@ class StripeAdapter:
 
         try:
             customer = stripe.Customer.create(
-                name = user.get('name', ''),
-                email = user.get('email', ''),
-                phone = user.get('phone', ''),
+                name = getattr(user,'name', ''),
+                email = getattr(user,'email', ''),
+                phone = getattr(user,'phone', ''),
             )
 
             return customer
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
             return str(e)
-
-

@@ -1,11 +1,15 @@
 from commons.adapters.StripeAdapter import StripeAdapter
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
+from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
 from commons.models.PaymentMethodRequest import PaymentMethodRequest
-
+from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
+from commons.models.StripeCustomer import StripeCustomer
 
 class PaymentService:
-    clientsDbName = 'clients'
+    clientTableName = PaymentServiceTableNames.CLIENTS.value
     membershipDbName = 'membership'
     offersDbName = 'offers'
+    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
 
     def __init__(self):
         self.stripeAdapter = StripeAdapter()
@@ -28,8 +32,48 @@ class PaymentService:
             print(f"Unexpected Error: {str(e)}")
             return False
         
-    def userLogin(self, auth0Id):
-        # user has auth0Id in database
-        #   check if they have a Stripe account
-        #       if not, then create one and pair it with auth0Id
-        pass
+    def handleUserLogin(self, userPayload: PaymentServiceUserPayload):
+        name = userPayload.name
+        email = userPayload.email
+        phone = userPayload.phone
+        auth0Id = userPayload.auth0Id
+
+        # get user from client database
+        queryResponse = self.supabaseDatabaseAdapter.queryTable(
+                self.clientTableName,
+                {
+                    "auth0_id": auth0Id,
+                },
+            )
+
+        # if user does not exist, insert new client into client db
+        if (not queryResponse.data):
+            self.supabaseDatabaseAdapter.insertData(
+                    self.clientTableName,
+                    { "auth0_id": auth0Id }
+            )
+
+        # check if user has stripe account
+        queryResponse = self.supabaseDatabaseAdapter.queryTable(
+            self.clientTableName,
+            {
+                "auth0_id": auth0Id,
+            },
+            "stripe_customer_id"
+        )
+
+        stripeCustomerId = queryResponse.data[0]["stripe_customer_id"]
+        
+        # if not, generate a new customer obj, then link customer id to client id
+        if (not stripeCustomerId):
+            stripeCustomerDetails = StripeCustomer(name, phone, email)
+            stripeCustomerObj = self.stripeAdapter.createCustomer(stripeCustomerDetails)
+
+            return self.supabaseDatabaseAdapter.updateTable(
+                self.clientTableName,
+                "auth0_id",
+                auth0Id,
+                {"stripe_customer_id": stripeCustomerObj.id}
+            )
+        
+        return "no new account"

@@ -45,7 +45,13 @@ class SupabaseDatabaseAdapter():
         response = query.execute()
         return response
     
-    def updateTable(self, table, fieldFilter, valueFilter, data):
+    def updateTable(
+            self,
+            table: str,
+            fieldFilter: str,
+            valueFilter: str,
+            data: dict
+        ):
         response = (
             self.supabase.table(table)
             .update(data)
