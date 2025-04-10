@@ -1,11 +1,6 @@
-class StripeCustomer():
-    def __init__(
-            self,
-            name:  str = '',
-            phone: str = '',
-            email: str = ''
-        ):
-        self,
-        self.name = name
-        self.phone = phone
-        self.email = email
+from pydantic import BaseModel
+
+class StripeCustomer(BaseModel):
+    name: str = ""
+    phone: str = ""
+    email: str = ""

@@ -176,9 +176,9 @@ class StripeAdapter:
 
         try:
             customer = stripe.Customer.create(
-                name = getattr(user,'name', ''),
-                email = getattr(user,'email', ''),
-                phone = getattr(user,'phone', ''),
+                name = user.name,
+                email = user.email,
+                phone = user.phone
             )
 
             return customer
