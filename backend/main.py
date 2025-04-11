@@ -19,13 +19,11 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from routers import StripeRouter, PaymentDatabaseRouter, PaymentServiceRouter
+from routers import PaymentServiceRouter
 import argparse, uvicorn
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
-    {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
-    {"name": "Payment Service: Supabase", "description": "Database actions"},
 ]
 
 class CreateCouponRequest(BaseModel):
@@ -45,8 +43,6 @@ class DestroyCouponRequest(BaseModel):
 
 app = FastAPI(openapi_tags=tags_metadata)
 app.include_router(PaymentServiceRouter.router)
-app.include_router(PaymentDatabaseRouter.router)
-app.include_router(StripeRouter.router)
 
 @app.get("/generateLobbyQRCode")
 def generateLobbyQRCode(gameSessionId: str) -> str:
