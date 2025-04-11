@@ -1,13 +1,10 @@
-import { Dashboard } from './Dashboard';
-import TriviaGame from '../../games/trivia/TriviaGame';
+import { UserDashboard } from './UserDashboard';
 import { AuthenticationScreener } from './AuthenticationScreener';
 
 export const MainContainer = () => {
     return (
         <AuthenticationScreener>
-            <Dashboard>
-                {/* <TriviaGame /> */}
-            </Dashboard>
+            <UserDashboard />
         </AuthenticationScreener>
     );
 };
