@@ -4,6 +4,7 @@ from PaymentService.exceptions.DuplicatePaymentException import DuplicatePayment
 from commons.models.PaymentMethodRequest import PaymentMethodRequest
 from commons.models.CreditCardDetails import CreditCardDetails
 from commons.models.BillingDetails import BillingDetails
+from commons.models.StripeCustomer import StripeCustomer
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -170,18 +171,17 @@ class StripeAdapter:
 
         return self.getAllSetupIntents()
     
-    def createCustomer(self, user) -> stripe.Customer:
+    def createCustomer(self, user: StripeCustomer) -> stripe.Customer:
         stripe.api_key = self.SECRETKEY
 
         try:
             customer = stripe.Customer.create(
-                name = user.get('name', ''),
-                email = user.get('email', '')
+                name = user.name,
+                email = user.email,
+                phone = user.phone
             )
 
             return customer
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
             return str(e)
-
-

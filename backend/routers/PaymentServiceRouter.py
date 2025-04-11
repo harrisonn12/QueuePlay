@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from PaymentService.PaymentService import PaymentService
+from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
 
 router = APIRouter(
     prefix="/paymentdb",
@@ -10,12 +11,8 @@ router = APIRouter(
 paymentService = PaymentService()
 
 @router.post("/handleUserLogin")
-def handleUserLogin(auth0Id: str):
-    # check if user exists in client database
-    # if not , insert new client into client db
-
-    # check if user has stripe account
-    # if not, generate a new customer obj, then link customer id to client id
+def handleUserLogin(userPayload: PaymentServiceUserPayload):
+    return paymentService.handleUserLogin(userPayload)
 
 @router.post("/createNewUser")
 def createNewUser(name: str, email: str):

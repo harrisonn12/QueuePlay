@@ -27,7 +27,7 @@ class SupabaseDatabaseAdapter():
         response = self.supabase.table(table).insert(data).execute()
         return response
     
-    def queryTable(self, table, filters=None, columns="*"):
+    def queryTable(self, table: str, filters: dict = None, columns: str ="*"):
         """
         Query a table with optional filters and specific columns.
 
@@ -45,7 +45,13 @@ class SupabaseDatabaseAdapter():
         response = query.execute()
         return response
     
-    def updateTable(self, table, fieldFilter, valueFilter, data):
+    def updateTable(
+            self,
+            table: str,
+            fieldFilter: str,
+            valueFilter: str,
+            data: dict
+        ):
         response = (
             self.supabase.table(table)
             .update(data)
