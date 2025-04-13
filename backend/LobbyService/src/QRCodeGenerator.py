@@ -3,7 +3,7 @@ import base64
 import configparser
 import qrcode
 from qrcode.image.pil import PilImage
-from configuration.AppConfig import AppConfig, Stage
+from backend.configuration.AppConfig import AppConfig, Stage
 
 
 class QRCodeGenerator:
@@ -14,16 +14,18 @@ class QRCodeGenerator:
         self.config.read('backend/configuration/AppConfig.ini')
 
     def generate(self, gameSessionId: str) -> str:
-        keys = self.config.keys()
-        for key in keys:
-            print(key)
-        host = self.config.get('Host', 'Devo')
+        # Frontend URL where the app is running (Vite default port)
+        frontend_url = "http://localhost:5173"
+        
+        # In production, use production URL instead
         if self.appConfig.stage == Stage.PROD:
-
-            # Example of usage, you can customize as needed
-            host = self.config['Host']['Prod']
-        img = qrcode.make(host + '/lobby?{}'.format(gameSessionId))
-
+            frontend_url = "https://www.queueplay.com"
+            
+        # Generate URL with gameId parameter that can be used with the existing join functionality
+        join_url = f"{frontend_url}/?gameId={gameSessionId}"
+        
+        img = qrcode.make(join_url)
+        
         type(img)  # qrcode.image.pil.PilImage
         return self.__serializePilImageToBase64(img)
 

@@ -2,8 +2,13 @@ import asyncio
 import websockets
 import json
 import uuid
+from dotenv import load_dotenv
 
 from backend.games.GameFactory import GameFactory
+from backend.LobbyService.LobbyService import LobbyService
+from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from backend.configuration.AppConfig import AppConfig
+from backend.commons.enums.Stage import Stage
 
 #need connections to pass as prop
 #need games to keep track of all games
@@ -11,6 +16,11 @@ from backend.games.GameFactory import GameFactory
 games = {} #{gameId : gameInstance}
 connections = {} # {clientId, websocket}, might need to scale this to a dict of dicts
 actionHandlers = {} #{handlers...}
+
+# Initialize services
+app_config = AppConfig(Stage.DEVO)
+qr_code_generator = QRCodeGenerator(app_config)
+lobby_service = LobbyService(qr_code_generator)
 
 #NOTES:
 # Seperation of concerns
@@ -25,12 +35,17 @@ async def handleInitializeGame(data, websocket, clientId):
     gameType = data.get("gameType", "trivia") # checks for gameType, if doesn't exist, default to trivia
     try:
         games[gameId] = GameFactory.createGame(gameType, gameId, clientId) #call GameFactory to create game
+        
+        # Generate QR code for the game session
+        qr_code_data = lobby_service.generateLobbyQRCode(gameId)
+        
         # send message to client side
         await websocket.send(json.dumps({  
                     "action": "gameInitialized", # handles action in client side
                     "gameId": gameId,
                     "clientId": clientId,
-                    "role": "host"
+                    "role": "host",
+                    "qrCodeData": qr_code_data
                 }))
         print(f"{gameType} game {gameId} initialized by host {clientId}")
     except ValueError as e:
@@ -109,4 +124,5 @@ async def main():
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
+    load_dotenv()
     asyncio.run(main())

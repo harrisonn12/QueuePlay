@@ -1,4 +1,5 @@
-from commons.enums.Stage import Stage
+from backend.commons.enums.Stage import Stage
 
 class AppConfig:
-    stage: Stage
+    def __init__(self, stage: Stage = Stage.DEVO):
+        self.stage = stage

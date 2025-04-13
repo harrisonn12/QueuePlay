@@ -1,4 +1,4 @@
-from LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
 
 
 class LobbyService:

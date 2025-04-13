@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
+import QRCodeDisplay from './components/QRCodeDisplay';
+import Timer from './components/Timer';
 
 
 /*
@@ -29,10 +31,11 @@ comments:
 */
 
 const TriviaGame = () => {
-    // const timePerQuestion = 5;
+    const timePerQuestion = 15; // 15 seconds per question
     const [gameStatus, setGameStatus] = useState('waiting'); // 'waiting', 'playing', 'finished'
     const [questions, setQuestions] = useState([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [timerKey, setTimerKey] = useState(0); // Used to reset the timer when the question changes
     const [scores, setScores] = useState({}); 
     const [gameId, setGameId] = useState("");
     const [role, setRole] = useState(''); 
@@ -43,6 +46,7 @@ const TriviaGame = () => {
     const [hasAnswered, setHasAnswered] = useState(false);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [playersWhoAnswered, setPlayersWhoAnswered] = useState([]);
+    const [qrCodeData, setQrCodeData] = useState(null); // Store QR code data
     const socketRef = useRef(null);
 
     useEffect(() => {
@@ -53,6 +57,26 @@ const TriviaGame = () => {
             socketRef.current = socket;
             setStatus("WebSocket connected");
             console.log("WebSocket connected");
+            
+            // Check for gameId in URL parameters (from QR code scan)
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameIdFromUrl = urlParams.get('gameId');
+            
+            if (gameIdFromUrl) {
+                console.log("Auto-joining game with ID:", gameIdFromUrl);
+                setInputGameId(gameIdFromUrl);
+                // Set a flag in sessionStorage to prevent multiple joins
+                if (!sessionStorage.getItem('autoJoined')) {
+                    sessionStorage.setItem('autoJoined', gameIdFromUrl);
+                    // Auto-join with slight delay to ensure connection is ready
+                    setTimeout(() => {
+                        socket.send(JSON.stringify({
+                            action: "joinGame",
+                            gameId: gameIdFromUrl,
+                        }));
+                    }, 500);
+                }
+            }
         };
         socket.onmessage = (event) => {
             try {
@@ -78,6 +102,8 @@ const TriviaGame = () => {
             if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.close();
             }
+            // Clear the auto-join flag when component unmounts
+            sessionStorage.removeItem('autoJoined');
         };
     }, []);
     
@@ -90,6 +116,7 @@ const TriviaGame = () => {
                 setGameId(data.gameId);
                 setRole(data.role);
                 // setGameStatus('waiting');
+                setQrCodeData(data.qrCodeData); // Store the QR code data
                 
                 setScores({});
                 break;
@@ -119,6 +146,8 @@ const TriviaGame = () => {
                 setHasAnswered(false);
                 setSelectedAnswer(false);
                 setPlayersWhoAnswered([]);
+                // Reset timer when game starts
+                setTimerKey(prev => prev + 1); 
                 if (data.questions && data.questions.length > 0) {
                     console.log("Questions are receieved from backend")
                     setQuestions(data.questions);  // Set questions from backend
@@ -156,6 +185,8 @@ const TriviaGame = () => {
                 setHasAnswered(false);
                 setSelectedAnswer(null);
                 setPlayersWhoAnswered([]);
+                // Reset timer for new question
+                setTimerKey(prev => prev + 1);
                 break;
             
             case "gameFinished":
@@ -184,6 +215,7 @@ const TriviaGame = () => {
 
     const joinGame = () => {
         if (socketRef.current && inputGameId) {
+            
             socketRef.current.send(JSON.stringify({
                 action: "joinGame",
                 gameId : inputGameId,
@@ -226,6 +258,18 @@ const TriviaGame = () => {
             }))
         }
     }
+    
+    // Handle timer completion
+    const handleTimerComplete = () => {
+        console.log("Timer completed for question", currentQuestionIndex);
+        
+        // If user is host, automatically move to next question
+        if (role === 'host') {
+            nextQuestion();
+        }
+        
+        return { shouldRepeat: false }; // Do not repeat the timer
+    }
 
 
     const renderGameLobby = () => {
@@ -254,6 +298,13 @@ const TriviaGame = () => {
                     <div className="host-lobby">
                         <h2>Game ID: {gameId}</h2>
                         <p>Share this Game ID with players to join</p>
+                        
+                        {/* Display QR code if available */}
+                        {qrCodeData && (
+                            <div className="qr-code-wrapper">
+                                <QRCodeDisplay qrCodeData={qrCodeData} size={250} />
+                            </div>
+                        )}
                         
                         <h3>Players ({players.length})</h3>
                         <ul>
@@ -295,6 +346,17 @@ const TriviaGame = () => {
             <div className="player-game-view">
                 <h2>Question {currentQuestionIndex + 1}</h2>
                 
+                {/* Timer display for player */}
+                <div className="timer-container">
+                    <Timer 
+                        key={timerKey} 
+                        seconds={timePerQuestion} 
+                        onTimerEnd={() => {}} // Players don't trigger the next question
+                    />
+                </div>
+                
+                <h3>{currentQuestion.question}</h3>
+                
                 <div className="options">
                     {currentQuestion.options.map((option, index) => (
                         <button 
@@ -325,6 +387,16 @@ const TriviaGame = () => {
         return (
             <div className="host-game-view">
                 <h2>Question {currentQuestionIndex + 1} of {questions.length}</h2>
+                
+                {/* Timer display for host */}
+                <div className="timer-container">
+                    <Timer 
+                        key={timerKey} 
+                        seconds={timePerQuestion} 
+                        onTimerEnd={handleTimerComplete} 
+                    />
+                </div>
+                
                 <h3>{currentQuestion.question}</h3>
                 
                 <div className="options">
@@ -365,7 +437,7 @@ const TriviaGame = () => {
                 <button 
                     onClick={nextQuestion}
                 >
-                    {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'End Game'}
+                    {currentQuestionIndex < questions.length - 1 ? 'Skip to Next Question' : 'End Game'}
                 </button>
             </div>
         );
@@ -381,6 +453,9 @@ const TriviaGame = () => {
         setHasAnswered(false);
         setSelectedAnswer(null);
         setPlayersWhoAnswered([]);
+        setQrCodeData(null); // Reset QR code data
+        
+        
     }
 
     const renderGameResults = () => {
