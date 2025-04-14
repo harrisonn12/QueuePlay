@@ -35,7 +35,7 @@ const TriviaGame = () => {
     const [gameStatus, setGameStatus] = useState('waiting'); // 'waiting', 'playing', 'finished'
     const [questions, setQuestions] = useState([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [timerKey, setTimerKey] = useState(0); // Used to reset the timer when the question changes
+    const [timerKey, setTimerKey] = useState(0);
     const [scores, setScores] = useState({}); 
     const [gameId, setGameId] = useState("");
     const [role, setRole] = useState(''); 
@@ -185,7 +185,6 @@ const TriviaGame = () => {
                 setHasAnswered(false);
                 setSelectedAnswer(null);
                 setPlayersWhoAnswered([]);
-                // Reset timer for new question
                 setTimerKey(prev => prev + 1);
                 break;
             

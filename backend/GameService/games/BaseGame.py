@@ -6,7 +6,6 @@ class BaseGame:
         self.gameId = gameId
         self.hostId = hostId
         self.clients = {hostId: "host"}
-        self.gameState = {}
     
     async def joinGame(self, clientId, websocket, connections):
         self.clients[clientId] = "player" # default role
