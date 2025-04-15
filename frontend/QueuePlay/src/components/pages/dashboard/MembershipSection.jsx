@@ -37,22 +37,7 @@ export const MembershipSection = () => {
                 'Exclusive member events',
             ],
             current: false,
-        },
-        {
-            name: 'Ultra Premium',
-            price: '$19.99',
-            period: 'month',
-            features: [
-                'Everything in Premium, plus:',
-                'Early access to new games',
-                '24/7 VIP customer support',
-                'Maximum rewards earning',
-                'Exclusive Ultra Premium events',
-                'Custom profile themes',
-                'Priority matchmaking',
-            ],
-            current: false,
-        },
+        }
     ];
 
     return (
@@ -85,7 +70,7 @@ export const MembershipSection = () => {
                             <div className='ml-3'>
                                 <p className='text-sm text-indigo-700'>
                                     Your current membership plan:{' '}
-                                    <span className='font-bold'>Premium</span>
+                                    <span className='font-bold'>Free</span>
                                 </p>
                             </div>
                         </div>
@@ -168,7 +153,7 @@ export const MembershipSection = () => {
                                 Next billing date: May 1, 2024
                             </p>
                             <p className='text-sm text-gray-500'>
-                                Amount: $9.99/month
+                                Amount: $0/month
                             </p>
                         </div>
                         <div className='mt-4 space-x-4'>
