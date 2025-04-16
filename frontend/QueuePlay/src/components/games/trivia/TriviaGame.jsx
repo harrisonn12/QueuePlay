@@ -47,16 +47,37 @@ const TriviaGame = () => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [playersWhoAnswered, setPlayersWhoAnswered] = useState([]);
     const [qrCodeData, setQrCodeData] = useState(null); // Store QR code data
+    
+    // WebSocket connection and reconnection
     const socketRef = useRef(null);
+    const reconnectTimeoutRef = useRef(null);
+    const reconnectAttemptsRef = useRef(0);
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const BASE_RECONNECT_DELAY = 1000; // Start with 1 second delay
 
-    useEffect(() => {
-        if(socketRef.current) return; // if its already connected 
+    // Function to create and manage WebSocket connection
+    const connectWebSocket = () => {
+        if (socketRef.current) return; // Don't create a new connection if one exists
+        
+        console.log("Attempting to connect to WebSocket server...");
         const socket = new WebSocket("ws://localhost:6789/");
-
+        
         socket.onopen = () => {
             socketRef.current = socket;
+            reconnectAttemptsRef.current = 0; // Reset attempt counter on successful connection
             setStatus("WebSocket connected");
-            console.log("WebSocket connected");
+            console.log("WebSocket connected successfully");
+            
+            // If we have existing game info, send a reconnect message
+            if (gameId && clientId) {
+                console.log(`Reconnecting to game ${gameId} as ${clientId} with role ${role}`);
+                socket.send(JSON.stringify({
+                    action: "reconnect",
+                    gameId: gameId,
+                    clientId: clientId,
+                    role: role
+                }));
+            }
             
             // Check for gameId in URL parameters (from QR code scan)
             const urlParams = new URLSearchParams(window.location.search);
@@ -78,31 +99,73 @@ const TriviaGame = () => {
                 }
             }
         };
+        
         socket.onmessage = (event) => {
             try {
-              const data = JSON.parse(event.data);
-              // Expected message format: {action : "actionName", ... } 
-              handleWebSocketMessage(data);  
+                const data = JSON.parse(event.data);
+                // Expected message format: {action : "actionName", ... } 
+                handleWebSocketMessage(data);
             } catch (err) {
-              console.error("Error parsing JSON", err);
+                console.error("Error parsing JSON", err);
             }
         };
+        
         socket.onerror = (error) => {
-            setStatus("WebSocket error")
+            setStatus("WebSocket error");
             console.error("WebSocket error:", error);
         };
-      
-        socket.onclose = () => {
-            console.log("WebSocket disconnected");
-            setStatus("WebSocket disconnected");
+        
+        socket.onclose = (event) => {
+            const wasClean = event.wasClean;
+            console.log(`WebSocket disconnected. Clean close: ${wasClean}`);
             socketRef.current = null;
-        };
-        //cleanup function to close the socket when component unmounts
-        return () => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.close();
+            
+            // Only attempt reconnection if it wasn't a clean close and we haven't exceeded max attempts
+            if (!wasClean && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                // Exponential backoff for reconnection
+                const delay = Math.min(
+                    BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttemptsRef.current),
+                    30000 // Max 30 second delay
+                );
+                
+                setStatus(`Connection lost. Reconnecting in ${delay/1000} seconds... (Attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+                
+                // Clear any existing reconnection timeout
+                if (reconnectTimeoutRef.current) {
+                    clearTimeout(reconnectTimeoutRef.current);
+                }
+                
+                // Set up new reconnection attempt
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    reconnectAttemptsRef.current++;
+                    connectWebSocket();
+                }, delay);
+            } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+                setStatus("Failed to reconnect after multiple attempts. Please refresh the page.");
+            } else {
+                // This was a clean close (intentional)
+                setStatus("Disconnected from game server.");
             }
-            // Clear the auto-join flag when component unmounts
+        };
+    };
+
+    // Initialize WebSocket connection
+    useEffect(() => {
+        connectWebSocket();
+        
+        // Cleanup function when component unmounts
+        return () => {
+            // Clear any reconnection attempts
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            
+            // Close WebSocket if it exists
+            if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                socketRef.current.close(1000, "Component unmounting"); // 1000 = normal closure
+            }
+            
+            // Clear the auto-join flag
             sessionStorage.removeItem('autoJoined');
         };
     }, []);
@@ -110,6 +173,46 @@ const TriviaGame = () => {
     const handleWebSocketMessage = (data) => {
         //updates state based on message received from server, not linear because event driven
         switch(data.action) {
+            case "reconnected": // Handle reconnection response
+                console.log("Reconnection successful:", data);
+                // Only update state if we get a game state
+                if (data.gameState) {
+                    console.log("Restoring game state from server");
+                    
+                    // Restore game status
+                    if (data.gameState.status) {
+                        setGameStatus(data.gameState.status);
+                    }
+                    
+                    // Restore question data
+                    if (data.gameState.currentQuestionIndex !== undefined) {
+                        setCurrentQuestionIndex(data.gameState.currentQuestionIndex);
+                    }
+                    
+                    if (data.gameState.questions && data.gameState.questions.length > 0) {
+                        setQuestions(data.gameState.questions);
+                    }
+                    
+                    // Restore game data
+                    if (data.gameState.scores) {
+                        setScores(data.gameState.scores);
+                    }
+                    
+                    if (data.gameState.players) {
+                        setPlayers(data.gameState.players);
+                    }
+                    
+                    if (data.gameState.playersWhoAnswered) {
+                        setPlayersWhoAnswered(data.gameState.playersWhoAnswered);
+                    }
+                    
+                    // Reset timer if we're in a playing state
+                    if (data.gameState.status === 'playing') {
+                        setTimerKey(prev => prev + 1);
+                    }
+                }
+                break;
+                
             case "gameInitialized": // if game is initialized, pass in clientId
                 console.log("Game initialized message received:", data);
                 setClientId(data.clientId);
@@ -137,6 +240,21 @@ const TriviaGame = () => {
                     }
                     return prevPlayers;
                 });
+                break;
+                
+            case "playerReconnected": // When a player reconnects to the game
+                console.log("Player reconnected:", data.clientId);
+                
+                // If we're the host, show a message
+                if (role === 'host') {
+                    // Make sure the player is in our player list
+                    setPlayers(prevPlayers => {
+                        if (!prevPlayers.includes(data.clientId)) {
+                            return [...prevPlayers, data.clientId];
+                        }
+                        return prevPlayers;
+                    });
+                }
                 break;
             
             case "gameStarted":

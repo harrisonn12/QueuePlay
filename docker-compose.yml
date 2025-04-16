@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Redis service for state management and pub/sub
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6380:6379"  # Use port 6380 externally to avoid conflicts
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - queueplay-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # HAProxy load balancer
+  haproxy:
+    image: haproxy:2.6-alpine
+    ports:
+      - "8080:8080"  # HAProxy stats page
+      - "8081:8081"  # WebSocket traffic
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - server1
+      - server2
+    networks:
+      - queueplay-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Game server instances
+  server1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6789:6789" # Expose for direct testing
+      - "6790:6790" # Health check port
+    environment:
+      - WS_HOST=0.0.0.0
+      - WS_PORT=6789
+      - HEALTH_PORT=6790
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379  # Inside Docker network, Redis is on standard port
+      - SERVER_ID=server1
+    networks:
+      - queueplay-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+  server2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6791:6789" # Expose on different port to avoid conflict
+      - "6792:6790" # Health check port
+    environment:
+      - WS_HOST=0.0.0.0
+      - WS_PORT=6789
+      - HEALTH_PORT=6790
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379  # Inside Docker network, Redis is on standard port
+      - SERVER_ID=server2
+    networks:
+      - queueplay-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+networks:
+  queueplay-network:
+    driver: bridge
+
+volumes:
+  redis-data:

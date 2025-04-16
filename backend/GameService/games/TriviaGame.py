@@ -1,59 +1,74 @@
 from backend.GameService.games.BaseGame import BaseGame
-from backend.GameService.games.GameState import GameState
 import json
 import asyncio
+import logging
 from backend.QuestionService.QuestionService import QuestionService
 
+logger = logging.getLogger(__name__)
 
 class TriviaGame(BaseGame):
-
-    def __init__(self, gameId, hostId, questionService: QuestionService):
-        super().__init__(gameId, hostId)
-        self.questionService = questionService 
-        self.gameState = GameState()
-
-    async def startGame(self, connections):
+    def __init__(self, gameId, hostId, questionService, gameStateManager=None):
+        super().__init__(gameId, hostId, gameStateManager)
+        self.questionService = questionService
+    
+    async def startGame(self, sendToClient):
+        """Start the trivia game with questions"""
         numQuestions = 5
         questionSet = self.questionService.getQuestionAnswerSet(numQuestions)
+        
         if not questionSet or "questions" not in questionSet:
-            print("Failed to retrieve questions, aborting game start.")
+            logger.error(f"Failed to retrieve questions for game {self.gameId}")
+            await sendToClient(self.hostId, {
+                "action": "error",
+                "message": "Failed to retrieve questions"
+            })
             return
         
+        # Reset game state and initialize
         self.gameState.reset()
         self.gameState.questions = questionSet["questions"]
         self.gameState.active = True
         self.gameState.initializeScores(self.clients)
-
-        print(f"Game started, initial scores: {self.gameState.scores}")
-        print(f"Game started, with {len(self.gameState.questions)} questions.")
-
-        await self.broadcast(json.dumps({
+        
+        # Save game state to Redis
+        await self.saveState()
+        
+        logger.info(f"Game {self.gameId} started with {len(self.gameState.questions)} questions")
+        
+        # Send game started message to all clients
+        await self.broadcast({
             "action": "gameStarted",
             "questions": self.gameState.questions,
-        }), connections)
-
-
-    async def submitAnswer(self, clientId, questionIndex, answerIndex, connections):
+        }, sendToClient)
+    
+    async def submitAnswer(self, clientId, questionIndex, answerIndex, sendToClient):
+        """Handle a player submitting an answer"""
         if not self.gameState.active:
+            logger.warning(f"Attempt to submit answer for inactive game {self.gameId}")
             return
-
-        print(f"Player {clientId} submitted answer {answerIndex} for question {questionIndex}")
+        
+        logger.info(f"Player {clientId} submitted answer {answerIndex} for question {questionIndex} in game {self.gameId}")
+        
+        # Record the answer
         self.gameState.addPlayerAnswer(questionIndex, clientId, answerIndex)
-
-        if clientId in connections:
-            await connections[clientId].send(json.dumps({
-                "action": "answerSubmitted",
-                "questionIndex": questionIndex
-            }))
-
-        if self.hostId in connections:
-            await connections[self.hostId].send(json.dumps({
-                "action": "playerAnswered",
-                "clientId": clientId,
-                "questionIndex": questionIndex
-            }))
-
-    async def calculateAndSendScores(self, questionIndex, connections):
+        
+        # Save updated state
+        await self.saveState()
+        
+        # Send confirmation to the player
+        await sendToClient(clientId, {
+            "action": "answerSubmitted",
+            "questionIndex": questionIndex
+        })
+        
+        # Notify the host
+        await sendToClient(self.hostId, {
+            "action": "playerAnswered",
+            "clientId": clientId,
+            "questionIndex": questionIndex
+        })
+    
+    async def calculateAndSendScores(self, questionIndex, sendToClient):
         """Calculate scores for a question and send results"""
         if questionIndex < len(self.gameState.questions):
             correctAnswer = self.gameState.questions[questionIndex].get("answerIndex")
@@ -62,35 +77,55 @@ class TriviaGame(BaseGame):
             for clientId, answerIndex in playerAnswers.items():
                 if answerIndex == correctAnswer:
                     self.gameState.updateScore(clientId, 1)
-                    print(f"Player {clientId} answered correctly. New score: {self.gameState.scores[clientId]}")
+                    logger.debug(f"Player {clientId} answered correctly. New score: {self.gameState.scores.get(clientId)}")
                 else:
-                    print(f"Player {clientId} answered incorrectly ({answerIndex})")
+                    logger.debug(f"Player {clientId} answered incorrectly ({answerIndex})")
             
-            print(f"Broadcasting scores: {self.gameState.scores}")
-            await self.broadcast(json.dumps({
+            # Save updated state
+            await self.saveState()
+            
+            logger.info(f"Scores calculated for question {questionIndex} in game {self.gameId}")
+            
+            # Broadcast results to all players
+            await self.broadcast({
                 "action": "questionResult",
                 "scores": self.gameState.scores
-            }), connections)        
-
-    async def nextQuestion(self, connections):
+            }, sendToClient)
+    
+    async def nextQuestion(self, sendToClient):
+        """Move to the next question"""
         if not self.gameState.active:
+            logger.warning(f"Attempt to advance inactive game {self.gameId}")
             return
-
+        
         currentIndex = self.gameState.currentQuestionIndex
-        print(f"Moving from question {currentIndex} to next")
+        logger.info(f"Moving from question {currentIndex} to next in game {self.gameId}")
         
-        await self.calculateAndSendScores(currentIndex, connections)
+        # Calculate and send scores for the current question
+        await self.calculateAndSendScores(currentIndex, sendToClient)
         
+        # Move to the next question if available
         if self.gameState.moveToNextQuestion():
-            print(f"Moving to question {self.gameState.currentQuestionIndex}")
-            await self.broadcast(json.dumps({
+            logger.info(f"Moving to question {self.gameState.currentQuestionIndex} in game {self.gameId}")
+            
+            # Save updated state
+            await self.saveState()
+            
+            # Notify all clients of the next question
+            await self.broadcast({
                 "action": "nextQuestion",
                 "questionIndex": self.gameState.currentQuestionIndex,
-            }), connections)
+            }, sendToClient)
         else:
-            print("No more questions, ending game")
+            # End the game if no more questions
+            logger.info(f"No more questions, ending game {self.gameId}")
             self.gameState.active = False
-            await self.broadcast(json.dumps({
+            
+            # Save updated state
+            await self.saveState()
+            
+            # Notify all clients that the game is finished
+            await self.broadcast({
                 "action": "gameFinished",
                 "finalScores": self.gameState.scores
-            }), connections)
+            }, sendToClient)
