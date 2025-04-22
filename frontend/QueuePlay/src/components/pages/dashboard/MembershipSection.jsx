@@ -5,19 +5,19 @@ import axios from 'axios';
 export const MembershipSection = () => {
     const { membershipTiers } = useMembershipTiers();
 
-    const handleManageSubscription = async () => {
+    const handleManageSubscription = async (event) => {
         event.preventDefault();
 
         try {
             const response = await axios.post(
-                'http://127.0.0.1:8000/paymentService/createCustomerPortalSession',
+                'http://127.0.0.1:8000/paymentService/createStripeCustomerPortalSession',
                 {
                     customerID: 'cus_S718UIofINdTAG',
                     returnURL: 'http://localhost:5173/',
                 }
             );
 
-            window.location.href = response.data;
+            window.location.href = response.data.url;
         } catch (e) {
             console.error(`Error creating customer portal session: `, e);
         }
