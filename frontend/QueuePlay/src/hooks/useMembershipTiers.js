@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export default function useMembershipCards() {
-    const [membershipTiers, setMembershipTiers] = useState();
+export default function useMembershipTiers() {
+    const [membershipTiers, setMembershipTiers] = useState(null);
 
     useEffect(() => {
         axios

@@ -185,3 +185,13 @@ class StripeAdapter:
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
             return str(e)
+        
+    def createCustomerPortalSession(self, customerID: str, returnURL: str):
+        stripe.api_key = self.SECRETKEY
+
+        session = stripe.billing_portal.Session.create(
+            customer=customerID,
+            return_url=returnURL
+        )
+
+        return {"url": session.url}
