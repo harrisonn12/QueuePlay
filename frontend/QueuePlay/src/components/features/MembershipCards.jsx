@@ -12,9 +12,9 @@ export const MembershipCards = ({ name, price, perks }) => {
                 </span>
             </h4>
 
-            <p className='mt-4 text-gray-500 dark:text-gray-300'>
+            {/* <p className='mt-4 text-gray-500 dark:text-gray-300'>
                 For most businesses that want to optimaize web queries.
-            </p>
+            </p> */}
 
             {perks.length ? (
                 perks.map((perk) => (
