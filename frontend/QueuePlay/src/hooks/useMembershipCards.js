@@ -8,7 +8,9 @@ export default function useMembershipCards() {
         axios
             .get('http://127.0.0.1:8000/paymentService/getMembershipTiers')
             .then((response) => {
-                response = response.data.data
+                response = response.data.data;
+                response = response.replaceAll("'", '"');
+                response = JSON.parse(response);
                 setMembershipTiers(response);
             })
             .catch((e) => {
