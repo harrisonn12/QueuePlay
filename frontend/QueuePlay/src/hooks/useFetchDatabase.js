@@ -6,7 +6,7 @@ export const useFetchDatabase = (url) => {
 
     useEffect(() => {
         axios
-            .get(`http://127.0.0.1:8000/${url}`)
+            .get(`http://127.0.0.1:8000/paymentService/${url}`)
             .then((response) => {
                 console.log(response);
                 setData(response);

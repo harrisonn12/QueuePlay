@@ -3,7 +3,7 @@ from PaymentService.PaymentService import PaymentService
 from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
 
 router = APIRouter(
-    prefix="/paymentdb",
+    prefix="/paymentService",
     tags=["Payment Service"],
     responses={404: {"description": "Not found"}}
 )
@@ -23,3 +23,7 @@ def createNewUser(name: str, email: str):
 def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
     """ Attach Payment Method to a Customer"""
     return paymentService.addPaymentMethod(customerId, paymentId, defaultMethod)
+
+@router.get("/getMembershipTiers")
+def getMembershipTiers():
+    return paymentService.getMembershipTiers()

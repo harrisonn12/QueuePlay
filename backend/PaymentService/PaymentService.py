@@ -9,8 +9,8 @@ from commons.models.StripeCustomer import StripeCustomer
 
 class PaymentService:
     clientTableName = PaymentServiceTableNames.CLIENTS.value
-    membershipDbName = 'membership'
-    offersDbName = 'offers'
+    membershipTableName = PaymentServiceTableNames.MEMBERSHIP.value
+    offersTableName = PaymentServiceTableNames.OFFERS.value
     supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
 
     def __init__(self):
@@ -78,3 +78,8 @@ class PaymentService:
             return ActionResponse(success=True, message="New customer generated", data=str(apiResponse.data))
         
         return ActionResponse(success=True, message="Existing user")
+    
+    def getMembershipTiers(self) -> ActionResponse:
+        tiers = self.supabaseDatabaseAdapter.queryTable(self.membershipTableName)
+
+        return ActionResponse(success=True, message="Membership tiers successfully retrieved", data = str(tiers.data))
