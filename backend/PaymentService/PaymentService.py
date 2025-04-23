@@ -34,6 +34,7 @@ class PaymentService:
                 error=e)
         
     def  handleUserLogin(self, userPayload: PaymentServiceUserPayload) -> ActionResponse:
+        """ This endpoint ensures that newly authenticated users are stored in the database and that they are designated a Stripe Customer ID """
         name = userPayload.name
         email = userPayload.email
         phone = userPayload.phone
@@ -42,24 +43,24 @@ class PaymentService:
         # get user from client database
         queryResponse = self.supabaseDatabaseAdapter.queryTable(
                 self.clientTableName,
-                {"auth0_id": auth0Id,},
+                {"auth0ID": auth0Id,},
             )
         
         # if user does not exist, insert new client into client db
         if (not queryResponse.data):
             self.supabaseDatabaseAdapter.insertData(
                     self.clientTableName,
-                    { "auth0_id": auth0Id }
+                    { "auth0ID": auth0Id }
             )
 
         # check if user has stripe account
         queryResponse = self.supabaseDatabaseAdapter.queryTable(
             self.clientTableName,
-            {"auth0_id": auth0Id},
-            "stripe_customer_id"
+            {"auth0ID": auth0Id},
+            "stripeCustomerID"
         )
 
-        stripeCustomerId = queryResponse.data[0]["stripe_customer_id"]
+        stripeCustomerId = queryResponse.data[0]["stripeCustomerID"]
         
         # if not, generate a new customer obj, then link customer id to client id
         if (not stripeCustomerId):
@@ -70,9 +71,9 @@ class PaymentService:
             stripeCustomerObj = self.stripeAdapter.createCustomer(stripeCustomerDetails)
             apiResponse = self.supabaseDatabaseAdapter.updateTable(
                 self.clientTableName,
-                "auth0_id",
+                "auth0ID",
                 auth0Id,
-                {"stripe_customer_id": stripeCustomerObj.id}
+                {"stripeCustomerID": stripeCustomerObj.id}
             )
 
             return ActionResponse(success=True, message="New customer generated", data=str(apiResponse.data))

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export const DashboardSection = ({ user }) => {
+export const DashboardSection = () => {
     const [isLaunching, setIsLaunching] = useState(false);
 
     const handleLaunchGame = () => {

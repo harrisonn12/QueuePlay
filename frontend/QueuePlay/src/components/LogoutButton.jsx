@@ -5,13 +5,10 @@ export function LogoutButton() {
 
     return (
         <button
-            onClick={() => {
-                logout({
-                    logoutParams: { returnTo: window.location.origin },
-                });
-            }}
+            onClick={() => logout({ returnTo: window.location.origin })}
+            className='px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700'
         >
-            Log Out
+            Logout
         </button>
     );
 }

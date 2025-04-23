@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
 import { AccountSection } from './dashboard/AccountSection';
 import { MembershipSection } from './dashboard/MembershipSection';
 import { PerksSection } from './dashboard/PerksSection';
 import { DashboardSection } from './dashboard/DashboardSection';
+import { useAuth0 } from '@auth0/auth0-react';
+import { LogoutButton } from '../LogoutButton';
+import { useHandleLogin } from '../../hooks/useHandleLogin';
 
 export const UserDashboard = () => {
-    const { user, logout } = useAuth0();
     const [activeTab, setActiveTab] = useState('dashboard');
+    const { user } = useAuth0();
+    useHandleLogin(user);
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
@@ -19,15 +22,15 @@ export const UserDashboard = () => {
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
-                return <DashboardSection user={user} />;
+                return <DashboardSection />;
             case 'account':
-                return <AccountSection user={user} />;
+                return <AccountSection />;
             case 'membership':
                 return <MembershipSection />;
             case 'perks':
                 return <PerksSection />;
             default:
-                return <DashboardSection user={user} />;
+                return <DashboardSection />;
         }
     };
 
@@ -47,14 +50,7 @@ export const UserDashboard = () => {
                                 Welcome, {user?.name}
                             </h1>
                         </div>
-                        <button
-                            onClick={() =>
-                                logout({ returnTo: window.location.origin })
-                            }
-                            className='px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700'
-                        >
-                            Logout
-                        </button>
+                        <LogoutButton />
                     </div>
                 </div>
 

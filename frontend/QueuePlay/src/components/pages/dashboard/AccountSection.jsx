@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
 
-export const AccountSection = ({ user }) => {
+export const AccountSection = () => {
+    const { user } = useAuth0();
     const [editingField, setEditingField] = useState(null);
     const [editValue, setEditValue] = useState('');
 
