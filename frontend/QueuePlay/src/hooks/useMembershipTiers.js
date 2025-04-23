@@ -10,6 +10,7 @@ export default function useMembershipTiers() {
             .then((response) => {
                 response = response.data.data;
                 response = response.replaceAll("'", '"');
+                response = response.replaceAll('None', '"null"');
                 response = JSON.parse(response);
                 setMembershipTiers(response);
             })

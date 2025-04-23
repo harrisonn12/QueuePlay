@@ -24,32 +24,31 @@ export const MembershipSection = () => {
     };
 
     return (
-        <>
-            <section className='bg-white dark:bg-gray-900'>
-                <div className='container px-6 py-8 mx-auto'>
-                    <div className='sm:flex sm:items-center sm:justify-between'>
-                        <div>
-                            <h2 className='text-2xl font-bold text-gray-800 lg:text-3xl dark:text-gray-100'>
-                                Simple, transparent pricing
-                            </h2>
-                            <p className='mt-4 text-gray-500 dark:text-gray-400'>
-                                No Contracts. No surorise fees.
-                            </p>
-                        </div>
-
-                        <div className='overflow-hidden p-0.5 mt-6 border rounded-lg dark:border-gray-700'>
-                            <div className='sm:-mx-0.5 flex'>
-                                <button className=' focus:outline-none px-3 w-1/2 sm:w-auto py-1 sm:mx-0.5 text-white bg-blue-500 rounded-lg'>
-                                    Monthly
-                                </button>
-                                <button className=' focus:outline-none px-3 w-1/2 sm:w-auto py-1 sm:mx-0.5 text-gray-800 dark:text-gray-200 dark:hover:bg-gray-800 bg-transparent rounded-lg hover:bg-gray-200'>
-                                    Yearly
-                                </button>
-                            </div>
+        <div className='bg-white shadow overflow-hidden sm:rounded-lg'>
+            <div className='px-4 py-5 sm:px-6'>
+                <h3 className='text-lg leading-6 font-medium text-gray-900'>
+                    Membership Plans
+                </h3>
+                <p className='mt-1 max-w-2xl text-sm text-gray-500'>
+                    Choose the perfect plan for your gaming journey.
+                </p>
+            </div>
+            <div className='border-t border-gray-200'>
+                <div className='px-4 py-5 sm:p-6'>
+                    {/* Billing Toggle */}
+                    <div className='flex justify-end mb-8'>
+                        <div className='relative inline-flex rounded-lg p-1 bg-gray-100'>
+                            <button className='relative px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
+                                Monthly
+                            </button>
+                            <button className='relative px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none'>
+                                Yearly
+                            </button>
                         </div>
                     </div>
 
-                    <div className='grid gap-6 mt-16 sm:gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'>
+                    {/* Membership Cards */}
+                    <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
                         {membershipTiers ? (
                             membershipTiers.map((tier) => (
                                 <MembershipCards
@@ -60,23 +59,43 @@ export const MembershipSection = () => {
                                 />
                             ))
                         ) : (
-                            <p>Loading tiers...</p>
+                            <div className='col-span-full flex justify-center items-center py-12'>
+                                <div className='flex flex-col items-center space-y-4'>
+                                    <div className='animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600'></div>
+                                    <p className='text-sm font-medium text-gray-600'>
+                                        Loading membership plans...
+                                    </p>
+                                </div>
+                            </div>
                         )}
                     </div>
-                    {membershipTiers ? (
-                        <form onSubmit={handleManageSubscription}>
+
+                    {/* Manage Subscription Button */}
+                    {membershipTiers && (
+                        <div className='mt-8 flex justify-center'>
                             <button
-                                className='w-full px-4 py-2 mt-10 font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600'
-                                type='submit'
+                                onClick={handleManageSubscription}
+                                className='relative inline-flex items-center px-6 py-3 text-base font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300'
                             >
-                                Manage your subscription
+                                <svg
+                                    className='w-5 h-5 mr-2'
+                                    fill='none'
+                                    stroke='currentColor'
+                                    viewBox='0 0 24 24'
+                                >
+                                    <path
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        strokeWidth='2'
+                                        d='M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z'
+                                    />
+                                </svg>
+                                Manage Subscription
                             </button>
-                        </form>
-                    ) : (
-                        ''
+                        </div>
                     )}
                 </div>
-            </section>
-        </>
+            </div>
+        </div>
     );
 };

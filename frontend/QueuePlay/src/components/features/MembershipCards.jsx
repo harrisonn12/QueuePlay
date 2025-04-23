@@ -1,47 +1,53 @@
 export const MembershipCards = ({ name, price, perks }) => {
     return (
-        <div className='px-6 py-4 transition-colors duration-300 transform rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800'>
-            <p className='text-lg font-medium text-gray-800 dark:text-gray-100'>
-                {name}
-            </p>
-
-            <h4 className='mt-2 text-3xl font-semibold text-gray-800 dark:text-gray-100'>
-                {`$${price} `}
-                <span className='text-base font-normal text-gray-600 dark:text-gray-400'>
-                    / Month
-                </span>
-            </h4>
-
-            {/* <p className='mt-4 text-gray-500 dark:text-gray-300'>
-                For most businesses that want to optimaize web queries.
-            </p> */}
-
-            {perks.length ? (
-                perks.map((perk) => (
-                    <div className='mt-8 space-y-8' key={perk}>
-                        <div className='flex items-center'>
-                            <svg
-                                xmlns='http://www.w3.org/2000/svg'
-                                className='w-5 h-5 text-blue-500'
-                                viewBox='0 0 20 20'
-                                fill='currentColor'
-                            >
-                                <path
-                                    fill-rule='evenodd'
-                                    d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
-                                    clip-rule='evenodd'
-                                />
-                            </svg>
-
-                            <span className='mx-4 text-gray-700 dark:text-gray-300'>
-                                {perk}
-                            </span>
-                        </div>
+        <div className='bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:border-indigo-500 hover:shadow-lg transition-all duration-300'>
+            <div className='p-6'>
+                <div className='flex items-center justify-between'>
+                    <h3 className='text-xl font-semibold text-gray-900'>
+                        {name}
+                    </h3>
+                    <div className='flex items-baseline'>
+                        <span className='text-3xl font-bold text-gray-900'>
+                            ${price}
+                        </span>
+                        <span className='ml-1 text-sm font-medium text-gray-600'>
+                            /month
+                        </span>
                     </div>
-                ))
-            ) : (
-                <div>Loading perks...</div>
-            )}
+                </div>
+
+                <div className='mt-6 space-y-4'>
+                    {perks.length ? (
+                        perks.map((perk, index) => (
+                            <div key={index} className='flex items-start'>
+                                <div className='flex-shrink-0'>
+                                    <svg
+                                        className='h-5 w-5 text-indigo-500'
+                                        fill='none'
+                                        viewBox='0 0 24 24'
+                                        stroke='currentColor'
+                                    >
+                                        <path
+                                            strokeLinecap='round'
+                                            strokeLinejoin='round'
+                                            strokeWidth='2'
+                                            d='M5 13l4 4L19 7'
+                                        />
+                                    </svg>
+                                </div>
+                                <p className='ml-3 text-sm font-medium text-gray-800'>
+                                    {perk}
+                                </p>
+                            </div>
+                        ))
+                    ) : (
+                        <div className='flex items-center space-x-2 py-2'>
+                            <div className='animate-pulse h-4 w-4 bg-indigo-200 rounded-full'></div>
+                            <div className='animate-pulse h-4 w-24 bg-indigo-100 rounded'></div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
