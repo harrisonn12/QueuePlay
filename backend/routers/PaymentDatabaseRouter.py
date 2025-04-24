@@ -1,6 +1,9 @@
 import ast
 from dotenv import load_dotenv
 from fastapi import APIRouter
+from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
+from GamerManagementService.src.databases.Gamer import Gamer
+from GamerManagementService.GamerManagementService import GamerManagementService
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 
 load_dotenv()
@@ -12,6 +15,8 @@ router = APIRouter(
 )
 
 databaseAdapter = SupabaseDatabaseAdapter()
+gamersDatabase = GamersDatabase(databaseAdapter)
+gamerManagementService = GamerManagementService(gamersDatabase)
 
 @router.post('/insert')
 def insertData(
@@ -43,3 +48,27 @@ def deleteData(
         data = 'this is a newName'
     ):
     return databaseAdapter.deleteData(table, field, data)
+
+@router.post('/addGamer')
+def insertGamer(gamer : Gamer):
+    return gamersDatabase.addGamer(gamer)
+
+@router.post('/getGamer')
+def getGamer(gamerId : str):
+    return gamersDatabase.getGamer(gamerId)
+
+@router.post('/getGamers')
+def getGamers():
+    return gamersDatabase.getGamers()
+
+@router.post('/addCouponToGamer')
+def addCouponToGamer(couponId: str, gamerId: str):
+    return gamersDatabase.addCouponToGamer(couponId, gamerId)
+
+@router.post('/removeCouponToGamer')
+def removeCouponToGamer(couponId: str, gamerId: str):
+    return gamersDatabase.removeCouponFromGamer(couponId, gamerId)
+
+@router.post('/getExpiringGamers')
+def getGamersWithExpiringCoupons():
+    return gamerManagementService.getGamersWithExpiringCoupons()

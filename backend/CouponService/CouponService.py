@@ -62,5 +62,5 @@ class CouponService:
         if response:
             return response
         else:
-            return None
+            raise ValueError("Coupon not found")
         
