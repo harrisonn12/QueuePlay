@@ -21,7 +21,7 @@ class CouponsDatabase(DatabaseAdapter):
         else:
             return None 
 
-    def addCoupon(self, data: BaseModel):
+    def addCoupon(self, data: Coupon):
         coupon_dict = data.model_dump()
         self.supabaseDatabase.insertData("coupons", coupon_dict)
 
