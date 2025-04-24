@@ -12,6 +12,7 @@ router = APIRouter(
 paymentService = PaymentService()
 stripeAdapter = StripeAdapter()
 
+
 @router.post("/handleUserLogin")
 def handleUserLogin(userPayload: PaymentServiceUserPayload):
     return paymentService.handleUserLogin(userPayload)
@@ -31,6 +32,6 @@ def getMembershipTiers():
     return paymentService.getMembershipTiers()
 
 @router.post("/createStripeCustomerPortalSession")
-def createStripeCustomerPortalSession(customerID = "cus_S718UIofINdTAG", returnURL = 'http://localhost:5173/'):
+def createStripeCustomerPortalSession(auth0ID: str, returnURL: str):
     """ Create a portal session for a Customer """
-    return stripeAdapter.createCustomerPortalSession(customerID, returnURL)
+    return stripeAdapter.createCustomerPortalSession(auth0ID, returnURL)

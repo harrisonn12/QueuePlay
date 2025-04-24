@@ -5,6 +5,8 @@ from commons.models.PaymentMethodRequest import PaymentMethodRequest
 from commons.models.CreditCardDetails import CreditCardDetails
 from commons.models.BillingDetails import BillingDetails
 from commons.models.StripeCustomer import StripeCustomer
+from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,6 +15,7 @@ class StripeAdapter:
     # Stripe Keys
     PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
     SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
+    supabaseDbAdapter = SupabaseDatabaseAdapter()
 
     def createPaymentMethod(self, cardDetails: CreditCardDetails, billingDetails: BillingDetails)-> stripe.PaymentMethod:
         """ PaymentMethod object can only be attached to one customer """
@@ -186,9 +189,21 @@ class StripeAdapter:
             print(f"Unexpected error: {str(e)}")
             return str(e)
         
-    def createCustomerPortalSession(self, customerID: str, returnURL: str):
+    def createCustomerPortalSession(self, auth0ID: str, returnURL: str):
         stripe.api_key = self.SECRETKEY
 
+        clientTableName = PaymentServiceTableNames.CLIENTS.value
+
+        # get stripe customer id using auth0Id
+        customerID = self.supabaseDbAdapter.queryTable(
+                clientTableName, 
+                {"auth0ID": auth0ID},
+                "stripeCustomerID"
+            )
+        
+        customerID = customerID.data[0].get("stripeCustomerID")
+        
+        # create a customer portal session
         session = stripe.billing_portal.Session.create(
             customer=customerID,
             return_url=returnURL

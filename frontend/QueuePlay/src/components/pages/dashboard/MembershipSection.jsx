@@ -1,9 +1,11 @@
 import useMembershipTiers from '../../../hooks/useMembershipTiers';
 import { MembershipCards } from '../../features/MembershipCards';
+import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
 
 export const MembershipSection = () => {
     const { membershipTiers } = useMembershipTiers();
+    const { user } = useAuth0();
 
     const handleManageSubscription = async (event) => {
         event.preventDefault();
@@ -12,7 +14,7 @@ export const MembershipSection = () => {
             const response = await axios.post(
                 'http://127.0.0.1:8000/paymentService/createStripeCustomerPortalSession',
                 {
-                    customerID: 'cus_S718UIofINdTAG',
+                    auth0ID: user.sub,
                     returnURL: 'http://localhost:5173/',
                 }
             );

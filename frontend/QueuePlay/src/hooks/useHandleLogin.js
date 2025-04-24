@@ -12,8 +12,6 @@ export const useHandleLogin = (user) => {
             auth0Id: user.sub,
         };
 
-        console.log('called once');
-
         axios
             .post(
                 `http://127.0.0.1:8000/paymentService/handleUserLogin`,
@@ -27,6 +25,5 @@ export const useHandleLogin = (user) => {
             });
     }, [user]);
 
-    /* return JSON.stringify(userOutputData); */
-    return userOutputData;
+    return JSON.stringify(userOutputData);
 };

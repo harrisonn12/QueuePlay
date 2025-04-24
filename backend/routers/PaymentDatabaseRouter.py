@@ -27,10 +27,10 @@ def getTable(table = 'testingTable'):
 
 @router.put('/update')
 def updateTable(
-        table = 'testingTable',
-        fieldFilter="id",
-        valueFilter=100,
-        data = {"name":"this one was just changed"}
+        table: str,
+        fieldFilter: str = "id",
+        valueFilter: int =100,
+        data: dict = {"name":"this one was just changed"}
     ):
     data = ast.literal_eval(data) # for testing purposes need to delete
     
@@ -38,8 +38,8 @@ def updateTable(
 
 @router.delete('/deleteData')
 def deleteData(
-        table = 'testingTable',
-        field = 'name',
-        data = 'this is a newName'
+        table: str = 'testingTable',
+        field: str = 'name',
+        data: str = 'this is a newName'
     ):
     return databaseAdapter.deleteData(table, field, data)
