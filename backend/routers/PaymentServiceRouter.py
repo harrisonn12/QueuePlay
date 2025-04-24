@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from PaymentService.PaymentService import PaymentService
 from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
+from commons.models.StripeCustomerPortalSessionRequest import StripeCustomerPortalSessionRequest
 from commons.adapters.StripeAdapter import StripeAdapter
 
 router = APIRouter(
@@ -32,6 +33,6 @@ def getMembershipTiers():
     return paymentService.getMembershipTiers()
 
 @router.post("/createStripeCustomerPortalSession")
-def createStripeCustomerPortalSession(auth0ID: str, returnURL: str):
+def createStripeCustomerPortalSession(request: StripeCustomerPortalSessionRequest):
     """ Create a portal session for a Customer """
-    return stripeAdapter.createCustomerPortalSession(auth0ID, returnURL)
+    return stripeAdapter.createCustomerPortalSession(request)

@@ -5,6 +5,7 @@ from commons.models.PaymentMethodRequest import PaymentMethodRequest
 from commons.models.CreditCardDetails import CreditCardDetails
 from commons.models.BillingDetails import BillingDetails
 from commons.models.StripeCustomer import StripeCustomer
+from commons.models.StripeCustomerPortalSessionRequest import StripeCustomerPortalSessionRequest
 from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from dotenv import load_dotenv
@@ -189,7 +190,9 @@ class StripeAdapter:
             print(f"Unexpected error: {str(e)}")
             return str(e)
         
-    def createCustomerPortalSession(self, auth0ID: str, returnURL: str):
+    def createCustomerPortalSession(self, request: StripeCustomerPortalSessionRequest):
+        auth0ID = request.auth0ID
+        returnURL = request.returnURL
         stripe.api_key = self.SECRETKEY
 
         clientTableName = PaymentServiceTableNames.CLIENTS.value
