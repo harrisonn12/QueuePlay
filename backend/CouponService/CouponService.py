@@ -53,7 +53,7 @@ class CouponService:
         return coupon
 
     # Returns a list of coupons associated with a store and a gamer
-    def getCoupon(self, storeId: int, gamerId: str):
+    def getCoupons(self, storeId: int, gamerId: str):
         return self.couponsDatabase.getGamerCoupons(storeId, gamerId)
     
     # Destroys the coupon if it exists
