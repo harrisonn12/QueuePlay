@@ -70,9 +70,9 @@ def createCoupon(createCouponRequest: CreateCouponRequest):
 def assignCoupon(assignCouponRequest: AssignCouponRequest):
     return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
 
-@app.post("/getCoupon")
-def getCoupon(getCouponRequest: GetCouponRequest):
-    return couponService.getCoupon(getCouponRequest.storeId, getCouponRequest.gamerId)
+@app.post("/getCoupons")
+def getCoupons(getCouponRequest: GetCouponRequest):
+    return couponService.getCoupons(getCouponRequest.storeId, getCouponRequest.gamerId)
 
 @app.post("/destroyCoupon")
 def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
