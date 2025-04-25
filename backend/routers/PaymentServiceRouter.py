@@ -32,6 +32,10 @@ def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
 def getMembershipTiers():
     return paymentService.getMembershipTiers()
 
+@router.get("/getUserMembershipTier")
+def getUserMembershipTier():
+    return  paymentService.getUserMembershipTier()
+
 @router.post("/createStripeCustomerPortalSession")
 def createStripeCustomerPortalSession(request: StripeCustomerPortalSessionRequest):
     """ Create a portal session for a Customer """

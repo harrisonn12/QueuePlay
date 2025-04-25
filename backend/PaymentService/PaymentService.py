@@ -16,7 +16,7 @@ class PaymentService:
     def __init__(self):
         self.stripeAdapter = StripeAdapter()
     
-    def addPaymentMethod(self, paymentMethodRequest: PaymentMethodRequest) -> stripe.SetupIntent:
+    def addPaymentMethod(self, paymentMethodRequest: PaymentMethodRequest) -> ActionResponse:
         """ Attach a Stripe Payment Method to a Stripe Customer """
         try:
             result = self.stripeAdapter.createSetupIntent(paymentMethodRequest)
@@ -84,3 +84,16 @@ class PaymentService:
         tiers = self.supabaseDatabaseAdapter.queryTable(self.membershipTableName)
 
         return ActionResponse(success=True, message="Membership tiers successfully retrieved", data = str(tiers.data))
+    
+    def getUserMembershipTier(self, auth0ID) -> ActionResponse:
+        try:
+            response = self.supabaseDatabaseAdapter.queryTable(
+                    self.clientTableName,
+                    {
+                        "auth0ID": auth0ID
+                    },
+                    "membershipTier"
+                )
+
+            return response
+        except Exception as e: return ActionResponse(success=False, message="Unable to retrieve user membership tier")

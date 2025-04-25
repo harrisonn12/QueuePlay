@@ -8,7 +8,6 @@ export const useFetchDatabase = (url) => {
         axios
             .get(`http://127.0.0.1:8000/paymentService/${url}`)
             .then((response) => {
-                console.log(response);
                 setData(response);
             })
             .catch((e) => {
