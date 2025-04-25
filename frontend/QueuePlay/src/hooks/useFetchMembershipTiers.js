@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export default function useMembershipTiers() {
+export const useFetchMembershipTiers = () => {
     const [membershipTiers, setMembershipTiers] = useState(null);
 
     /* Get all existing membership tiers */
@@ -23,4 +23,4 @@ export default function useMembershipTiers() {
     return {
         membershipTiers,
     };
-}
+};
