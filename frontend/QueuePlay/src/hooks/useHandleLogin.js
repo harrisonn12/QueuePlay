@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 export const useHandleLogin = (user) => {
-    const [userOutputData, setUserOutputData] = useState();
-    const [currentTier, setCurrentTier] = useState(null);
+    const [userOutputData, setUserOutputData] = useState(null);
+    const [currentMembershipTier, setCurrentMembershipTier] = useState(null);
 
     /* Handle user login */
     useEffect(() => {
@@ -31,10 +31,12 @@ export const useHandleLogin = (user) => {
     useEffect(() => {
         axios
             .get('http://127.0.0.1:8000/paymentService/getUserMembershipTier', {
-                auth0ID: user.sub,
+                params: {
+                    auth0ID: user.sub,
+                },
             })
             .then((response) => {
-                console.log(`Client Membership: ${response.data}`);
+                setCurrentMembershipTier(response.data.data);
             })
             .catch((e) => {
                 console.error('Error fetching client membership tier:', e);
@@ -43,6 +45,6 @@ export const useHandleLogin = (user) => {
 
     return {
         loginResponse: JSON.stringify(userOutputData),
-        currentTier,
+        currentMembershipTier,
     };
 };

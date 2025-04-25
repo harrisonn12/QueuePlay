@@ -33,8 +33,8 @@ def getMembershipTiers():
     return paymentService.getMembershipTiers()
 
 @router.get("/getUserMembershipTier")
-def getUserMembershipTier():
-    return  paymentService.getUserMembershipTier()
+def getUserMembershipTier(auth0ID: str):
+    return paymentService.getUserMembershipTier(auth0ID)
 
 @router.post("/createStripeCustomerPortalSession")
 def createStripeCustomerPortalSession(request: StripeCustomerPortalSessionRequest):

@@ -81,13 +81,17 @@ class PaymentService:
         return ActionResponse(success=True, message="Existing user")
     
     def getMembershipTiers(self) -> ActionResponse:
-        tiers = self.supabaseDatabaseAdapter.queryTable(self.membershipTableName)
-
-        return ActionResponse(success=True, message="Membership tiers successfully retrieved", data = str(tiers.data))
-    
-    def getUserMembershipTier(self, auth0ID) -> ActionResponse:
         try:
-            response = self.supabaseDatabaseAdapter.queryTable(
+            tiers = self.supabaseDatabaseAdapter.queryTable(self.membershipTableName)
+            
+            return ActionResponse(success=True, message="Membership tiers successfully retrieved", data = str(tiers.data))
+        except Exception as e:
+            return ActionResponse(success=False, message="Unable to retrieve membership tiers")
+
+    
+    def getUserMembershipTier(self, auth0ID: str) -> ActionResponse:
+        try:
+            membershipTier = self.supabaseDatabaseAdapter.queryTable(
                     self.clientTableName,
                     {
                         "auth0ID": auth0ID
@@ -95,5 +99,5 @@ class PaymentService:
                     "membershipTier"
                 )
 
-            return response
+            return ActionResponse(success=True, message="User membership tier retrieved successfully", data = str(membershipTier.data[0]['membershipTier']))
         except Exception as e: return ActionResponse(success=False, message="Unable to retrieve user membership tier")
