@@ -9,21 +9,30 @@ import time
 from aiohttp import web
 from dotenv import load_dotenv
 from backend.ConnectionService.ConnectionService import ConnectionService
-from backend.GameService.GameService import GameService
+from backend.LobbyService.LobbyService import LobbyService
+from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from backend.commons.adapters.RedisAdapter import RedisAdapter
 from backend.MessageService.MessageService import MessageService
+from backend.QuestionService.QuestionService import QuestionService
+from backend.commons.adapters.ChatGptAdapter import ChatGptAdapter
+from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 from backend.configuration.RedisConfig import RedisConfig, RedisChannelPrefix
+from backend.configuration.AppConfig import AppConfig
 from backend.commons.enums.Stage import Stage
 
 
 #FLOW:
 #1. Server creates redis_adapter
 #2. Server creates message_service = MessageService(redis_adapter)
-#3. Server creates game_service = GameService(redis_adapter)
-#4. Server creates connection_service = ConnectionService()
-#5. Server sets connection_service.redis = redis_adapter
-#6. Server sets connection_service.gameService = game_service
-#7. Server sets connection_service.messageService = message_service
+#3. Server creates lobby_service = LobbyService(..., redis_adapter)
+#4. Server creates question_service = QuestionService(...)
+#5. Server creates connection_service = ConnectionService()
+#6. Server injects dependencies into connection_service:
+#   connection_service.lobbyService = lobby_service
+#   connection_service.messageService = message_service
+#   connection_service.questionService = question_service
+#7. Server starts message_service
+#8. Server starts connection_service
 
 
 # Set up logging
@@ -36,26 +45,22 @@ logger = logging.getLogger(__name__)
 
 # Global service references for cleanup
 connection_service = None
-game_service = None
 message_service = None
 redis_adapter = None
+lobby_service = None
+qr_code_generator = None
+question_service = None
+chat_gpt_adapter = None
+question_answer_set_generator = None
 
 async def shutdown(signal, loop):
     """Cleanup tasks tied to the service's shutdown."""
     logger.info(f"Received exit signal {signal.name}...")
     
     # Stop services in reverse order
-    if game_service:
-        logger.info("Stopping game service...")
-        await game_service.stop()
-    
     if connection_service:
         logger.info("Stopping connection service...")
         await connection_service.stop()
-    
-    if message_service:
-        logger.info("Stopping message service...")
-        await message_service.stop()
     
     if redis_adapter:
         logger.info("Closing Redis connections...")
@@ -136,7 +141,7 @@ async def health_handler(request):
         "message": status_message,
         "serverId": os.environ.get("SERVER_ID", "unknown"),
         "connections": len(connection_service.localConnections) if connection_service else 0,
-        "games": len(game_service.games) if game_service else 0,
+        "lobbies_local": len(connection_service.localConnections)
     }
     
     status_code = 200 if is_healthy else 503
@@ -155,7 +160,7 @@ async def setup_health_server(health_port):
     return runner
 
 async def main(args):
-    global connection_service, game_service, message_service, redis_adapter
+    global connection_service, message_service, redis_adapter, lobby_service, qr_code_generator, question_service, chat_gpt_adapter, question_answer_set_generator
     
     # Get host and port from arguments, environment variables, or use defaults
     host = args.host if args.host else os.environ.get("WS_HOST", "0.0.0.0")  # Bind to all interfaces
@@ -185,21 +190,50 @@ async def main(args):
     # Initialize message service first (for pub/sub)
     message_service = MessageService(redis_adapter)
     await message_service.start()
+
+    # Initialize Lobby Service components
+    # TODO: Pass appropriate AppConfig if needed by QRCodeGenerator later
+    app_config = AppConfig(stage)
+    qr_code_generator = QRCodeGenerator(app_config)
+    lobby_service = LobbyService(qr_code_generator, redis_adapter)
+    # No async start needed for LobbyService currently
+    logger.info("Lobby Service initialized")
     
-    # Initialize game service
-    game_service = GameService(redis_adapter)
-    game_service.messageService = message_service
-    # Register system message handlers
-    await message_service.subscribe(f"{RedisChannelPrefix.GAME.value}:all", game_service.handleGameEvent)
-    await game_service.start()
-    
+    # Initialize Question Service dependencies
+    try:
+        # ***** ADDED: Initialize adapters *****
+        # Assuming ChatGptAdapter needs API key from env or config
+        # Make sure OPENAI_API_KEY is set in your .env file
+        chat_gpt_adapter = ChatGptAdapter() 
+        question_answer_set_generator = QuestionAnswerSetGenerator(chat_gpt_adapter)
+        logger.info("Question Service Adapters initialized")
+        
+        # ***** MODIFIED: Initialize Question Service with real dependencies *****
+        question_service = QuestionService(
+            chatGptAdapter=chat_gpt_adapter, 
+            questionAnswerSetGenerator=question_answer_set_generator
+        )
+        logger.info("Question Service initialized")
+        
+    except ImportError as e:
+         logger.error(f"Failed to import QuestionService or its dependencies: {e}")
+         question_service = None # Ensure it's None if init fails
+    except KeyError as e:
+        logger.error(f"Missing environment variable for QuestionService dependencies (e.g., OPENAI_API_KEY): {e}")
+        question_service = None
+    except Exception as e:
+        # Catch other potential errors during adapter/service init
+        logger.error(f"Failed to initialize QuestionService or dependencies: {e}", exc_info=True)
+        question_service = None
+
     # Initialize connection service
     connection_service = ConnectionService()
-    connection_service.redis = redis_adapter
-    connection_service.gameService = game_service
+    connection_service.redis = redis_adapter # Keep for potential direct Redis use? Or remove?
+    connection_service.lobbyService = lobby_service # Pass LobbyService directly
     connection_service.messageService = message_service
+    connection_service.questionService = question_service
     # Register connection message handlers
-    await message_service.subscribe(f"{RedisChannelPrefix.CONNECTION.value}:all", connection_service.handleConnectionEvent)
+    # await message_service.subscribe(f"{RedisChannelPrefix.CONNECTION.value}:all", connection_service.handleConnectionEvent)
     await connection_service.start()
     
     # Start health check

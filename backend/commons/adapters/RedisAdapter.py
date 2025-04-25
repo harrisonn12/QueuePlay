@@ -15,8 +15,8 @@ class RedisAdapter:
     customizing the way Redis is used to fit this app's needs.
     Without wrapper: 
         Only accept strings (not dicts or lists)
-        Don’t handle errors
-        Don’t support custom formats (e.g., prefixing keys like "game:123")
+        Don't handle errors
+        Don't support custom formats (e.g., prefixing keys like "game:123")
         Don't give you built-in async + sync support in one place
 
 
@@ -77,6 +77,12 @@ class RedisAdapter:
         
         return self._async_client
     
+    # --- Pipeline Method ---
+    async def pipeline(self, transaction=True):
+        """Return a pipeline object from the async client."""
+        client = await self.async_client
+        return client.pipeline(transaction=transaction)
+    
     # Key management methods
     async def exists(self, key):
         """Check if a key exists"""
@@ -87,13 +93,16 @@ class RedisAdapter:
             logger.error(f"Redis error in exists operation for key {key}: {e}")
             return False
     
-    async def delete(self, key):
-        """Delete a key"""
+    async def delete(self, *keys):
+        """Delete one or more keys"""
+        if not keys: return 0 # Nothing to delete
         try:
             client = await self.async_client
-            return await client.delete(key)
+            # Pass keys using * to unpack them as arguments to the underlying client's delete
+            return await client.delete(*keys)
         except RedisError as e:
-            logger.error(f"Redis error in delete operation for key {key}: {e}")
+            # Log error with all keys intended for deletion
+            logger.error(f"Redis error in delete operation for keys {keys}: {e}")
             return 0
     
     async def expire(self, key, seconds):
@@ -180,27 +189,39 @@ class RedisAdapter:
             return default
     
     async def hgetall(self, name):
-        """Get all fields and values in a hash with JSON deserialization if applicable"""
+        """Get all fields and values in a hash, robustly handling decoding and JSON deserialization."""
         try:
-            client = await self.async_client
-            values = await client.hgetall(name)
-            
-            if not values:
+            client = await self.async_client # Use the main client (decode_responses=True)
+            raw_values = await client.hgetall(name)
+
+            if not raw_values:
                 return {}
-            
-            # Try to deserialize JSON values if they look like JSON
+
+            # Process results, handling potential bytes or strings from client
             result = {}
-            for k, v in values.items():
+            for k_raw, v_raw in raw_values.items():
+                # Decode key if it's bytes
+                k = k_raw.decode('utf-8') if isinstance(k_raw, bytes) else k_raw
+                # Decode value if it's bytes
+                v_str = v_raw.decode('utf-8') if isinstance(v_raw, bytes) else v_raw
+
+                # Ensure we have a string before checking for JSON
+                if not isinstance(v_str, str):
+                    # Log unexpected type or handle appropriately
+                    logger.warning(f"Unexpected value type ({type(v_str)}) for key {k} in hgetall({name}). Skipping JSON check.")
+                    result[k] = v_str # Keep original value if not string
+                    continue
+
+                # Try to deserialize JSON if it looks like JSON
                 try:
-                    if isinstance(v, str) and \
-                       (v.startswith('{') and v.endswith('}') or \
-                        v.startswith('[') and v.endswith(']')):
-                        result[k] = json.loads(v)
+                    if v_str.startswith('{') and v_str.endswith('}') or \
+                       v_str.startswith('[') and v_str.endswith(']'):
+                        result[k] = json.loads(v_str)
                     else:
-                        result[k] = v
-                except (json.JSONDecodeError, AttributeError):
-                    result[k] = v
-                    
+                        result[k] = v_str
+                except json.JSONDecodeError:
+                    result[k] = v_str # Fallback: keep decoded string
+
             return result
         except RedisError as e:
             logger.error(f"Redis error in hgetall operation for {name}: {e}")
@@ -215,6 +236,51 @@ class RedisAdapter:
             logger.error(f"Redis error in hdel operation for {name}: {e}")
             return 0
     
+    async def hmset(self, name: KeyT, mapping: dict):
+        """Set multiple hash fields and values (maps dict)"""
+        try:
+            client = await self.async_client
+            # aioredis hmset expects a mapping directly
+            # Ensure values are encodable (str, bytes, int, float)
+            encoded_mapping = {k: json.dumps(v) if isinstance(v, (dict, list)) else v 
+                               for k, v in mapping.items()}
+            return await client.hmset(name, mapping=encoded_mapping)
+        except RedisError as e:
+            logger.error(f"Redis error in hmset operation for hash {name}: {e}")
+            return False
+        except TypeError as e:
+             logger.error(f"Type error during hmset serialization for hash {name}: {e}. Mapping: {mapping}")
+             return False
+    
+    # --- Set Operations (Added) ---
+    async def sadd(self, name: KeyT, *values: EncodableT) -> int:
+        """Add members to a set."""
+        try:
+            client = await self.async_client
+            return await client.sadd(name, *values)
+        except RedisError as e:
+            logger.error(f"Redis error in sadd operation for set {name}: {e}")
+            return 0
+
+    async def srem(self, name: KeyT, *values: EncodableT) -> int:
+        """Remove members from a set."""
+        try:
+            client = await self.async_client
+            return await client.srem(name, *values)
+        except RedisError as e:
+            logger.error(f"Redis error in srem operation for set {name}: {e}")
+            return 0
+            
+    async def smembers(self, name: KeyT) -> set:
+        """Get all members of a set."""
+        try:
+            client = await self.async_client
+            # Returns set of strings because decode_responses=True
+            return await client.smembers(name)
+        except RedisError as e:
+            logger.error(f"Redis error in smembers operation for set {name}: {e}")
+            return set()
+
     # Pub/Sub operations
     async def publish(self, channel, message):
         """Publish a message to a channel"""

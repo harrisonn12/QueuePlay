@@ -71,3 +71,4 @@ class RedisChannelPrefix(Enum):
     GAME = "game"
     CONNECTION = "conn"
     SYSTEM = "system"
+    LOBBY = "lobby"
