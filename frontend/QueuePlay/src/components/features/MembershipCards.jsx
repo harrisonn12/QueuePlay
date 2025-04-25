@@ -1,6 +1,17 @@
-export const MembershipCards = ({ name, price, perks }) => {
+import { UserMembershipTierContext } from '../../context/UserMembershipTierContext';
+import { useContext } from 'react';
+
+export const MembershipCards = ({ tier, name, price, perks }) => {
+    const userMembershipTier = useContext(UserMembershipTierContext);
+
     return (
-        <div className='bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:border-indigo-500 hover:shadow-lg transition-all duration-300'>
+        <div
+            className={`rounded-lg shadow-md transition-all duration-200 ${
+                tier === userMembershipTier
+                    ? 'border-2 border-indigo-500 bg-indigo-50'
+                    : 'border border-gray-200'
+            }`}
+        >
             <div className='p-6'>
                 <div className='flex items-center justify-between'>
                     <h3 className='text-xl font-semibold text-gray-900'>

@@ -6,11 +6,12 @@ import { DashboardSection } from './dashboard/DashboardSection';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LogoutButton } from '../LogoutButton';
 import { useHandleLogin } from '../../hooks/useHandleLogin';
+import { UserMembershipTierContext } from '../../context/UserMembershipTierContext';
 
 export const UserDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const { user } = useAuth0();
-    useHandleLogin(user);
+    const { currentMembershipTier } = useHandleLogin(user);
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
@@ -26,7 +27,7 @@ export const UserDashboard = () => {
             case 'account':
                 return <AccountSection />;
             case 'membership':
-                return <MembershipSection />;
+                return <MembershipSection userMembershipTier />;
             case 'perks':
                 return <PerksSection />;
             default:
@@ -77,7 +78,9 @@ export const UserDashboard = () => {
                 </div>
 
                 {/* Content */}
-                <div className='mt-6'>{renderContent()}</div>
+                <UserMembershipTierContext value={currentMembershipTier}>
+                    <div className='mt-6'>{renderContent()}</div>
+                </UserMembershipTierContext>
             </div>
         </div>
     );

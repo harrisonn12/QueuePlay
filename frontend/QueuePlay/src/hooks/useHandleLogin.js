@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { UserMembershipTierContext } from '../context/UserMembershipTierContext';
 
 export const useHandleLogin = (user) => {
     const [userOutputData, setUserOutputData] = useState(null);
@@ -36,7 +37,8 @@ export const useHandleLogin = (user) => {
                 },
             })
             .then((response) => {
-                setCurrentMembershipTier(response.data.data);
+                response = +response.data.data;
+                setCurrentMembershipTier(response);
             })
             .catch((e) => {
                 console.error('Error fetching client membership tier:', e);

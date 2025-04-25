@@ -55,6 +55,7 @@ export const MembershipSection = () => {
                             membershipTiers.map((tier) => (
                                 <MembershipCards
                                     key={tier.tierID}
+                                    tier={tier.tierID}
                                     name={tier.tierName}
                                     price={tier.monthlyRate}
                                     perks={tier.perks}
