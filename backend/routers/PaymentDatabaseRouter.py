@@ -15,8 +15,8 @@ router = APIRouter(
 )
 
 databaseAdapter = SupabaseDatabaseAdapter()
-gamersDatabase = GamersDatabase(databaseAdapter)
-gamerManagementService = GamerManagementService(gamersDatabase)
+# gamersDatabase = GamersDatabase(databaseAdapter)
+# gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
 
 @router.post('/insert')
 def insertData(
@@ -49,26 +49,26 @@ def deleteData(
     ):
     return databaseAdapter.deleteData(table, field, data)
 
-@router.post('/addGamer')
-def insertGamer(gamer : Gamer):
-    return gamersDatabase.addGamer(gamer)
+# @router.post('/addGamer')
+# def insertGamer(gamer : Gamer):
+#     return gamersDatabase.addGamer(gamer)
 
-@router.post('/getGamer')
-def getGamer(gamerId : str):
-    return gamersDatabase.getGamer(gamerId)
+# @router.post('/getGamer')
+# def getGamer(gamerId : str):
+#     return gamersDatabase.getGamer(gamerId)
 
-@router.post('/getGamers')
-def getGamers():
-    return gamersDatabase.getGamers()
+# @router.post('/getGamers')
+# def getGamers():
+#     return gamersDatabase.getGamers()
 
-@router.post('/addCouponToGamer')
-def addCouponToGamer(couponId: str, gamerId: str):
-    return gamersDatabase.addCouponToGamer(couponId, gamerId)
+# @router.post('/addCouponToGamer')
+# def addCouponToGamer(couponId: str, gamerId: str):
+#     return gamersDatabase.addCouponToGamer(couponId, gamerId)
 
-@router.post('/removeCouponToGamer')
-def removeCouponToGamer(couponId: str, gamerId: str):
-    return gamersDatabase.removeCouponFromGamer(couponId, gamerId)
+# @router.post('/removeCouponToGamer')
+# def removeCouponToGamer(couponId: str, gamerId: str):
+#     return gamersDatabase.removeCouponFromGamer(couponId, gamerId)
 
-@router.post('/getExpiringGamers')
-def getGamersWithExpiringCoupons():
-    return gamerManagementService.getGamersWithExpiringCoupons()
+# @router.post('/getExpiringGamers')
+# def getGamersWithExpiringCoupons():
+#     return gamerManagementService.getGamersWithExpiringCoupons()

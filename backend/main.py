@@ -10,6 +10,7 @@ from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
+from GamerManagementService.GamerManagementService import GamerManagementService
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
@@ -41,6 +42,9 @@ class GetCouponRequest(BaseModel):
 
 class DestroyCouponRequest(BaseModel):
     couponId: str
+
+class GetGamersWithExpiringCouponsRequest(BaseModel):
+    pass
 
 app = FastAPI(openapi_tags=tags_metadata)
 app.include_router(PaymentServiceRouter.router)
@@ -78,6 +82,10 @@ def getCoupons(getCouponRequest: GetCouponRequest):
 @app.post("/destroyCoupon")
 def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
     return couponService.destroyCoupon(destroyCouponRequest.couponId)
+
+@app.post("/getExpiringCoupons")
+def getGamersWithExpiringCoupons(getGamersWithExpiringCouponsRequest: GetGamersWithExpiringCouponsRequest):
+    return gamerManagementService.getGamersWithExpiringCoupons()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configure environment for the application.')
@@ -131,4 +139,5 @@ if __name__ == '__main__':
     gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
     couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor, gamersDatabase)
     
+    gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
     uvicorn.run(app, host="0.0.0.0", port=8000)

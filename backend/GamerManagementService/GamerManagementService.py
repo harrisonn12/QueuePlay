@@ -6,8 +6,9 @@ EXPIRATION_IN_DAYS = 3
 
 class GamerManagementService:
 
-    def __init__(self, gamersDatabase):
+    def __init__(self, gamersDatabase, couponsDatabase):
         self.gamersDatabase = gamersDatabase
+        self.couponsDatabase = couponsDatabase
 
     def sendSMS(self, gamerId, notification):
         pass
@@ -19,13 +20,13 @@ class GamerManagementService:
         now = datetime.now()
 
         for gamer in gamers:
-            for coupon_data in gamer.coupons:
+            for couponId in gamer.coupons:
                 try:
-                    coupon = Coupon(**coupon_data) if isinstance(coupon_data, dict) else coupon_data
+                    coupon = self.couponsDatabase.getCouponById(couponId)
                     exp_date = datetime.fromisoformat(coupon.expirationDate)
                     if exp_date - now <= timedelta(days=EXPIRATION_IN_DAYS):
                         expiringGamers.append(gamer)
                         break  
                 except Exception as e:
-                    print(f"Error processing coupon: {coupon_data}, error: {e}")
+                    print(f"Error processing coupon: {coupon}, error: {e}")
         return expiringGamers
