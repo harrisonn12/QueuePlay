@@ -13,9 +13,11 @@ export const useHandleLogin = (user) => {
         };
 
         axios
-            .post(`http://127.0.0.1:8000/paymentdb/handleUserLogin`, payload)
+            .post(
+                `http://127.0.0.1:8000/paymentService/handleUserLogin`,
+                payload
+            )
             .then((response) => {
-                console.log(response)
                 setUserOutputData(response.data);
             })
             .catch((e) => {

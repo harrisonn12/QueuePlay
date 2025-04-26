@@ -1,5 +1,5 @@
 import { Auth0Provider } from '@auth0/auth0-react';
-import { MainContainer } from './components/pages/MainContainer';
+import { MainDisplay } from './components/pages/MainDisplay';
 
 export const App = () => {
     const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN;
@@ -13,7 +13,7 @@ export const App = () => {
                 redirect_uri: window.location.origin,
             }}
         >
-            <MainContainer />
+            <MainDisplay />
         </Auth0Provider>
     );
 };
