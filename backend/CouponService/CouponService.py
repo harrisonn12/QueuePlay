@@ -3,13 +3,14 @@ from datetime import datetime, timezone
 
 class CouponService:
     
-    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor) -> None:
+    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor, gamersDatabase) -> None:
         self.availableOffersAdapter = availableOffersAdapter  
         self.offerSelectionProcessor = offerSelectionProcessor 
         self.couponIdGenerator = couponIdGenerator  
         self.couponsDatabase = couponsDatabase
         self.couponRedemptionAdapter = couponRedemptionAdapter
         self.customerMessagingProcessor = customerMessagingProcessor
+        self.gamersDatabase = gamersDatabase
 
     def createCoupon(self, storeId: int, gameId: int):
         availableOffers = self.availableOffersAdapter.get(storeId, gameId)
@@ -37,7 +38,7 @@ class CouponService:
         return newCoupon.__dict__
     
     # Assigns a winner to a coupon
-    def assignCoupon(self, couponId: str, winnerId: int):
+    def assignCoupon(self, couponId: str, winnerId: str):
         coupon = self.couponsDatabase.getCouponById(couponId)
 
         if coupon is None:
@@ -46,9 +47,10 @@ class CouponService:
             raise ValueError("Coupon already assigned")
         
         self.couponsDatabase.assignWinner(couponId, winnerId)
-
-        self.couponRedemptionAdapter.redeem(couponId)
-        self.customerMessagingProcessor.sendWinnerCoupon(couponId, winnerId)
+        self.gamersDatabase.addCouponToGamer(couponId, winnerId)
+        
+        # self.couponRedemptionAdapter.redeem(couponId)
+        # self.customerMessagingProcessor.sendWinnerCoupon(couponId, winnerId)
 
         return coupon
 

@@ -25,7 +25,7 @@ class CouponsDatabase(DatabaseAdapter):
         coupon_dict = data.model_dump()
         self.supabaseDatabase.insertData("coupons", coupon_dict)
 
-    def assignWinner(self, couponId: str, winnerId: int):
+    def assignWinner(self, couponId: str, winnerId: str):
         data = {"winnerId": winnerId, "assigned": True}
         response = self.supabaseDatabase.updateTable("coupons", "couponId", couponId, data)
         return response
