@@ -9,6 +9,7 @@ from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
@@ -32,7 +33,7 @@ class CreateCouponRequest(BaseModel):
 
 class AssignCouponRequest(BaseModel):
     couponId: str
-    winnerId: int
+    winnerId: str
 
 class GetCouponRequest(BaseModel):
     storeId: int
@@ -126,6 +127,8 @@ if __name__ == '__main__':
 
     couponRedemptionAdapter = CouponRedemptionAdapter()
     customerMessagingProcessor = CustomerMessagingProcessor()
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
+
+    gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor, gamersDatabase)
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
