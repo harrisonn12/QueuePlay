@@ -2,9 +2,7 @@ from CouponService.CouponService import CouponService
 from CouponService.src.CouponIdGenerator import CouponIdGenerator
 from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
-from CouponService.src.adapters.CouponRedemptionAdapter import CouponRedemptionAdapter
 from CouponService.src.databases.CouponsDatabase import CouponsDatabase
-from CouponService.src.models.CustomerMessagingProcessor import CustomerMessagingProcessor
 from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
@@ -129,12 +127,8 @@ if __name__ == '__main__':
     couponIdGenerator = CouponIdGenerator()
     supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
     couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
-
-    couponRedemptionAdapter = CouponRedemptionAdapter()
-    customerMessagingProcessor = CustomerMessagingProcessor()
-
     gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor, gamersDatabase)
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
     
     gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
     uvicorn.run(app, host="0.0.0.0", port=8000)
