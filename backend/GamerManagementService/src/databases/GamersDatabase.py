@@ -52,7 +52,6 @@ class GamersDatabase(DatabaseAdapter):
         
     # Adds couponId to coupons entry
     def addCouponToGamer(self, couponId: str, gamerId: str) -> list:
-        print("my gamer id", gamerId)
         coupons = self.getGamer(gamerId).coupons
         coupons.append(couponId)
         data = {"coupons": coupons}
