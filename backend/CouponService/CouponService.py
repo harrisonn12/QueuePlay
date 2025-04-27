@@ -3,13 +3,11 @@ from datetime import datetime, timezone
 
 class CouponService:
     
-    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor, gamersDatabase) -> None:
+    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase) -> None:
         self.availableOffersAdapter = availableOffersAdapter  
         self.offerSelectionProcessor = offerSelectionProcessor 
         self.couponIdGenerator = couponIdGenerator  
         self.couponsDatabase = couponsDatabase
-        self.couponRedemptionAdapter = couponRedemptionAdapter
-        self.customerMessagingProcessor = customerMessagingProcessor
         self.gamersDatabase = gamersDatabase
 
     def createCoupon(self, storeId: int, gameId: int):
@@ -48,9 +46,6 @@ class CouponService:
         
         self.couponsDatabase.assignWinner(couponId, winnerId)
         self.gamersDatabase.addCouponToGamer(couponId, winnerId)
-        
-        # self.couponRedemptionAdapter.redeem(couponId)
-        # self.customerMessagingProcessor.sendWinnerCoupon(couponId, winnerId)
 
         return coupon
 
@@ -60,7 +55,12 @@ class CouponService:
     
     # Destroys the coupon if it exists
     def destroyCoupon(self, couponId: str):
+        coupon = self.couponsDatabase.getCouponById(couponId)
+        if coupon is None:
+            raise ValueError("Coupon not found")
+        
         response = self.couponsDatabase.destroyCoupon(couponId)
+        self.gamersDatabase.removeCouponFromGamer(couponId, coupon.winnerId)
         if response:
             return response
         else:
