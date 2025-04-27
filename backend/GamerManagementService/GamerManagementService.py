@@ -14,7 +14,7 @@ class GamerManagementService:
     def sendSMS(self, gamerId, notification):
         pass
 
-    # Returns a list of gamers who have coupons that will expire within EXPIRATION_IN_DAYS
+    # Returns a dictionary mapping gamers who have expiring coupons to a list of their couponId's where coupons will expire within EXPIRATION_IN_DAYS
     def getGamersWithExpiringCoupons(self) -> dict:
         gamers = self.gamersDatabase.getGamers()
         expiringGamers = defaultdict(list)
