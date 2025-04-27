@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import axios from 'axios';
 
 export const useHandleLogin = (user) => {
-    const [userOutputData, setUserOutputData] = useState(null);
-
     /* Handle user login */
     useEffect(() => {
         const payload = {
@@ -18,15 +16,8 @@ export const useHandleLogin = (user) => {
                 `http://127.0.0.1:8000/paymentService/handleUserLogin`,
                 payload
             )
-            .then((response) => {
-                setUserOutputData(response.data);
-            })
             .catch((e) => {
                 console.error('Error fetching data:', e);
             });
     }, [user]);
-
-    return {
-        loginResponse: JSON.stringify(userOutputData),
-    };
 };

@@ -7,11 +7,13 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { LogoutButton } from '../LogoutButton';
 import { useHandleLogin } from '../../hooks/useHandleLogin';
 import { UserMembershipTierContext } from '../../context/UserMembershipTierContext';
+import { useCurrentMembershipTier } from '../../hooks/useCurrentMembershipTier';
 
 export const UserDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const { user } = useAuth0();
-    const { currentMembershipTier } = useHandleLogin(user);
+    const { currentMembershipTier } = useCurrentMembershipTier(user);
+    useHandleLogin(user);
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },

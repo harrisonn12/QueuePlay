@@ -9,11 +9,7 @@ export const useFetchMembershipTiers = () => {
         axios
             .get('http://127.0.0.1:8000/paymentService/getMembershipTiers')
             .then((response) => {
-                response = response.data.data;
-                response = response.replaceAll("'", '"');
-                response = response.replaceAll('None', '"null"');
-                response = JSON.parse(response);
-                setMembershipTiers(response);
+                setMembershipTiers(response.data);
             })
             .catch((e) => {
                 console.error('Error fetching data:', e);

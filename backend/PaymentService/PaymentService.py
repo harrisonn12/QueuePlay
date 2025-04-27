@@ -118,10 +118,7 @@ class PaymentService:
         try:
             tiers = self.supabaseDatabaseAdapter.queryTable(self.MEMBERSHIP_TABLE_NAME)
             
-            return ActionResponse(
-                success=True,
-                message="Membership tiers successfully retrieved",
-                data = str(tiers.data))
+            return tiers.data
         except Exception as e:
             return ActionResponse(
                 success=False,
