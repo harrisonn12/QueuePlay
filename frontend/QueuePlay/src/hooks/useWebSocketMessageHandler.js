@@ -15,7 +15,7 @@ export const useWebSocketMessageHandler = (gameState) => {
 
     // Player state
     gameId, role, currentQuestionIndex, players,
-    setClientId, setRole, setGameId, localPlayerName, 
+    setClientId, setRole, localPlayerName, 
     setHasAnswered, setSelectedAnswer,
 
     // UI state
@@ -27,8 +27,11 @@ export const useWebSocketMessageHandler = (gameState) => {
     // Tie-breaker state
     tieBreakerState, setTieBreakerState,
 
+    // Identification state setter
+    setIsClientIdentified,
+
     // Methods
-    resetGame, checkForTie
+    resetGame, checkForTie, addPlayer
   } = gameState;
 
   // Create the message handler function
@@ -37,88 +40,54 @@ export const useWebSocketMessageHandler = (gameState) => {
     console.log(`[Debug] handleWebSocketMessage - Current role state: '${role}', GameID: ${gameId}, PlayerInfoStage: ${playerInfoStage}, TieStage: ${tieBreakerState.stage}`);
     
     switch(data.action) {
-      // --- Lobby/Join/Reconnect Cases ---
-      case "lobbyInitialized": 
-      { 
-        console.log("Handling action: lobbyInitialized");
-        const newClientId = data.clientId;
-        const newGameId = data.gameId;
-        const newRole = data.role;
-        const newQrCodeData = data.qrCodeData;
-        // Use a simpler default host name
-        const hostName = "Host"; 
+      // --- Connection/Identification Cases ---
+      case "identified":
+        if (data.success) {
+          console.log("Successfully identified with the server.");
+          setStatus("Connected & Identified");
+          setIsClientIdentified(true); // Set identification flag
 
-        setClientId(newClientId);
-        setGameId(newGameId);
-        setRole(newRole);
-        setQrCodeData(newQrCodeData);
-        setScores({});
-        // Initialize players with host including their specific name
-        setPlayers([{ clientId: newClientId, name: hostName }]); 
-        setLocalPlayerName(hostName); // Host sets their own name locally too
-        setCurrentQuestionIndex(0);
-        setHasAnswered(false);
-        setSelectedAnswer(null);
-        setCurrentQuestionAnswers({});
-        setTimerKey(0);
-        setGameStatus('waiting');
-        setStatus("Lobby created. Waiting for players...");
-        setPlayerInfoStage('joined'); // Host is immediately 'joined'
-        break;
-      }
-
-      case "joinedLobby": 
-      { 
-        console.log("Handling action: joinedLobby");
-        setClientId(data.clientId);
-        setGameId(data.gameId); // Use the gameId confirmed by the server
-        setRole('player');
-        setGameStatus('waiting');
-        setStatus(`Joined Lobby ${data.gameId}. Waiting for host to start.`);
-        setPlayerInfoStage('joined'); // Player successfully joined
-        // Store the submitted name locally upon successful join
-        setLocalPlayerName(playerNameInput); 
-        break;
-      }
-
-      case "reconnected": 
-      {
-        console.log("Handling action: reconnected");
-        console.log("Reconnection successful:", data);
-        setClientId(data.clientId);
-        setGameId(data.gameId);
-        setRole(data.role);
-        setPlayerInfoStage('joined'); // Assume joined state on reconnect
-        // If the server sends back the player's name, use it
-        if (data.playerName) {
-          setLocalPlayerName(data.playerName);
-        } else if (data.role === 'player' && !localPlayerName) {
-          // Attempt to get name from localStorage if not provided by server
-          const storedName = localStorage.getItem(`playerName_${data.gameId}_${data.clientId}`);
-          if (storedName) setLocalPlayerName(storedName);
-          // If still no name, use a generic default for the local player
-          else setLocalPlayerName(`Player ${data.clientId.substring(0,4)}`); 
-        } else if (data.role === 'host') {
-          // Ensure host name is consistent on reconnect
-          setLocalPlayerName("Host"); 
-        }
-
-        if (data.gameState) {
-          console.log("Restoring game state from server on reconnect");
-          if (data.gameState.status) setGameStatus(data.gameState.status);
-          if (data.gameState.currentQuestionIndex !== undefined) setCurrentQuestionIndex(data.gameState.currentQuestionIndex);
-          if (data.gameState.questions) setQuestions(data.gameState.questions);
-          if (data.gameState.scores) setScores(data.gameState.scores);
-          if (data.gameState.players) setPlayers(data.gameState.players); // Ensure players list has names if possible
-          if (data.gameState.status === 'playing') setTimerKey(prev => prev + 1);
+          // If host, add self to player list
+          if (role === 'host' && !players.some(p => p.clientId === gameState.clientId)) {
+            console.log("Identified as host. Adding self to player list.");
+            // Ensure host isn't added multiple times if message is somehow duplicated
+            addPlayer(gameState.clientId, localPlayerName || "Host");
+          }
+          // If player, set joined status
+          if (role === 'player') {
+            console.log("Identified as player. Setting playerInfoStage to 'joined'.");
+            setPlayerInfoStage('joined');
+          }
         } else {
-          console.log("Reconnect successful, waiting for next state update from host.");
-          setStatus(data.role === 'host' ? "Reconnected as Host" : "Reconnected as Player");
+          console.error("Server identification failed.", data.message);
+          setStatus(`Error: Identification failed. ${data.message || ''}`);
+          setIsClientIdentified(false); // Ensure flag is false on failure
+          // Handle failure? Maybe reset state?
+          // resetGame(); 
         }
         break;
-      }
+
+      // --- Lobby/Join/Reconnect Cases ---
+      // REMOVE: case "lobbyInitialized" - This logic is now handled by the API calls + identify flow
+      // case "lobbyInitialized": ...
+
+      // REMOVE: case "joinedLobby" - This logic is now handled by the API calls + identify flow
+      // case "joinedLobby": ...
+
+      // REMOVE: case "reconnected" - This logic is now handled by the identify flow on connection open
+      // case "reconnected": ...
 
       // --- Game State Update Cases --- 
+      case "announcePlayer": 
+      {
+        // Host receives this message when a player joins AFTER identifying
+        if (role === 'host') {
+          console.log(`Host handling announcePlayer from ${data.clientId} (${data.playerName})`);
+          addPlayer(data.clientId, data.playerName);
+        }
+        break;
+      }
+
       case "playerJoined": 
       {
         console.log("Handling action: playerJoined");
@@ -310,12 +279,33 @@ export const useWebSocketMessageHandler = (gameState) => {
       }
               
       // --- Tie Resolution --- 
+      case "resolveTie":
+      {
+        console.log("Handling action: resolveTie", data);
+        if (data.ultimateWinnerId) {
+          setTieBreakerState(prev => ({
+            ...prev,
+            stage: 'resolved',
+            ultimateWinnerId: data.ultimateWinnerId
+          }));
+          // Update status message maybe?
+          // const winner = players.find(p => p.clientId === data.ultimateWinnerId);
+          // const winnerName = winner?.name || `Player ${data.ultimateWinnerId.substring(0,4)}`;
+          // setStatus(`Tie resolved! ${winnerName} is the winner!`);
+        } else {
+          console.error("resolveTie message received without ultimateWinnerId");
+          // Maybe reset the tie state?
+          // setTieBreakerState({ stage: 'none', tiedPlayerIds: [], ultimateWinnerId: null });
+        }
+        break;
+      }
+
       case "tieResolved":
       {
         console.log("Handling action: tieResolved", data);
         if (data.ultimateWinnerId) {
           setTieBreakerState(prev => ({
-            ...prev, // Keep tiedPlayerIds for display if needed
+            ...prev,
             stage: 'resolved',
             ultimateWinnerId: data.ultimateWinnerId
           }));
@@ -328,7 +318,41 @@ export const useWebSocketMessageHandler = (gameState) => {
         }
         break;
       }
-              
+
+      case "startGame":
+      {
+        console.log("Handling action: startGame");
+        setGameStatus("playing");
+        setCurrentQuestionIndex(0);
+        setHasAnswered(false);
+        setSelectedAnswer(null);
+        setCurrentQuestionAnswers({});
+        setStatus("Game in progress - Question 1");
+        setTimerKey(prev => prev + 1); // Reset timer for the first question
+
+        if (data.questions && data.questions.length > 0) {
+          console.log("Setting questions received with startGame:", data.questions);
+          setQuestions(data.questions);
+        } else {
+          // This might happen if questions were fetched earlier by host
+          // and not included in the startGame broadcast. Ensure questions aren't empty.
+          if (gameState.questions.length === 0) {
+            console.error("startGame received, but no questions found in payload or state!");
+            setStatus("Error: Missing questions!");
+            // Maybe reset to waiting?
+            // setGameStatus('waiting');
+          } else {
+            console.log("Using questions already present in state.");
+          }
+        }
+
+        // Update player list if included (might have latest names)
+        if (data.players) {
+          setPlayers(data.players);
+        }
+        break;
+      }
+
       default:
         console.warn("Unhandled WebSocket message action:", data.action);
     }
@@ -338,7 +362,10 @@ export const useWebSocketMessageHandler = (gameState) => {
     playerNameInput, tieBreakerState, setGameStatus, setQuestions, setCurrentQuestionIndex, 
     setTimerKey, setScores, setClientId, setRole, setQrCodeData, setPlayers, 
     setStatus, setHasAnswered, setSelectedAnswer, setCurrentQuestionAnswers, 
-    setPlayerInfoStage, setLocalPlayerName, resetGame, checkForTie
+    setPlayerInfoStage, setLocalPlayerName, resetGame, checkForTie, addPlayer,
+    setIsClientIdentified,
+    gameState.clientId, gameState.questions,
+    setTieBreakerState
   ]);
   
   return handleWebSocketMessage;

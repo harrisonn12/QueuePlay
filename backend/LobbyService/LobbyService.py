@@ -60,12 +60,14 @@ class LobbyService:
                  await self.redis.delete(lobby_key, players_key, client_game_key)
                  return None
 
-            qr_code_data = self.generateLobbyQRCode(game_id)
+            # Removed QR Code generation from create_lobby
+            # qr_code_data = self.generateLobbyQRCode(game_id)
             logger.info(f"Lobby {game_id} created by host {host_id}")
             return {
                 "gameId": game_id,
-                "hostId": host_id,
-                "qrCodeData": qr_code_data
+                "hostId": host_id
+                # Removed qrCodeData
+                # "qrCodeData": qr_code_data 
             }
         except Exception as e:
             logger.error(f"Error creating lobby for host {host_id}: {e}", exc_info=True)

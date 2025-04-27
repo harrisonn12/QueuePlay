@@ -1,5 +1,6 @@
-FROM python:3.9-slim
+FROM python:3.9-slim 
 
+# current directory inside the container
 WORKDIR /app
 
 # Copy requirements first for better caching
@@ -9,10 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the code
 COPY . .
 
-# No need to add a health check endpoint, it's already implemented in MultiplayerServer.py
-
-# Environment variables with defaults
-ENV WS_PORT=6789 \
+# Define environment variables inside the container, so that the server can use them.
+ENV WS_PORT=6789 \ 
     WS_HOST="0.0.0.0" \
     REDIS_HOST=localhost \
     REDIS_PORT=6379 \

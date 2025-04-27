@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import './TriviaGame.css';
 
 // Custom hooks
@@ -21,21 +21,22 @@ const TriviaGame = () => {
   const gameState = useGameState();
   
   // Destructure what we need from gameState
-  const { 
+  const {
     gameStatus, role, gameId, clientId, tieBreakerState,
     playerInfoStage, players, status, resetGame,
-    setStatus, setTieBreakerState
+    setStatus, setTieBreakerState, setGameId, setRole,
+    setQrCodeData, setQuestions,
+    createLobbyAPI, getQrCodeAPI, getQuestionsAPI,
+    localPlayerName, setLocalPlayerName,
+    isClientIdentified
   } = gameState;
   
-  // Create websocket message handler with gameState
+  // Initialize message handler (no circular dependency anymore)
   const handleWebSocketMessage = useWebSocketMessageHandler(gameState);
   
-  // Use WebSocket hook to manage connection
+  // Initialize WebSocket connection management
   const { status: webSocketStatus, ensureConnected } = useGameWebSocket(
-    gameId, 
-    clientId,
-    role,
-    handleWebSocketMessage
+    gameId, clientId, role, handleWebSocketMessage
   );
   
   // Update local status based on hook status
@@ -68,8 +69,8 @@ const TriviaGame = () => {
       console.error("Cannot send resolveTie message: WebSocket not ready or winnerId missing.");
       setStatus("Error: Connection lost. Cannot resolve tie.");
       // Reset state if sending fails
-      tieBreakerAnimation.resetAnimation();
-      setTieBreakerState({ stage: 'none', tiedPlayerIds: [], ultimateWinnerId: null });
+      // tieBreakerAnimation.resetAnimation(); // Let the hook manage its own reset
+      setTieBreakerState({ stage: 'none', tiedPlayerIds: [], ultimateWinnerId: null }); // Reset gameState
     }
   }, [ensureConnected, gameId, clientId, setStatus, setTieBreakerState]);
   
@@ -79,45 +80,87 @@ const TriviaGame = () => {
     isTieBreaking,
     handleTieResolved
   );
-  
-  // --- Action Functions ---
-  const hostGame = useCallback(() => {
-    resetGame();
-    setStatus("Connecting to server...");
-    
-    // Try to ensure connection before sending
-    const currentSocket = ensureConnected(); 
-    
-    // Check if the socket exists but is not yet open
-    if (currentSocket && currentSocket.readyState !== WebSocket.OPEN) {
-      console.log("WebSocket connecting, waiting for open state...");
-      
-      // Set up a one-time event listener for the socket's open event
-      const openHandler = () => {
-        console.log("WebSocket now open, sending initializeGame message");
-        currentSocket.send(JSON.stringify({
-          action: "initializeGame",
+
+  // Ref to track if announcePlayer has been sent for this session/identification
+  const announcedPlayerRef = useRef(false);
+
+  // Effect to announce player presence AFTER successful identification
+  useEffect(() => {
+    if (isClientIdentified && role === 'player' && !announcedPlayerRef.current) {
+      console.log("[Announce Effect] Client identified as player. Announcing presence...");
+      const socket = ensureConnected(); // Get the socket instance
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          action: "announcePlayer",
+          gameId: gameId,
+          clientId: clientId,
+          playerName: localPlayerName || `Player ${clientId.substring(0,4)}`
         }));
-        // Remove the event listener once it's used
-        currentSocket.removeEventListener('open', openHandler);
-      };
-      
-      // Add the event listener
-      currentSocket.addEventListener('open', openHandler);
-      return;
+        announcedPlayerRef.current = true; // Mark as announced for this identification cycle
+      } else {
+        console.error("[Announce Effect] Cannot announce player: WebSocket not ready or available.", { readyState: socket?.readyState });
+        // Maybe try again later? Or set an error status?
+      }
     }
-    
-    // If socket already exists and is open
-    if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
-      console.log("WebSocket already open, sending initializeGame message");
-      currentSocket.send(JSON.stringify({
-        action: "initializeGame",
-      }));
-    } else {
-      console.error("Cannot host game: WebSocket not ready.");
-      setStatus("Error: Cannot connect to server. Please try again.");
+
+    // Reset the ref if identification status becomes false (e.g., on disconnect/reset)
+    if (!isClientIdentified) {
+      announcedPlayerRef.current = false;
     }
-  }, [resetGame, ensureConnected, setStatus]);
+  }, [isClientIdentified, role, gameId, clientId, localPlayerName, ensureConnected]);
+
+  // --- Action Functions --- 
+  const hostGame = useCallback(async () => {
+    resetGame();
+    setStatus("Creating lobby...");
+    try {
+      const newGameId = await createLobbyAPI(clientId, "trivia");
+      setGameId(newGameId);
+      setRole('host');
+      // clientId is already set in useGameState
+      console.log(`Lobby created with ID: ${newGameId}. Role set to host. Client ID: ${clientId}`);
+
+      // Optionally fetch QR code and questions now
+      setStatus("Fetching lobby details...");
+      try {
+        const [qrData, questionsData] = await Promise.all([
+          getQrCodeAPI(newGameId),
+          getQuestionsAPI(newGameId) // Pass gameId if needed by API
+        ]);
+        setQrCodeData(qrData);
+        setQuestions(questionsData);
+        console.log("QR Code and Questions fetched successfully.");
+      } catch (error) {
+        console.error("Error fetching QR/Questions:", error);
+        // Continue even if these fail for now, maybe show error later
+        setStatus("Lobby created, but failed to fetch details. Connecting...");
+      }
+
+      // Now that gameId, clientId, and role are set, ensure connection.
+      // useGameWebSocket will automatically send 'identify' on connection open.
+      setStatus("Connecting to WebSocket...");
+      ensureConnected(); // Ensure the WebSocket connects (or reconnects)
+
+      // UI should update automatically based on gameStatus/role change
+      // The GameLobby component will show based on gameStatus='waiting' & role='host'
+    } catch (error) {
+      console.error("Failed to host game:", error);
+      setStatus(`Error creating lobby: ${error.message}. Please try again.`);
+      resetGame(); // Reset state on failure
+    }
+  }, [
+    resetGame, 
+    setStatus, 
+    getQrCodeAPI, 
+    getQuestionsAPI,
+    setGameId, 
+    setRole, 
+    setQrCodeData, 
+    setQuestions, 
+    ensureConnected,
+    clientId,
+    createLobbyAPI
+  ]);
   
   // Initiate joining a game - shows the join form
   const initiateJoinGame = useCallback(() => {
@@ -148,46 +191,63 @@ const TriviaGame = () => {
       setStatus("Error: Please enter a valid phone number.");
       return;
     }
-    
+
     // Store info locally
     localStorage.setItem(`phoneNumber_${gameState.joinTargetGameId}`, gameState.playerPhoneInput);
     localStorage.setItem(`playerName_${gameState.joinTargetGameId}`, gameState.playerNameInput);
     
     gameState.setPlayerInfoStage('joining');
     setStatus(`Joining game ${gameState.joinTargetGameId}...`);
-    
-    const currentSocket = ensureConnected();
-    if (currentSocket && gameState.joinTargetGameId) {
-      currentSocket.send(JSON.stringify({
-        action: "joinGame",
-        gameId: gameState.joinTargetGameId,
-        playerName: gameState.playerNameInput
-      }));
-    } else if (!currentSocket) {
-      console.error("Cannot join game: WebSocket not ready.");
-      setStatus("Error: Connection lost. Please try again.");
-      gameState.setPlayerInfoStage('none');
-    } else {
-      console.error("Cannot join game: Target Game ID missing.");
-      setStatus("Error: Game ID missing. Please try again.");
-      gameState.setPlayerInfoStage('none');
+
+    // Set role and gameId - the useEffect below will trigger ensureConnected
+    console.log(`Setting state for joining: gameId=${gameState.joinTargetGameId}, role=player`);
+    setGameId(gameState.joinTargetGameId);
+    setRole('player');
+    setLocalPlayerName(gameState.playerNameInput);
+  }, [
+    gameState.joinTargetGameId, 
+    gameState.playerNameInput, 
+    gameState.playerPhoneInput,
+    setStatus, 
+    setGameId, 
+    setRole, 
+    setLocalPlayerName, 
+    gameState.setPlayerInfoStage // Keep this if needed
+  ]);
+
+  // Effect to connect WebSocket *after* state is set for joining
+  useEffect(() => {
+    // Only run this if the user is a player and has just submitted their info
+    if (role === 'player' && playerInfoStage === 'joining') {
+      console.log("[Player Join Effect] Role and playerInfoStage match, ensuring connection...");
+      ensureConnected();
     }
-  }, [gameState, ensureConnected, setStatus]);
-  
+  }, [role, playerInfoStage, ensureConnected]); // Keep ensureConnected here
+
   // Start the game (host only)
   const startGame = useCallback(() => {
+    // Ensure we have questions before starting
+    if (!gameState.questions || gameState.questions.length === 0) {
+      console.error("Cannot start game: Questions not loaded.");
+      setStatus("Error: Questions failed to load. Cannot start.");
+      return;
+    }
+
     const currentSocket = ensureConnected();
     if (currentSocket) {
+      console.log("Host sending startGame including questions and players...");
       currentSocket.send(JSON.stringify({
         action: "startGame",
         gameId: gameId,
-        clientId: clientId
+        clientId: clientId, // Sender ID (host)
+        questions: gameState.questions, // Include the questions
+        players: gameState.players // Include the current player list
       }));
     } else {
       console.error("Cannot start game: WebSocket not ready.");
     }
-  }, [ensureConnected, gameId, clientId]);
-  
+  }, [ensureConnected, gameId, clientId, gameState.questions, gameState.players, setStatus]); // Add questions, players, setStatus to dependencies
+
   // Submit answer (player only)
   const submitAnswer = useCallback((answerIndex) => {
     const currentSocket = ensureConnected();
@@ -213,7 +273,7 @@ const TriviaGame = () => {
   // Handle timer completion (host only)
   const handleTimerComplete = useCallback(() => {
     const currentSocket = ensureConnected();
-    if (role !== 'host' || !currentSocket) {
+    if (role !== 'host' || !currentSocket) { 
       return { shouldRepeat: false };
     }
     
@@ -224,10 +284,10 @@ const TriviaGame = () => {
     gameState.setScores(questionScores);
     
     // Send question result
-    const resultPayload = {
-      action: "questionResult",
-      gameId,
-      clientId,
+    const resultPayload = { 
+      action: "questionResult", 
+      gameId, 
+      clientId, 
       questionIndex: gameState.currentQuestionIndex,
       scores: questionScores,
       players: players
@@ -236,10 +296,10 @@ const TriviaGame = () => {
     
     const isLastQuestion = gameState.currentQuestionIndex >= gameState.questions.length - 1;
     if (isLastQuestion) {
-      const finishPayload = {
-        action: "gameFinished",
-        gameId,
-        clientId,
+      const finishPayload = { 
+        action: "gameFinished", 
+        gameId, 
+        clientId, 
         finalScores: questionScores,
         players: players
       };
@@ -247,18 +307,18 @@ const TriviaGame = () => {
       gameState.setGameStatus('finished');
     } else {
       const nextIndex = gameState.currentQuestionIndex + 1;
-      const nextQPayload = {
-        action: "nextQuestion",
-        gameId,
-        clientId,
-        questionIndex: nextIndex
+      const nextQPayload = { 
+        action: "nextQuestion", 
+        gameId, 
+        clientId, 
+        questionIndex: nextIndex 
       };
       currentSocket.send(JSON.stringify(nextQPayload));
       gameState.advanceToNextQuestion();
     }
     
     // Reset tie-breaker state
-    setTieBreakerState({ stage: 'none', tiedPlayerIds: [], ultimateWinnerId: null });
+    setTieBreakerState({ stage: 'none', tiedPlayerIds: [], ultimateWinnerId: null }); 
     return { shouldRepeat: false };
   }, [
     ensureConnected, role, gameState, gameId, clientId, players, setTieBreakerState

@@ -15,9 +15,9 @@ const QRCodeDisplay = ({ qrCodeData, alt = "Scan to join game", size = 200 }) =>
   return (
     <div className="qr-code-container">
       <img 
-        src={`data:image/jpeg;base64,${qrCodeData}`} 
+        src={`data:image/jpeg;base64,${qrCodeData}`} // Use Base64 data directly
         alt={alt}
-        width={size}
+        width={size} // Set width/height as before
         height={size}
       />
       <p className="qr-code-instructions">Scan this QR code to join the game</p>

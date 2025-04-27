@@ -25,8 +25,8 @@ const PlayerGameView = ({
         Playing as: {localPlayerName || `Player ${clientId?.substring(0,4)}`}
       </p>
       
-      <h2>Question {currentQuestionIndex + 1}</h2>
-      <h3>{currentQuestion.question}</h3>
+      {/* Question text removed for players */}
+      <h2>Answer Now!</h2>
       
       <div className="options">
         {currentQuestion.options.map((option, index) => (
@@ -34,7 +34,7 @@ const PlayerGameView = ({
             key={index}
             onClick={() => submitAnswer(index)}
             disabled={hasAnswered}
-            className={selectedAnswer === index ? 'selected' : ''}
+            className={`option-button ${selectedAnswer === index ? 'selected' : ''} ${hasAnswered ? 'answered' : ''}`}
           >
             {option}
           </button>

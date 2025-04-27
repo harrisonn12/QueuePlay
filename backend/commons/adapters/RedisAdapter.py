@@ -5,6 +5,8 @@ import logging
 from redis.exceptions import RedisError
 from redis.asyncio import Redis, ConnectionPool
 from redis.typing import KeyT, EncodableT
+from backend.configuration.AppConfig import AppConfig, Stage
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +21,27 @@ class RedisAdapter:
         Don't support custom formats (e.g., prefixing keys like "game:123")
         Don't give you built-in async + sync support in one place
 
-
+    
     '''
-    def __init__(self, host="localhost", port=6379, db=0, password=None, socket_timeout=5):
+    def __init__(self, app_config: AppConfig):
+        # Extract config based on stage
+        if app_config.stage == Stage.PROD:
+            # Define your Production Redis settings (replace placeholders)
+            host = os.getenv("PROD_REDIS_HOST", "your_prod_redis_host") 
+            port = int(os.getenv("PROD_REDIS_PORT", 6379)) # Ensure port is int
+            db = int(os.getenv("PROD_REDIS_DB", 0))
+            password = os.getenv("PROD_REDIS_PASSWORD", None)
+            socket_timeout = 10 # Maybe longer timeout for prod?
+            logger.info("Using Production Redis configuration.")
+        else: # Default to Development
+            host = os.getenv("DEV_REDIS_HOST", "localhost")
+            port = int(os.getenv("DEV_REDIS_PORT", 6379))
+            db = int(os.getenv("DEV_REDIS_DB", 0))
+            password = os.getenv("DEV_REDIS_PASSWORD", None)
+            socket_timeout = 5
+            logger.info("Using Development Redis configuration.")
+
+        # Use extracted values for self.config
         self.config = {
             "host": host,
             "port": port,

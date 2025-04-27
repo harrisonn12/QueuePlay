@@ -8,31 +8,13 @@ import json
 import time
 from aiohttp import web
 from dotenv import load_dotenv
+
 from backend.ConnectionService.ConnectionService import ConnectionService
-from backend.LobbyService.LobbyService import LobbyService
-from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from backend.commons.adapters.RedisAdapter import RedisAdapter
 from backend.MessageService.MessageService import MessageService
-from backend.QuestionService.QuestionService import QuestionService
-from backend.commons.adapters.ChatGptAdapter import ChatGptAdapter
-from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from backend.configuration.RedisConfig import RedisConfig, RedisChannelPrefix
+from backend.configuration.RedisConfig import RedisConfig
 from backend.configuration.AppConfig import AppConfig
 from backend.commons.enums.Stage import Stage
-
-
-#FLOW:
-#1. Server creates redis_adapter
-#2. Server creates message_service = MessageService(redis_adapter)
-#3. Server creates lobby_service = LobbyService(..., redis_adapter)
-#4. Server creates question_service = QuestionService(...)
-#5. Server creates connection_service = ConnectionService()
-#6. Server injects dependencies into connection_service:
-#   connection_service.lobbyService = lobby_service
-#   connection_service.messageService = message_service
-#   connection_service.questionService = question_service
-#7. Server starts message_service
-#8. Server starts connection_service
 
 
 # Set up logging
@@ -47,20 +29,17 @@ logger = logging.getLogger(__name__)
 connection_service = None
 message_service = None
 redis_adapter = None
-lobby_service = None
-qr_code_generator = None
-question_service = None
-chat_gpt_adapter = None
-question_answer_set_generator = None
 
 async def shutdown(signal, loop):
     """Cleanup tasks tied to the service's shutdown."""
     logger.info(f"Received exit signal {signal.name}...")
     
-    # Stop services in reverse order
     if connection_service:
-        logger.info("Stopping connection service...")
-        await connection_service.stop()
+        # Assuming ConnectionService might have a stop method if needed in future
+        # await connection_service.stop()
+        pass
+    if message_service:
+        await message_service.stop()
     
     if redis_adapter:
         logger.info("Closing Redis connections...")
@@ -69,10 +48,14 @@ async def shutdown(signal, loop):
     # Send deregistration message to load balancer
     if connection_service and message_service:
         try:
+            # Use a known server_id if connection_service is gone
+            server_id_for_shutdown = os.environ.get("SERVER_ID", "unknown-server")
+            if hasattr(connection_service, 'serverId'):
+                 server_id_for_shutdown = connection_service.serverId
             await message_service.publish_event(
                 "server:shutdown",
                 {
-                    "serverId": os.environ.get("SERVER_ID", connection_service.serverId),
+                    "serverId": server_id_for_shutdown,
                     "timestamp": int(time.time())
                 }
             )
@@ -93,7 +76,7 @@ async def shutdown(signal, loop):
     loop.stop()
 
 async def health_check():
-    """Periodic health check for the server"""
+    """Periodic health check for Redis"""
     try:
         while True:
             # Check Redis connection
@@ -101,8 +84,9 @@ async def health_check():
                 redis_alive = await redis_adapter.ping()
                 if not redis_alive:
                     logger.error("Redis connection is down!")
-            
-            # Additional health checks could go here
+            else:
+                 # If redis_adapter isn't even initialized, log that
+                 logger.warning("Health check: Redis adapter not initialized yet.")
             
             # Sleep for 60 seconds before next check
             await asyncio.sleep(60)
@@ -118,10 +102,16 @@ async def health_check():
         asyncio.create_task(health_check())
 
 async def health_handler(request):
-    """Health check endpoint for the load balancer"""
+    """
+    HTTP handler for the /health endpoint.
+    
+    This is like a health inspection report - when someone (like a load balancer)
+    asks "is this server healthy?", we check and return a detailed report.
+    """
     # Check Redis connection
     is_healthy = True
     status_message = "OK"
+    redis_status = "unknown"
     
     if redis_adapter:
         try:
@@ -129,26 +119,37 @@ async def health_handler(request):
             if not redis_alive:
                 is_healthy = False
                 status_message = "Redis connection is down"
+                redis_status = "down"
+            else:
+                redis_status = "connected"
         except Exception as e:
             is_healthy = False
             status_message = f"Redis error: {str(e)}"
+            redis_status = "error"
     else:
-        status_message = "Server initializing"
+        is_healthy = False # Cannot operate without Redis
+        status_message = "Redis adapter not initialized"
+        redis_status = "uninitialized"
+    
+    # Get connection count if possible
+    num_connections = 0
+    if connection_service and hasattr(connection_service, 'localConnections'):
+        num_connections = len(connection_service.localConnections)
     
     # Create health status response
     health_data = {
         "status": "healthy" if is_healthy else "unhealthy",
         "message": status_message,
-        "serverId": os.environ.get("SERVER_ID", "unknown"),
-        "connections": len(connection_service.localConnections) if connection_service else 0,
-        "lobbies_local": len(connection_service.localConnections)
+        "redis_status": redis_status,
+        "server_id": os.environ.get("SERVER_ID", "unknown"),
+        "active_connections": num_connections
     }
     
     status_code = 200 if is_healthy else 503
     return web.json_response(health_data, status=status_code)
 
 async def setup_health_server(health_port):
-    """Set up HTTP server for health checks"""
+    """Set up HTTP server for health checks. Runs once during startup."""
     app = web.Application()
     app.add_routes([web.get('/health', health_handler)])
     
@@ -160,9 +161,9 @@ async def setup_health_server(health_port):
     return runner
 
 async def main(args):
-    global connection_service, message_service, redis_adapter, lobby_service, qr_code_generator, question_service, chat_gpt_adapter, question_answer_set_generator
+    global connection_service, message_service, redis_adapter
     
-    # Get host and port from arguments, environment variables, or use defaults
+    # STEP 1) Get config from arguments, environment variables, or use defaults
     host = args.host if args.host else os.environ.get("WS_HOST", "0.0.0.0")  # Bind to all interfaces
     port = args.port if args.port else int(os.environ.get("WS_PORT", "6789"))
     health_port = args.health_port if args.health_port else int(os.environ.get("HEALTH_PORT", port + 1))
@@ -173,7 +174,7 @@ async def main(args):
     # Log server info
     logger.info(f"Starting WebSocket server {server_id} on {host}:{port}")
     
-    # Initialize Redis adapter
+    # STEP 2) Initialize Redis adapter
     redis_config = RedisConfig(stage)
     #middleman between app code and redis server. handles all communication with Redis.
     #everything goes through this redis client.
@@ -187,59 +188,16 @@ async def main(args):
         logger.error("Could not connect to Redis!")
         return
     
-    # Initialize message service first (for pub/sub)
+    # STEP 3) Initialize message service first (for pub/sub)
     message_service = MessageService(redis_adapter)
     await message_service.start()
 
-    # Initialize Lobby Service components
-    # TODO: Pass appropriate AppConfig if needed by QRCodeGenerator later
-    app_config = AppConfig(stage)
-    qr_code_generator = QRCodeGenerator(app_config)
-    lobby_service = LobbyService(qr_code_generator, redis_adapter)
-    # No async start needed for LobbyService currently
-    logger.info("Lobby Service initialized")
-    
-    # Initialize Question Service dependencies
-    try:
-        # ***** ADDED: Initialize adapters *****
-        # Assuming ChatGptAdapter needs API key from env or config
-        # Make sure OPENAI_API_KEY is set in your .env file
-        chat_gpt_adapter = ChatGptAdapter() 
-        question_answer_set_generator = QuestionAnswerSetGenerator(chat_gpt_adapter)
-        logger.info("Question Service Adapters initialized")
-        
-        # ***** MODIFIED: Initialize Question Service with real dependencies *****
-        question_service = QuestionService(
-            chatGptAdapter=chat_gpt_adapter, 
-            questionAnswerSetGenerator=question_answer_set_generator
-        )
-        logger.info("Question Service initialized")
-        
-    except ImportError as e:
-         logger.error(f"Failed to import QuestionService or its dependencies: {e}")
-         question_service = None # Ensure it's None if init fails
-    except KeyError as e:
-        logger.error(f"Missing environment variable for QuestionService dependencies (e.g., OPENAI_API_KEY): {e}")
-        question_service = None
-    except Exception as e:
-        # Catch other potential errors during adapter/service init
-        logger.error(f"Failed to initialize QuestionService or dependencies: {e}", exc_info=True)
-        question_service = None
-
-    # Initialize connection service
+    # STEP 6: Initialize connection service
     connection_service = ConnectionService()
-    connection_service.redis = redis_adapter # Keep for potential direct Redis use? Or remove?
-    connection_service.lobbyService = lobby_service # Pass LobbyService directly
-    connection_service.messageService = message_service
-    connection_service.questionService = question_service
-    # Register connection message handlers
-    # await message_service.subscribe(f"{RedisChannelPrefix.CONNECTION.value}:all", connection_service.handleConnectionEvent)
+    connection_service.messageService = message_service # Connect to Message Service
     await connection_service.start()
     
-    # Start health check
-    asyncio.create_task(health_check())
-    
-    # Set up signal handlers for graceful shutdown
+    # STEP 7) Set up signal handlers for graceful shutdown
     loop = asyncio.get_running_loop()
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
@@ -247,10 +205,13 @@ async def main(args):
             s, lambda s=s: asyncio.create_task(shutdown(s, loop))
         )
     
-    # Set up health check HTTP server
+    # STEP 8) Start up background health check
+    asyncio.create_task(health_check())
+
+    # STEP 9) Set up health check HTTP server
     health_runner = await setup_health_server(health_port)
     
-    # Start the WebSocket server
+    # STEP 10) Start the WebSocket server
     async with websockets.serve(connection_service.handleConnection, host, port):
         logger.info(f"WebSocket server {server_id} started on ws://{host}:{port}")
         logger.info(f"Health check endpoint available at http://{host}:{health_port}/health")
@@ -259,13 +220,20 @@ async def main(args):
         # Run forever
         await asyncio.Future()
 
+# command line interface
 def parse_args():
+    """
+    Parse command-line arguments to allow configuration when starting the server.
+    
+    This is like having switches and dials to adjust before starting a machine.
+    """
     parser = argparse.ArgumentParser(description='QueuePlay Multiplayer Game Server')
     parser.add_argument('--host', type=str, help='Host to bind the WebSocket server (default from env or localhost)')
     parser.add_argument('--port', type=int, help='Port to bind the WebSocket server (default from env or 6789)')
     parser.add_argument('--health-port', type=int, help='Port for health check endpoint (default: WS_PORT+1)')
     return parser.parse_args()
 
+# main entry point
 if __name__ == "__main__":
     load_dotenv()
     try:

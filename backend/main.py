@@ -1,30 +1,19 @@
-from CouponService.CouponService import CouponService
-from CouponService.src.CouponIdGenerator import CouponIdGenerator
-from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
-from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
-from CouponService.src.databases.CouponsDatabase import CouponsDatabase
-from LobbyService.LobbyService import LobbyService
-from LobbyService.src.QRCodeGenerator import QRCodeGenerator
-from QuestionService.QuestionService import QuestionService
-from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
-from GamerManagementService.GamerManagementService import GamerManagementService
-from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
-from commons.adapters.ChatGptAdapter import ChatGptAdapter
-from configuration.AppConfig import AppConfig
-from configuration.AppConfig import Stage
+import argparse
+from backend.commons.adapters.ChatGptAdapter import ChatGptAdapter
+from backend.configuration.AppConfig import AppConfig
+from backend.configuration.AppConfig import Stage
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from backend.LobbyService.LobbyService import LobbyService
+from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from backend.QuestionService.QuestionService import QuestionService
+from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from backend.PaymentService.PaymentService import PaymentService
+from backend.PaymentService.adapters.StripeAdapter import StripeAdapter
+from backend.commons.adapters.RedisAdapter import RedisAdapter
 from pydantic import BaseModel
-from routers import StripeRouter, PaymentDatabaseRouter, PaymentServiceRouter
-import argparse, uvicorn
-from LobbyService.LobbyService import LobbyService
-from LobbyService.src.QRCodeGenerator import QRCodeGenerator
-from QuestionService.QuestionService import QuestionService
-from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from PaymentService.PaymentService import PaymentService
-from PaymentService.adapters.StripeAdapter import StripeAdapter
+import logging
 
 import stripe
 import os
@@ -58,17 +47,81 @@ app.include_router(PaymentServiceRouter.router)
 app.include_router(PaymentDatabaseRouter.router)
 app.include_router(StripeRouter.router)
 
-@app.get("/generateLobbyQRCode")
-def generateLobbyQRCode(gameSessionId: str) -> str:
-    return lobbyService.generateLobbyQRCode(gameSessionId)
+# Define Pydantic model for the request body
+class CreateLobbyRequest(BaseModel):
+   hostId: str
+   gameType: str
 
-@app.post("/getQuestionAnswerSet")
-def getQuestionAnswerSet():
-    return questionService.getQuestionAnswerSet(10)
+@app.post("/createLobby")
+async def createLobby(request_data: CreateLobbyRequest) -> dict:
+    """Creates a new lobby and returns its ID."""
+    logging.info(f"Received createLobby request: hostId={request_data.hostId}, gameType={request_data.gameType}")
+    lobby_details = await lobbyService.create_lobby(host_id=request_data.hostId, game_type=request_data.gameType)
+    logging.info(f"lobbyService.create_lobby returned: {lobby_details}")
+    if lobby_details:
+        logging.info(f"Lobby created successfully: {lobby_details['gameId']}")
+        return {"gameId": lobby_details["gameId"]}
+    else:
+        logging.error("Failed to create lobby in LobbyService.")
+        # Handle error, maybe raise HTTPException
+        return {"error": "Failed to create lobby"}
 
-@app.post("/createCoupon")
-def createCoupon(createCouponRequest: CreateCouponRequest):
-    return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
+@app.get("/getLobbyQRCode")
+def getLobbyQRCode(gameId: str) -> dict:
+    qr_data = lobbyService.generateLobbyQRCode(gameId)
+    if qr_data:
+        return {"qrCodeData": qr_data}
+    else:
+        logging.error(f"Failed to generate QR code for gameId: {gameId}")
+        return {"error": "QR code generation failed"}
+
+@app.get("/getQuestions")
+def getQuestions(gameId: str, count: int = 10) -> dict:
+    """ Fetches a set of questions, potentially based on gameId or defaults. """
+    logging.info(f"Received getQuestions request for gameId: {gameId}, count: {count}")
+    question_set = questionService.getQuestionAnswerSet(count)
+    if question_set and "questions" in question_set:
+        logging.info(f"Returning {len(question_set['questions'])} questions for gameId: {gameId}")
+        return {"questions": question_set["questions"]}
+    else:
+        logging.error(f"Failed to retrieve questions for gameId: {gameId}")
+        return {"error": "Failed to retrieve questions"}
+
+@app.post("/createNewUser", tags=["Payment Service"])
+def createNewUser(name: str, email: str):
+    """ Generate a new user account """
+    return paymentService.createAccount(name, email)
+
+@app.get("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
+def listPaymentMethod(customerId: str):
+    """ Display all Payment Methods """
+    return stripeAdapter.listPaymentMethods(customerId)
+
+@app.put("/createPaymentIntent", tags=["Payment Service: Stripe Adapter"])
+def createPaymentIntent(customerId, paymentMethodId, charge):
+    return stripeAdapter.createPaymentIntent(customerId, paymentMethodId, charge)
+
+@app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
+    """ Attach Payment Method to a Customer"""
+    return paymentService.addPaymentMethod(customerId, paymentId, defaultMethod)
+
+@app.post("/createPaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def createPaymentMethod(
+    cardNumber: str,
+    expMonth: str = "04",
+    expYear: str = "2044",
+    cvc: str = "939"):
+    """ Generate a Payment Method """
+    
+    cardDetails = {
+        "number": cardNumber,
+        "exp_month": expMonth,
+        "exp_year": expYear,
+        "cvc": cvc
+    }
+
+    return stripeAdapter.createPaymentMethod(cardDetails)
 
 @app.post("/assignCoupon")
 def assignCoupon(assignCouponRequest: AssignCouponRequest):
@@ -77,10 +130,6 @@ def assignCoupon(assignCouponRequest: AssignCouponRequest):
 @app.post("/createCoupon")
 def createCoupon(createCouponRequest: CreateCouponRequest):
     return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
-
-@app.post("/assignCoupon")
-def assignCoupon(assignCouponRequest: AssignCouponRequest):
-    return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
 
 @app.post("/getCoupons")
 def getCoupons(getCouponRequest: GetCouponRequest):
@@ -95,6 +144,10 @@ def getGamersWithExpiringCoupons():
     return gamerManagementService.getGamersWithExpiringCoupons()
 
 if __name__ == '__main__':
+
+    # Basic logging configuration
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
     parser = argparse.ArgumentParser(description='Configure environment for the application.')
     parser.add_argument('--env', type=str, choices=['dev', 'prod'], default='dev', help='Select the environment: dev or prod')
     args = parser.parse_args()
@@ -128,7 +181,12 @@ if __name__ == '__main__':
     load_dotenv()
 
     qrCodeGenerator = QRCodeGenerator(appConfig)
-    lobbyService = LobbyService(qrCodeGenerator)
+
+    # Initialize Redis Adapter
+    redis_adapter = RedisAdapter(appConfig) 
+
+    # Inject dependencies into LobbyService
+    lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter)
 
     chatGptAdapter = ChatGptAdapter()
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)

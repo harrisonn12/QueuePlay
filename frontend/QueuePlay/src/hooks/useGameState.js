@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Custom hook to manage game state
@@ -16,7 +17,11 @@ export const useGameState = () => {
   // Player and role state
   const [gameId, setGameId] = useState("");
   const [role, setRole] = useState('');
-  const [clientId, setClientId] = useState(null);
+  const [clientId, setClientId] = useState(() => {
+    const newClientId = uuidv4();
+    console.log('Generated new clientId for this session:', newClientId);
+    return newClientId;
+  });
   const [players, setPlayers] = useState([]);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -40,6 +45,9 @@ export const useGameState = () => {
     tiedPlayerIds: [],
     ultimateWinnerId: null
   });
+  
+  // Connection/Identification state
+  const [isClientIdentified, setIsClientIdentified] = useState(false);
   
   // Reset the game state
   const resetGame = useCallback(() => {
@@ -72,6 +80,7 @@ export const useGameState = () => {
     // Clear status and reset timer
     setStatus('');
     setTimerKey(prev => prev + 1);
+    setIsClientIdentified(false); // Reset identification status
     
     console.log("Game state fully reset");
   }, []);
@@ -126,7 +135,8 @@ export const useGameState = () => {
   
   // Check if there's a tie among top scorers
   const checkForTie = useCallback((finalScores) => {
-    if (!finalScores || Object.keys(finalScores).length <= 1) {
+    if (!finalScores || Object.keys(finalScores).length === 0) {
+      console.log("No scores or empty scores, skipping tie check.");
       return false;
     }
     
@@ -182,6 +192,76 @@ export const useGameState = () => {
     setTimerKey(prev => prev + 1);
   }, []);
   
+  // Placeholder API functions (replace with actual implementation)
+  const API_BASE_URL = 'http://localhost:8000'; // Or your API server URL
+
+  const createLobbyAPI = async (clientId, gameType) => {
+    console.log("Calling createLobby API...");
+    if (!clientId) {
+      throw new Error("Cannot create lobby: clientId is missing.");
+    }
+    if (!gameType) {
+      throw new Error("Cannot create lobby: gameType is missing.");
+    }
+    const response = await fetch(`${API_BASE_URL}/createLobby`, { 
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // Add any other headers your API might require, like Authorization
+      },
+      body: JSON.stringify({ 
+        hostId: clientId, 
+        gameType: gameType // Use the provided gameType
+      }) 
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("createLobby API Error:", response.status, errorText);
+      throw new Error(`Failed to create lobby: ${response.status} ${errorText}`);
+    }
+    const data = await response.json();
+    console.log("createLobby API Success:", data);
+    if (!data.gameId) {
+      throw new Error("Lobby created, but gameId missing in response.");
+    }
+    return data.gameId;
+  };
+
+  const getQrCodeAPI = async (gameId) => {
+    console.log(`Calling getLobbyQRCode API for game ${gameId}...`);
+    const response = await fetch(`${API_BASE_URL}/getLobbyQRCode?gameId=${gameId}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("getLobbyQRCode API Error:", response.status, errorText);
+      throw new Error(`Failed to get QR code: ${response.status} ${errorText}`);
+    }
+    const data = await response.json();
+    console.log("getLobbyQRCode API Success:", data);
+    if (!data.qrCodeData) {
+      // Decide if this is critical - maybe return null or a default?
+      console.warn("QR code data missing in API response.");
+      return null; 
+    }
+    return data.qrCodeData; // Return the string data (e.g., URL) to be encoded
+  };
+
+  const getQuestionsAPI = async (gameId) => {
+    console.log(`Calling getQuestions API for game ${gameId}...`);
+    // Adjust endpoint/query params as needed by your backend
+    const response = await fetch(`${API_BASE_URL}/getQuestions?gameId=${gameId}`); 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("getQuestions API Error:", response.status, errorText);
+      throw new Error(`Failed to get questions: ${response.status} ${errorText}`);
+    }
+    const data = await response.json();
+    console.log("getQuestions API Success:", data);
+    if (!data.questions || !Array.isArray(data.questions)) {
+       throw new Error("Invalid questions data received from API.");
+    }
+    return data.questions;
+  };
+  
   return {
     // Game state
     gameStatus, setGameStatus,
@@ -214,12 +294,20 @@ export const useGameState = () => {
     // Tie-breaker state
     tieBreakerState, setTieBreakerState,
     
+    // Identification state
+    isClientIdentified, setIsClientIdentified,
+    
     // Methods
     resetGame,
     calculateScores,
     checkForTie,
     addPlayer,
     removePlayer,
-    advanceToNextQuestion
+    advanceToNextQuestion,
+    
+    // API Call placeholders (can be moved to a separate api.js file later)
+    createLobbyAPI,
+    getQrCodeAPI,
+    getQuestionsAPI
   };
 }; 

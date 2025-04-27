@@ -7,17 +7,20 @@ const BASE_RECONNECT_DELAY = 1000; // Start with 1 second delay
  * Custom hook to manage a WebSocket connection for the game.
  * Handles connection, reconnection logic, and message routing.
  *
- * @param {string} initialGameId - Initial game ID if known (for reconnect).
- * @param {string} initialClientId - Initial client ID if known (for reconnect).
- * @param {string} initialRole - Initial role if known (for reconnect).
+ * @param {string} gameId - Current game ID.
+ * @param {string} clientId - Current client ID.
+ * @param {string} role - Current role ('host' or 'player').
  * @param {function} onMessage - Callback function to handle incoming WebSocket messages.
  * @returns {object} { socket: WebSocket | null, status: string, ensureConnected: function }
  */
-export const useGameWebSocket = (initialGameId, initialClientId, initialRole, onMessage) => {
+export const useGameWebSocket = (gameId, clientId, role, onMessage) => {
     const socketRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
     const reconnectAttemptsRef = useRef(0);
-    const [status, setStatus] = useState('Initializing...'); // Start as Initializing
+    const [status, setStatus] = useState('Idle'); // Start as Idle
+
+    // Keep track of whether identification has been sent for this connection
+    const identifiedRef = useRef(false);
 
     // Ensure onMessage callback is always the latest version using a ref
     const onMessageRef = useRef(onMessage);
@@ -25,8 +28,23 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
         onMessageRef.current = onMessage;
     }, [onMessage]);
 
+    // Store connection details in refs to avoid triggering connect/disconnect effects
+    const connectionDetailsRef = useRef({ gameId, clientId, role });
+    useEffect(() => {
+        connectionDetailsRef.current = { gameId, clientId, role };
+    }, [gameId, clientId, role]);
+
     // Stable function to attempt connection if needed
     const ensureConnected = useCallback(() => {
+        // *** GUARD ***: Do not attempt connection if essential details are missing
+        const currentDetails = connectionDetailsRef.current;
+        if (!currentDetails.gameId || !currentDetails.clientId || !currentDetails.role) {
+            console.warn("ensureConnected called, but essential details (gameId, clientId, role) are missing. Aborting connection attempt.", currentDetails);
+            // Set status to indicate waiting, perhaps?
+            if (status !== 'Idle' && status !== 'Disconnected') setStatus('Waiting for game details...');
+            return null; // Indicate connection not ready
+        }
+
         // If already open and ready, do nothing
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
             return socketRef.current; // Return existing socket
@@ -49,10 +67,13 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
         
         // Clear any previous socket refs just in case
         if (socketRef.current) {
-             // Remove old listeners if possible? Generally not needed as we create a new object.
+             socketRef.current.close(1000, "Starting new connection attempt"); // Close cleanly
              socketRef.current = null;
         }
         
+        // Clear identified flag for new connection
+        identifiedRef.current = false;
+
         // Use window location for dynamic WebSocket URL
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
@@ -68,8 +89,9 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
             socket.onopen = () => {
                 console.log("WebSocket connected successfully");
                 reconnectAttemptsRef.current = 0;
-                setStatus("WebSocket connected");
-                // NO automatic reconnect message sending here anymore
+                setStatus("Connected, attempting identification...");
+                // Attempt to identify immediately upon opening
+                // Identification logic is now handled by the useEffect below
             };
             
             socket.onmessage = (event) => {
@@ -97,6 +119,10 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
             socket.onclose = (event) => {
                 const wasClean = event.wasClean;
                 const code = event.code;
+
+                // Reset identified flag on close
+                identifiedRef.current = false; 
+
                 console.log(`WebSocket disconnected. Clean: ${wasClean}, Code: ${code}, Reason: ${event.reason}`);
                 // Only clear ref if it's the socket that just closed
                 if(socketRef.current === socket) {
@@ -120,11 +146,11 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
                 } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
                     setStatus("Failed to reconnect.");
                 } else {
-                    setStatus("Disconnected.");
+                    setStatus("Disconnected"); // Use simpler status
                 }
             };
             
-            return socket; // Return the newly created socket
+            return socket; // Return the newly creating socket
         } catch (error) {
             console.error("Error creating WebSocket:", error);
             setStatus("Error creating WebSocket connection");
@@ -132,13 +158,42 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
         }
     // Dependencies: onMessageRef is stable. We don't want this function 
     // itself to change reference frequently.
-    }, []); 
+    }, [status]); // Add status to dependency array to re-evaluate guard if status changes
 
-    // Effect to establish the initial connection ONCE
+    // Effect to send Identify message when connection is open and details are available
     useEffect(() => {
-        ensureConnected();
+        const ws = socketRef.current;
+        const { gameId, clientId, role } = connectionDetailsRef.current;
 
-        // Cleanup function
+        if (ws && ws.readyState === WebSocket.OPEN && !identifiedRef.current) {
+            console.log("[Identify Effect] Checking conditions:", 
+                { 
+                    isSocketOpen: ws?.readyState === WebSocket.OPEN, 
+                    isIdentified: identifiedRef.current, 
+                    gameId, clientId, role 
+                }
+            );
+            if (gameId && clientId && role) {
+                console.log(`WebSocket open. Sending identify... Game: ${gameId}, Client: ${clientId}, Role: ${role}`);
+                setStatus("Identifying...");
+                ws.send(JSON.stringify({
+                    action: "identify",
+                    gameId: gameId,
+                    clientId: clientId,
+                    role: role
+                }));
+                identifiedRef.current = true; // Mark as identified for this connection
+            } else {
+                console.log("WebSocket open, but missing details for identification.", { gameId, clientId, role });
+                // Optionally set status to indicate waiting for details?
+                // setStatus("Connected, waiting for game details...");
+            }
+        }
+    // Depend on status (to catch the 'Connected...' state) and the details
+    }, [status, gameId, clientId, role]); 
+
+    // Cleanup function on unmount
+    useEffect(() => {
         return () => {
             console.log("Cleaning up WebSocket connection (on unmount)...");
             if (reconnectTimeoutRef.current) {
@@ -147,13 +202,12 @@ export const useGameWebSocket = (initialGameId, initialClientId, initialRole, on
             }
             const ws = socketRef.current;
             if (ws && ws.readyState === WebSocket.OPEN) {
-                 console.log("Closing WebSocket connection.");
-                 ws.close(1000, "Client unmounting");
+                console.log("Closing WebSocket connection.");
+                ws.close(1000, "Client unmounting");
             }
             socketRef.current = null;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Run only on mount
+    }, []); // Empty dependency array ensures this runs only on unmount
 
     // Expose the current socket status and the connection function
     // We return socketRef.current directly so the consuming component gets the live value
