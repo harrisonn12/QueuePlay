@@ -41,9 +41,11 @@ class CouponsDatabase(DatabaseAdapter):
         else:
             return []
         
-    def destroyCoupon(self, couponId: str):
-        response = self.supabaseDatabase.deleteData("coupons", "couponId", couponId)
-        if response.data:
-            return response.data
-        else:
-            return None
+    # Returns True if successfully deleted, False if not
+    def destroyCoupon(self, couponId: str) -> bool:
+        try:
+            self.supabaseDatabase.deleteData("coupons", "couponId", couponId)
+            return True
+        except:
+            return False
+      

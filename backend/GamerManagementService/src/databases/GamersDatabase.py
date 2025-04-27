@@ -59,12 +59,12 @@ class GamersDatabase(DatabaseAdapter):
         return coupons
 
     # Removes couponId from coupons entry
-    def removeCouponFromGamer(self, couponId: str, gamerId: str) -> list:
+    def removeCouponFromGamer(self, couponId: str, gamerId: str) -> bool:
         coupons = self.getGamer(gamerId).coupons
         try:
             coupons.remove(couponId)
             data = {"coupons": coupons}
             self.supabaseDatabase.updateTable("gamers", "gamerId", gamerId, data)
+            return True
         except:
-            pass
-        return coupons
+            return False
