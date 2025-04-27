@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from CouponService.src.databases.Coupon import Coupon
 
-EXPIRATION_IN_DAYS = 3
+EXPIRATION_IN_DAYS = 7
 
 class GamerManagementService:
 
