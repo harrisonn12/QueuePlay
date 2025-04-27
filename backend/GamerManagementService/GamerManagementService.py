@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from collections import defaultdict
 
 from CouponService.src.databases.Coupon import Coupon
 
@@ -14,9 +15,9 @@ class GamerManagementService:
         pass
 
     # Returns a list of gamers who have coupons that will expire within EXPIRATION_IN_DAYS
-    def getGamersWithExpiringCoupons(self):
+    def getGamersWithExpiringCoupons(self) -> dict:
         gamers = self.gamersDatabase.getGamers()
-        expiringGamers = []
+        expiringGamers = defaultdict(list)
         now = datetime.now()
 
         for gamer in gamers:
@@ -25,8 +26,7 @@ class GamerManagementService:
                     coupon = self.couponsDatabase.getCouponById(couponId)
                     exp_date = datetime.fromisoformat(coupon.expirationDate)
                     if exp_date - now <= timedelta(days=EXPIRATION_IN_DAYS):
-                        expiringGamers.append(gamer)
-                        break  
+                        expiringGamers[gamer.gamerId].append(couponId)
                 except Exception as e:
                     print(f"Error processing coupon: {coupon}, error: {e}")
         return expiringGamers
