@@ -53,16 +53,13 @@ class CouponService:
     def getCoupons(self, storeId: int, gamerId: str):
         return self.couponsDatabase.getGamerCoupons(storeId, gamerId)
     
-    # Destroys the coupon if it exists
-    def destroyCoupon(self, couponId: str):
+    # Destroys the coupon if it exists. Return true if deleled, false if still in database.
+    def destroyCoupon(self, couponId: str) -> bool:
         coupon = self.couponsDatabase.getCouponById(couponId)
         if coupon is None:
-            raise ValueError("Coupon not found")
+            return True
         
-        response = self.couponsDatabase.destroyCoupon(couponId)
-        self.gamersDatabase.removeCouponFromGamer(couponId, coupon.winnerId)
-        if response:
-            return response
-        else:
-            raise ValueError("Coupon not found")
+        success = self.couponsDatabase.destroyCoupon(couponId) and self.gamersDatabase.removeCouponFromGamer(couponId, coupon.winnerId)
+        return success
+
         
