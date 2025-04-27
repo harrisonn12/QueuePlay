@@ -1,8 +1,11 @@
 import os
 from supabase import create_client, Client
-
+from dotenv import load_dotenv
 
 class SupabaseDatabaseAdapter():
+
+    load_dotenv()
+    
     url: str = os.environ.get("SUPABASE_URL")
     key: str = os.environ.get("SUPABASE_KEY")
     supabase: Client = create_client(url, key)
@@ -32,7 +35,7 @@ class SupabaseDatabaseAdapter():
         Query a table with optional filters and specific columns.
 
         :param table: The name of the table to query.
-        :param filters: A dictionary of field-value pairs to filter the query.
+        :param filters: A dictionary of field-value pairs to filter the query. (Ex. filters={"id": 1, "status": "active"})
         :param columns: The columns to select, defaults to all columns ("*").
         :return: The query response.
         """
@@ -52,6 +55,15 @@ class SupabaseDatabaseAdapter():
             valueFilter: str,
             data: dict
         ):
+        """
+        Update a table entry using field filter
+
+        :param table: The name of the table to query.
+        :param fieldFilter: The name of the column to filter
+        :param valueFilter: The value to filter the field with
+        :param data: The value to update the filtered fields
+        :return: The query response
+        """
         response = (
             self.supabase.table(table)
             .update(data)

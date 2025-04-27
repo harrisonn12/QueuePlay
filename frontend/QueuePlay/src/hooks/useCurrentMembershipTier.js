@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export const useFetchUserMembershipTier = (auth0ID) => {
+export const useCurrentMembershipTier = (auth0ID) => {
     const [currentMembershipTier, setCurrentMembershipTier] = useState(null);
 
     /* Capture the membership tier that the user is subscribed to */

@@ -3,16 +3,14 @@ from CouponService.src.CouponIdGenerator import CouponIdGenerator
 from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
 from CouponService.src.adapters.CouponRedemptionAdapter import CouponRedemptionAdapter
-from CouponService.src.databases import AssignedCouponsDatabase
-from CouponService.src.databases.AssignedCouponsDatabase import AssignedCouponsDatabase
 from CouponService.src.databases.CouponsDatabase import CouponsDatabase
 from CouponService.src.models.CustomerMessagingProcessor import CustomerMessagingProcessor
 from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from commons.adapters.ChatGptAdapter import ChatGptAdapter
-from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
 from dotenv import load_dotenv
@@ -68,9 +66,9 @@ def createCoupon(createCouponRequest: CreateCouponRequest):
 def assignCoupon(assignCouponRequest: AssignCouponRequest):
     return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
 
-@app.post("/getCoupon")
-def getCoupon(getCouponRequest: GetCouponRequest):
-    return couponService.getCoupon(getCouponRequest.storeId, getCouponRequest.gamerId)
+@app.post("/getCoupons")
+def getCoupons(getCouponRequest: GetCouponRequest):
+    return couponService.getCoupons(getCouponRequest.storeId, getCouponRequest.gamerId)
 
 @app.post("/destroyCoupon")
 def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
@@ -119,11 +117,11 @@ if __name__ == '__main__':
     availableOffersAdapter = AvailableOffersAdapter()
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
-    googleSheetDatabaseAdapter = GoogleSheetDatabaseAdapter()
-    couponsDatabase = CouponsDatabase(googleSheetDatabaseAdapter)
-    assignedCouponsDatabase = AssignedCouponsDatabase(googleSheetDatabaseAdapter)
+    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
+
     couponRedemptionAdapter = CouponRedemptionAdapter()
     customerMessagingProcessor = CustomerMessagingProcessor()
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, assignedCouponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor)
     
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,14 +1,23 @@
 import { useFetchMembershipTiers } from '../../../hooks/useFetchMembershipTiers';
-import { useFetchUserMembershipTier } from '../../../hooks/useFetchUserMembershipTier';
+import { useCurrentMembershipTier } from '../../../hooks/useCurrentMembershipTier';
 import { UserMembershipTierContext } from '../../../context/UserMembershipTierContext';
 import { MembershipCards } from '../../features/MembershipCards';
 import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
 
 export const MembershipSection = () => {
+    const text = {
+        membershipPlansSection: 'Membership Plans',
+        membershipPlansDescription:
+            'Choose the perfect plan for your gaming journey.',
+        monthlyFilterButton: 'Monthly',
+        yearlyFilterButton: 'Yearly',
+        manageMembershipButton: 'Manage Membership',
+        membershipLoadingText: 'Loading membership tiers...',
+    };
     const { membershipTiers } = useFetchMembershipTiers();
     const { user } = useAuth0();
-    const { currentMembershipTier } = useFetchUserMembershipTier(user.sub);
+    const { currentMembershipTier } = useCurrentMembershipTier(user.sub);
 
     const handleManageSubscription = async (event) => {
         event.preventDefault();
@@ -33,10 +42,10 @@ export const MembershipSection = () => {
             <div className='bg-white shadow overflow-hidden sm:rounded-lg'>
                 <div className='px-4 py-5 sm:px-6'>
                     <h3 className='text-lg leading-6 font-medium text-gray-900'>
-                        Membership Plans
+                        {text.membershipPlansSection}
                     </h3>
                     <p className='mt-1 max-w-2xl text-sm text-gray-500'>
-                        Choose the perfect plan for your gaming journey.
+                        {text.membershipPlansDescription}
                     </p>
                 </div>
                 <div className='border-t border-gray-200'>
@@ -45,10 +54,10 @@ export const MembershipSection = () => {
                         <div className='flex justify-end mb-8'>
                             <div className='relative inline-flex rounded-lg p-1 bg-gray-100'>
                                 <button className='relative px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
-                                    Monthly
+                                    {text.monthlyFilterButton}
                                 </button>
                                 <button className='relative px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none'>
-                                    Yearly
+                                    {text.yearlyFilterButton}
                                 </button>
                             </div>
                         </div>
@@ -70,7 +79,7 @@ export const MembershipSection = () => {
                                     <div className='flex flex-col items-center space-y-4'>
                                         <div className='animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600'></div>
                                         <p className='text-sm font-medium text-gray-600'>
-                                            Loading membership plans...
+                                            {text.membershipLoadingText}
                                         </p>
                                     </div>
                                 </div>
@@ -97,7 +106,7 @@ export const MembershipSection = () => {
                                             d='M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z'
                                         />
                                     </svg>
-                                    Manage Membership
+                                    {text.manageMembershipButton}
                                 </button>
                             </div>
                         )}

@@ -13,7 +13,6 @@ router = APIRouter(
 paymentService = PaymentService()
 stripeAdapter = StripeAdapter()
 
-
 @router.post("/handleUserLogin")
 def handleUserLogin(userPayload: PaymentServiceUserPayload):
     return paymentService.handleUserLogin(userPayload)

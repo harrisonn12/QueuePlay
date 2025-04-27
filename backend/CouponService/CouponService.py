@@ -1,15 +1,13 @@
-import time
 from CouponService.src.databases.Coupon import Coupon
-import os
+from datetime import datetime, timezone
 
 class CouponService:
     
-    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, assignedCouponDatabase, couponRedemptionAdapter, customerMessagingProcessor) -> None:
+    def __init__(self, availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, couponRedemptionAdapter, customerMessagingProcessor) -> None:
         self.availableOffersAdapter = availableOffersAdapter  
         self.offerSelectionProcessor = offerSelectionProcessor 
         self.couponIdGenerator = couponIdGenerator  
         self.couponsDatabase = couponsDatabase
-        self.assignedCouponDatabase = assignedCouponDatabase
         self.couponRedemptionAdapter = couponRedemptionAdapter
         self.customerMessagingProcessor = customerMessagingProcessor
 
@@ -26,19 +24,19 @@ class CouponService:
             couponId=couponId,
             storeId=storeId,
             gameId=gameId,
-            winnerId="no winner",  # If set to 'None', posting to Google Sheets starts at the wrong column starting at row 2
+            winnerId="", 
             type=chosenOffer.offerType,
             value=chosenOffer.value,
-            productId=chosenOffer.productgiId,
+            productId=chosenOffer.productId,
             assigned=False,
-            createdAt = time.time(),
+            createdAt = datetime.now(timezone.utc).isoformat(),
             expirationDate = chosenOffer.expirationDate
         )
         
         self.couponsDatabase.addCoupon(newCoupon)
         return newCoupon.__dict__
     
-    # Currently just adding a new row to database instead of modifying old row's assigned value / winnerId
+    # Assigns a winner to a coupon
     def assignCoupon(self, couponId: str, winnerId: int):
         coupon = self.couponsDatabase.getCouponById(couponId)
 
@@ -46,25 +44,23 @@ class CouponService:
             raise ValueError("Coupon not found")
         if coupon.assigned:
             raise ValueError("Coupon already assigned")
-
-        coupon.assigned = True
-        coupon.winnerId = winnerId
-       
-        self.assignedCouponDatabase.addCoupon(coupon)
+        
+        self.couponsDatabase.assignWinner(couponId, winnerId)
 
         self.couponRedemptionAdapter.redeem(couponId)
         self.customerMessagingProcessor.sendWinnerCoupon(couponId, winnerId)
 
         return coupon
 
-    def getCoupon(self, storeId: int, gamerId: str):
-        coupon = self.assignedCouponDatabase.getCoupon(storeId, gamerId)
-
-        if coupon is None:
-            raise ValueError("Coupon not found")
-        
-        return coupon
+    # Returns a list of coupons associated with a store and a gamer
+    def getCoupons(self, storeId: int, gamerId: str):
+        return self.couponsDatabase.getGamerCoupons(storeId, gamerId)
     
+    # Destroys the coupon if it exists
     def destroyCoupon(self, couponId: str):
-        self.assignedCouponDatabase.deleteCoupon(couponId)
+        response = self.couponsDatabase.destroyCoupon(couponId)
+        if response:
+            return response
+        else:
+            raise ValueError("Coupon not found")
         

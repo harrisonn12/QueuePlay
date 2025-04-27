@@ -3,7 +3,6 @@ import os
 from PaymentService.exceptions.DuplicatePaymentException import DuplicatePaymentException
 from commons.models.PaymentMethodRequest import PaymentMethodRequest
 from commons.models.CreditCardDetails import CreditCardDetails
-from commons.models.BillingDetails import BillingDetails
 from commons.models.StripeCustomer import StripeCustomer
 from commons.models.StripeCustomerPortalSessionRequest import StripeCustomerPortalSessionRequest
 from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
@@ -17,16 +16,6 @@ class StripeAdapter:
     PUBLISHKEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
     SECRETKEY = os.getenv("STRIPE_SECRET_KEY")
     supabaseDbAdapter = SupabaseDatabaseAdapter()
-
-    def createPaymentMethod(self, cardDetails: CreditCardDetails, billingDetails: BillingDetails)-> stripe.PaymentMethod:
-        """ PaymentMethod object can only be attached to one customer """
-        stripe.api_key = self.PUBLISHKEY
-        
-        return stripe.PaymentMethod.create(
-            type="card",
-            card=cardDetails,
-            billing_details=billingDetails,
-        )
 
     def createSetupIntent(self, PaymentMethodRequest: PaymentMethodRequest) -> stripe.SetupIntent:
         """ Acquires payment method without charging and attaches to a customer; Use Payment Intent if charging immediately. """
@@ -190,26 +179,32 @@ class StripeAdapter:
             print(f"Unexpected error: {str(e)}")
             return str(e)
         
-    def createCustomerPortalSession(self, request: StripeCustomerPortalSessionRequest):
+    def createCustomerPortalSession(self, request: StripeCustomerPortalSessionRequest) -> dict:
         auth0ID = request.auth0ID
         returnURL = request.returnURL
         stripe.api_key = self.SECRETKEY
-
+        customerID = ''
         clientTableName = PaymentServiceTableNames.CLIENTS.value
 
-        # get stripe customer id using auth0Id
-        customerID = self.supabaseDbAdapter.queryTable(
-                clientTableName, 
-                {"auth0ID": auth0ID},
-                "stripeCustomerID"
+        try:
+            # get stripe customer id using auth0Id
+            customerID = self.supabaseDbAdapter.queryTable(
+                    clientTableName, 
+                    {"auth0ID": auth0ID},
+                    "stripeCustomerID"
+                )
+            
+            customerID = customerID.data[0].get("stripeCustomerID")
+        except Exception as e:
+            return None
+        
+        try:
+            # create a customer portal session
+            session = stripe.billing_portal.Session.create(
+                customer=customerID,
+                return_url=returnURL
             )
-        
-        customerID = customerID.data[0].get("stripeCustomerID")
-        
-        # create a customer portal session
-        session = stripe.billing_portal.Session.create(
-            customer=customerID,
-            return_url=returnURL
-        )
+        except Exception as e:
+            return None
 
         return {"url": session.url}

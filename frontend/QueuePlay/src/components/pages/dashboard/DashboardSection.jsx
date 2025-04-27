@@ -3,6 +3,17 @@ import { useState } from 'react';
 export const DashboardSection = () => {
     const [isLaunching, setIsLaunching] = useState(false);
 
+    const text = {
+        gameDashboardSection: 'Game Dashboard',
+        gameDashboardDescription:
+            'Your gaming hub and quick access to QueuePlay games.',
+        launchGameButton: 'Launch Game',
+        launchGameButtonDescription:
+            'Click to launch your favorite QueuePlay game',
+        timePlayed: "Time Played",
+        gamesCompleted: "Games Completed"
+    };
+
     const handleLaunchGame = () => {
         setIsLaunching(true);
         // Simulate game launch with a timeout
@@ -17,10 +28,10 @@ export const DashboardSection = () => {
         <div className='bg-white shadow overflow-hidden sm:rounded-lg'>
             <div className='px-4 py-5 sm:px-6'>
                 <h3 className='text-lg leading-6 font-medium text-gray-900'>
-                    Game Dashboard
+                    {text.gameDashboardSection}
                 </h3>
                 <p className='mt-1 max-w-2xl text-sm text-gray-500'>
-                    Your gaming hub and quick access to QueuePlay games.
+                    {text.gameDashboardDescription}
                 </p>
             </div>
             <div className='border-t border-gray-200'>
@@ -88,13 +99,13 @@ export const DashboardSection = () => {
                                                 d='M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
                                             ></path>
                                         </svg>
-                                        Launch Game
+                                        {text.launchGameButton}
                                     </>
                                 )}
                             </button>
                         </div>
                         <p className='mt-4 text-sm text-gray-500'>
-                            Click to launch your favorite QueuePlay game
+                            {text.launchGameButtonDescription}
                         </p>
                     </div>
 
@@ -121,7 +132,7 @@ export const DashboardSection = () => {
                                     <div className='ml-5 w-0 flex-1'>
                                         <dl>
                                             <dt className='text-sm font-medium text-gray-500 truncate'>
-                                                Time Played
+                                                {text.timePlayed}
                                             </dt>
                                             <dd className='flex items-baseline'>
                                                 <div className='text-2xl font-semibold text-gray-900'>
@@ -155,7 +166,7 @@ export const DashboardSection = () => {
                                     <div className='ml-5 w-0 flex-1'>
                                         <dl>
                                             <dt className='text-sm font-medium text-gray-500 truncate'>
-                                                Games Completed
+                                                {text.gamesCompleted}
                                             </dt>
                                             <dd className='flex items-baseline'>
                                                 <div className='text-2xl font-semibold text-gray-900'>

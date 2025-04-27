@@ -8,13 +8,13 @@ from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
 from commons.models.StripeCustomer import StripeCustomer
 
 class PaymentService:
-    clientTableName = PaymentServiceTableNames.CLIENTS.value
-    membershipTableName = PaymentServiceTableNames.MEMBERSHIP.value
-    offersTableName = PaymentServiceTableNames.OFFERS.value
-    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    CLIENT_TABLE_NAME = PaymentServiceTableNames.CLIENTS.value
+    MEMBERSHIP_TABLE_NAME = PaymentServiceTableNames.MEMBERSHIP.value
+    OFFERS_TABLE_NAME = PaymentServiceTableNames.OFFERS.value
 
     def __init__(self):
         self.stripeAdapter = StripeAdapter()
+        self.supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
     
     def addPaymentMethod(self, paymentMethodRequest: PaymentMethodRequest) -> ActionResponse:
         """ Attach a Stripe Payment Method to a Stripe Customer """
@@ -41,58 +41,98 @@ class PaymentService:
         auth0Id = userPayload.auth0Id
 
         # get user from client database
-        queryResponse = self.supabaseDatabaseAdapter.queryTable(
-                self.clientTableName,
-                {"auth0ID": auth0Id,},
-            )
+        try:
+            queryResponse = self.supabaseDatabaseAdapter.queryTable(
+                    self.CLIENT_TABLE_NAME,
+                    {"auth0ID": auth0Id,},
+                )
+        except Exception as e:
+            return ActionResponse(
+                success=False,
+                message="Failed to get user from the client database",
+                error=e)
         
         # if user does not exist, insert new client into client db
-        if (not queryResponse.data):
-            self.supabaseDatabaseAdapter.insertData(
-                    self.clientTableName,
-                    { "auth0ID": auth0Id }
-            )
+        try:
+            if (not queryResponse.data):
+                self.supabaseDatabaseAdapter.insertData(
+                        self.CLIENT_TABLE_NAME,
+                        { "auth0ID": auth0Id }
+                )
+        except Exception as e:
+            return ActionResponse(
+                success=False,
+                message="Failed to insert new client into Client database",
+                error=e)
 
         # check if user has stripe account
-        queryResponse = self.supabaseDatabaseAdapter.queryTable(
-            self.clientTableName,
-            {"auth0ID": auth0Id},
-            "stripeCustomerID"
-        )
+        try:
+            queryResponse = self.supabaseDatabaseAdapter.queryTable(
+                self.CLIENT_TABLE_NAME,
+                {"auth0ID": auth0Id},
+                "stripeCustomerID"
+            )
+        except Exception as e:
+            return ActionResponse(
+                success=False,
+                message="Failed to check for client Stripe account",
+                error=e)
 
         stripeCustomerId = queryResponse.data[0]["stripeCustomerID"]
         
         # if not, generate a new customer obj, then link customer id to client id
         if (not stripeCustomerId):
-            stripeCustomerDetails = StripeCustomer(
-                name=name,
-                phone=phone,
-                email=email)
-            stripeCustomerObj = self.stripeAdapter.createCustomer(stripeCustomerDetails)
-            apiResponse = self.supabaseDatabaseAdapter.updateTable(
-                self.clientTableName,
-                "auth0ID",
-                auth0Id,
-                {"stripeCustomerID": stripeCustomerObj.id}
-            )
+            try:
+                stripeCustomerDetails = StripeCustomer(
+                    name=name,
+                    phone=phone,
+                    email=email)
+                stripeCustomerObj = self.stripeAdapter.createCustomer(stripeCustomerDetails)
+            except Exception as e:
+                return ActionResponse(
+                    success=False,
+                    message="Failed to generate new customer object",
+                    error=e)
+            
+            try:
+                apiResponse = self.supabaseDatabaseAdapter.updateTable(
+                    self.CLIENT_TABLE_NAME,
+                    "auth0ID",
+                    auth0Id,
+                    {"stripeCustomerID": stripeCustomerObj.id}
+                )
+            except Exception as e:
+                return ActionResponse(
+                    success=False,
+                    message="Failed to update Client table",
+                    error=e)
 
-            return ActionResponse(success=True, message="New customer generated", data=str(apiResponse.data))
+            return ActionResponse(
+                success=True,
+                message="New customer generated",
+                data=str(apiResponse.data))
         
         return ActionResponse(success=True, message="Existing user")
     
     def getMembershipTiers(self) -> ActionResponse:
         try:
-            tiers = self.supabaseDatabaseAdapter.queryTable(self.membershipTableName)
+            tiers = self.supabaseDatabaseAdapter.queryTable(self.MEMBERSHIP_TABLE_NAME)
             
-            return ActionResponse(success=True, message="Membership tiers successfully retrieved", data = str(tiers.data))
+            return ActionResponse(
+                success=True,
+                message="Membership tiers successfully retrieved",
+                data = str(tiers.data))
         except Exception as e:
-            return ActionResponse(success=False, message="Unable to retrieve membership tiers")
+            return ActionResponse(
+                success=False,
+                message="Unable to retrieve membership tiers",
+                error=e)
 
     
     def getUserMembershipTier(self, auth0ID: str) -> ActionResponse:
         try:
             membershipTier = self.supabaseDatabaseAdapter.queryTable(
-                    self.clientTableName,
+                    self.CLIENT_TABLE_NAME,
                     {
                         "auth0ID": auth0ID
                     },
@@ -100,4 +140,5 @@ class PaymentService:
                 )
 
             return ActionResponse(success=True, message="User membership tier retrieved successfully", data = str(membershipTier.data[0]['membershipTier']))
-        except Exception as e: return ActionResponse(success=False, message="Unable to retrieve user membership tier")
+        except Exception as e:
+            return ActionResponse(success=False, message="Unable to retrieve user membership tier", error=e)

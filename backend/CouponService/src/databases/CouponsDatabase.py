@@ -1,47 +1,49 @@
 from CouponService.src.databases.Coupon import Coupon
+from commons.adapters import SupabaseDatabaseAdapter
 from commons.enums.DatabaseType import DatabaseType
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from commons.adapters.DatabaseAdapter import DatabaseAdapter
-from commons.adapters.GoogleSheetDatabaseAdapter import GoogleSheetDatabaseAdapter
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 
 class CouponsDatabase(DatabaseAdapter):
 
-    def __init__(self, googleSheetDatabaseAdapter: GoogleSheetDatabaseAdapter):
+    def __init__(self, supabaseDatabaseAdapter: SupabaseDatabaseAdapter):
         self.database = DatabaseType.COUPONS
-        self.googleSheetDatabaseAdapter = googleSheetDatabaseAdapter
+        self.supabaseDatabase = supabaseDatabaseAdapter
 
     def getCouponById(self, couponId: str) -> Coupon:
-        values = self.googleSheetDatabaseAdapter.get(DatabaseType.COUPONS)  
-        print("the values", values)
-        for row in values:
-            print("amanda row", row)
-            if row[0] == couponId:  
-                print(couponId)
-                if row[7] == 'TRUE':  
-                    assigned = True
-                elif row[7] == 'FALSE':  
-                    assigned = False
-                try:
-                    coupon = Coupon(
-                        couponId=str(row[0]),
-                        storeId=int(row[1]),
-                        gameId=(row[2]),
-                        winnerId=str(row[3]),
-                        type=str(row[4]),
-                        value=str(row[5]),
-                        productId=int(row[6]),
-                        assigned=assigned,  
-                        createdAt=float(row[8]),
-                        expirationDate=str(row[9])
-                    )
-                    return coupon 
-                except ValidationError as e:
-                    return {"error": f"Invalid data format: {e}"}
-        return None  
+        response = self.supabaseDatabase.queryTable(
+            table="coupons",
+            filters={"couponId": couponId}
+        )
+        if response.data:
+            return Coupon.model_validate(response.data[0])
+        else:
+            return None 
 
-    def addCoupon(self, data: BaseModel):
+    def addCoupon(self, data: Coupon):
         coupon_dict = data.model_dump()
-        coupon_values = list(coupon_dict.values())
-       
-        self.googleSheetDatabaseAdapter.post(DatabaseType.COUPONS, coupon_values)
+        self.supabaseDatabase.insertData("coupons", coupon_dict)
+
+    def assignWinner(self, couponId: str, winnerId: int):
+        data = {"winnerId": winnerId, "assigned": True}
+        response = self.supabaseDatabase.updateTable("coupons", "couponId", couponId, data)
+        return response
     
+    def getGamerCoupons(self, storeId: int, gamerId: str):
+        response = self.supabaseDatabase.queryTable(
+            table="coupons",
+            filters={"storeId": storeId, "winnerId": gamerId}, 
+        )
+
+        if response.data:
+            return response.data 
+        else:
+            return []
+        
+    def destroyCoupon(self, couponId: str):
+        response = self.supabaseDatabase.deleteData("coupons", "couponId", couponId)
+        if response.data:
+            return response.data
+        else:
+            return None

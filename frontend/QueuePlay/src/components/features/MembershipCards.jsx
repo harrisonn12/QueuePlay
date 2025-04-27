@@ -2,6 +2,11 @@ import { UserMembershipTierContext } from '../../context/UserMembershipTierConte
 import { useContext } from 'react';
 
 export const MembershipCards = ({ tier, name, price, perks }) => {
+    const text = {
+        currency: '$',
+        rate: 'month',
+    };
+
     const userMembershipTier = useContext(UserMembershipTierContext);
 
     return (
@@ -19,10 +24,11 @@ export const MembershipCards = ({ tier, name, price, perks }) => {
                     </h3>
                     <div className='flex items-baseline'>
                         <span className='text-3xl font-bold text-gray-900'>
-                            ${price}
+                            {text.currency}
+                            {price}
                         </span>
                         <span className='ml-1 text-sm font-medium text-gray-600'>
-                            /month
+                            /{text.rate}
                         </span>
                     </div>
                 </div>
