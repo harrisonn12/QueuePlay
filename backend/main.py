@@ -43,9 +43,6 @@ class GetCouponRequest(BaseModel):
 class DestroyCouponRequest(BaseModel):
     couponId: str
 
-class GetGamersWithExpiringCouponsRequest(BaseModel):
-    pass
-
 app = FastAPI(openapi_tags=tags_metadata)
 app.include_router(PaymentServiceRouter.router)
 app.include_router(PaymentDatabaseRouter.router)
@@ -84,7 +81,7 @@ def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
     return couponService.destroyCoupon(destroyCouponRequest.couponId)
 
 @app.post("/getExpiringCoupons")
-def getGamersWithExpiringCoupons(getGamersWithExpiringCouponsRequest: GetGamersWithExpiringCouponsRequest):
+def getGamersWithExpiringCoupons():
     return gamerManagementService.getGamersWithExpiringCoupons()
 
 if __name__ == '__main__':
