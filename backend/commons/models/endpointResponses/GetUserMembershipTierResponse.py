@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class HandleUserLoginResponse(BaseModel):
+class GetUserMembershipTierResponse(BaseModel):
     error: Optional[Exception] = None
     message: str = None
+    tier: int = None

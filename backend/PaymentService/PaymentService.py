@@ -5,6 +5,7 @@ from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
 from commons.models.endpointResponses.ActionResponse import ActionResponse
 from commons.models.endpointResponses.HandleUserLoginResponse import HandleUserLoginResponse
 from commons.models.endpointResponses.GetMembershipTiersResponse import GetMembershipTiersResponse
+from commons.models.endpointResponses.GetUserMembershipTierResponse import GetUserMembershipTierResponse
 from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
 from commons.models.StripeCustomer import StripeCustomer
 
@@ -99,9 +100,9 @@ class PaymentService:
         except Exception as e:
             return GetMembershipTiersResponse(error=e, message="Unable to retrieve membership tiers.")
     
-    def getUserMembershipTier(self, auth0ID: str) -> ActionResponse:
+    def getUserMembershipTier(self, auth0ID: str) -> GetUserMembershipTierResponse:
         try:
-            membershipTier = self.supabaseDatabaseAdapter.queryTable(
+            response = self.supabaseDatabaseAdapter.queryTable(
                     self.CLIENT_TABLE_NAME,
                     {
                         "auth0ID": auth0ID
@@ -109,6 +110,8 @@ class PaymentService:
                     "membershipTier"
                 )
 
-            return ActionResponse(success=True, message="User membership tier retrieved successfully", data = str(membershipTier.data[0]['membershipTier']))
+            return GetUserMembershipTierResponse(
+                tier=response.data[0]['membershipTier'],
+                message="User membership tier retrieved successfully")
         except Exception as e:
-            return ActionResponse(success=False, message="Unable to retrieve user membership tier", error=e)
+            return GetMembershipTiersResponse(error=e, message="Unable to retrieve user membership tier")

@@ -1,6 +1,7 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class GetMembershipTiersResponse(BaseModel):
-    error: str = None
+    error: Optional[Exception] = None
     message: str = None
     tiers: list = None
