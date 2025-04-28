@@ -2,8 +2,9 @@ import stripe
 from commons.adapters.StripeAdapter import StripeAdapter
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from commons.enums.PaymentServiceTableNames import PaymentServiceTableNames
-from commons.models.ActionResponse import ActionResponse
-from commons.models.PaymentMethodRequest import PaymentMethodRequest
+from commons.models.endpointResponses.ActionResponse import ActionResponse
+from commons.models.endpointResponses.HandleUserLoginResponse import HandleUserLoginResponse
+from commons.models.endpointResponses.GetMembershipTiersResponse import GetMembershipTiersResponse
 from commons.models.PaymentServiceUserPayload import PaymentServiceUserPayload
 from commons.models.StripeCustomer import StripeCustomer
 
@@ -15,25 +16,8 @@ class PaymentService:
     def __init__(self):
         self.stripeAdapter = StripeAdapter()
         self.supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
-    
-    def addPaymentMethod(self, paymentMethodRequest: PaymentMethodRequest) -> ActionResponse:
-        """ Attach a Stripe Payment Method to a Stripe Customer """
-        try:
-            result = self.stripeAdapter.createSetupIntent(paymentMethodRequest)
-
-            return ActionResponse(
-                success=True,
-                message="Payment method added",
-                data=result)
-        except Exception as e:
-            print(f"Unexpected Error: {str(e)}")
-            return ActionResponse(
-                success=False,
-                message="An unexpected error has occurred",
-                data=None,
-                error=e)
         
-    def  handleUserLogin(self, userPayload: PaymentServiceUserPayload) -> ActionResponse:
+    def  handleUserLogin(self, userPayload: PaymentServiceUserPayload) -> HandleUserLoginResponse:
         """ This endpoint ensures that newly authenticated users are stored in the database and that they are designated a Stripe Customer ID """
         name = userPayload.name
         email = userPayload.email
@@ -47,10 +31,9 @@ class PaymentService:
                     {"auth0ID": auth0Id,},
                 )
         except Exception as e:
-            return ActionResponse(
-                success=False,
-                message="Failed to get user from the client database",
-                error=e)
+            return HandleUserLoginResponse(
+                error=e,
+                message="Failed to get user from the client database")
         
         # if user does not exist, insert new client into client db
         try:
@@ -59,11 +42,11 @@ class PaymentService:
                         self.CLIENT_TABLE_NAME,
                         { "auth0ID": auth0Id }
                 )
+            
         except Exception as e:
-            return ActionResponse(
-                success=False,
-                message="Failed to insert new client into Client database",
-                error=e)
+            return HandleUserLoginResponse(
+                error=e,
+                message="Failed to insert new client into Client database")
 
         # check if user has stripe account
         try:
@@ -73,10 +56,9 @@ class PaymentService:
                 "stripeCustomerID"
             )
         except Exception as e:
-            return ActionResponse(
-                success=False,
-                message="Failed to check for client Stripe account",
-                error=e)
+            return HandleUserLoginResponse(
+                error=e,
+                message="Failed to check for client Stripe account")
 
         stripeCustomerId = queryResponse.data[0]["stripeCustomerID"]
         
@@ -89,42 +71,33 @@ class PaymentService:
                     email=email)
                 stripeCustomerObj = self.stripeAdapter.createCustomer(stripeCustomerDetails)
             except Exception as e:
-                return ActionResponse(
-                    success=False,
-                    message="Failed to generate new customer object",
-                    error=e)
+                return HandleUserLoginResponse(
+                error=e,
+                message="Failed to generate new customer object")
             
             try:
-                apiResponse = self.supabaseDatabaseAdapter.updateTable(
+                self.supabaseDatabaseAdapter.updateTable(
                     self.CLIENT_TABLE_NAME,
                     "auth0ID",
                     auth0Id,
                     {"stripeCustomerID": stripeCustomerObj.id}
                 )
             except Exception as e:
-                return ActionResponse(
-                    success=False,
-                    message="Failed to update Client table",
-                    error=e)
+                return HandleUserLoginResponse(
+                error=e,
+                message="Failed to update Client table")
 
-            return ActionResponse(
-                success=True,
-                message="New customer generated",
-                data=str(apiResponse.data))
-        
-        return ActionResponse(success=True, message="Existing user")
+            return HandleUserLoginResponse(message="New successfully generated.")
+
+        return HandleUserLoginResponse(message="Existing user has sucessfully logged in.")
     
-    def getMembershipTiers(self) -> ActionResponse:
+    def getMembershipTiers(self) -> GetMembershipTiersResponse:
         try:
             tiers = self.supabaseDatabaseAdapter.queryTable(self.MEMBERSHIP_TABLE_NAME)
             
-            return tiers.data
+            return GetMembershipTiersResponse(tiers=tiers.data, message="Membership tiers successfully retrieved.")
         except Exception as e:
-            return ActionResponse(
-                success=False,
-                message="Unable to retrieve membership tiers",
-                error=e)
-
+            return GetMembershipTiersResponse(error=e, message="Unable to retrieve membership tiers.")
     
     def getUserMembershipTier(self, auth0ID: str) -> ActionResponse:
         try:

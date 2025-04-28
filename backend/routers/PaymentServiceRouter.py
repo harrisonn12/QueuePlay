@@ -29,7 +29,7 @@ def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
 
 @router.get("/getMembershipTiers")
 def getMembershipTiers():
-    return paymentService.getMembershipTiers()
+    return paymentService.getMembershipTiers().tiers
 
 @router.get("/getUserMembershipTier")
 def getUserMembershipTier(auth0ID: str):
