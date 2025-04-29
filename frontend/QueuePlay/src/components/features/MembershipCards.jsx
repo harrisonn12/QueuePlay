@@ -7,12 +7,12 @@ export const MembershipCards = ({ tier, name, price, perks }) => {
         rate: 'month',
     };
 
-    const userMembershipTier = useContext(UserMembershipTierContext);
+    const currentMembershipTier = useContext(UserMembershipTierContext);
 
     return (
         <div
             className={`rounded-lg shadow-md transition-all duration-200 ${
-                tier === userMembershipTier
+                tier === currentMembershipTier
                     ? 'border-2 border-indigo-500 bg-indigo-50'
                     : 'border border-gray-200'
             }`}
