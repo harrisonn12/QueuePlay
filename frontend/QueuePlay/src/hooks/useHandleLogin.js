@@ -17,7 +17,7 @@ export const useHandleLogin = (user) => {
                 payload
             )
             .catch((e) => {
-                console.error('Error fetching data:', e);
+                console.error('Failed to handle user login: ', e);
             });
     }, [user]);
 };

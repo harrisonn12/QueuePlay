@@ -12,7 +12,7 @@ export const useFetchMembershipTiers = () => {
                 setMembershipTiers(response.data);
             })
             .catch((e) => {
-                console.error('Error fetching data:', e);
+                console.error('Error fetching membership tiers:', e);
             });
     }, []);
 
