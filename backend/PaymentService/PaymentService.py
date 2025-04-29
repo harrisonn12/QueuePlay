@@ -67,9 +67,9 @@ class PaymentService:
         if (not stripeCustomerId):
             try:
                 stripeCustomerDetails = StripeCustomer(
-                    name=name,
-                    phone=phone,
-                    email=email)
+                    name,
+                    phone,
+                    email)
                 stripeCustomerObj = self.stripeAdapter.createCustomer(stripeCustomerDetails)
             except Exception as e:
                 return HandleUserLoginResponse(
@@ -96,9 +96,13 @@ class PaymentService:
         try:
             tiers = self.supabaseDatabaseAdapter.queryTable(self.MEMBERSHIP_TABLE_NAME)
             
-            return GetMembershipTiersResponse(tiers=tiers.data, message="Membership tiers successfully retrieved.")
+            return GetMembershipTiersResponse(
+                tiers=tiers.data,
+                message="Membership tiers successfully retrieved.")
         except Exception as e:
-            return GetMembershipTiersResponse(error=e, message="Unable to retrieve membership tiers.")
+            return GetMembershipTiersResponse(
+                error=e,
+                message="Unable to retrieve membership tiers.")
     
     def getUserMembershipTier(self, auth0ID: str) -> GetUserMembershipTierResponse:
         try:
@@ -114,4 +118,4 @@ class PaymentService:
                 tier=response.data[0]['membershipTier'],
                 message="User membership tier retrieved successfully")
         except Exception as e:
-            return GetMembershipTiersResponse(error=e, message="Unable to retrieve user membership tier")
+            return GetUserMembershipTierResponse(error=e, message="Unable to retrieve user membership tier")

@@ -2,5 +2,5 @@ from pydantic import BaseModel
 from typing import Optional
 
 class HandleUserLoginResponse(BaseModel):
-    error: Optional[Exception] = None
-    message: str = None
+    error: Optional[str] = None
+    message: Optional[str] = None

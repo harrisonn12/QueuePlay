@@ -12,7 +12,7 @@ import { useCurrentMembershipTier } from '../../hooks/useCurrentMembershipTier';
 export const UserDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const { user } = useAuth0();
-    const { currentMembershipTier } = useCurrentMembershipTier(user);
+    const { currentMembershipTier } = useCurrentMembershipTier(user.sub);
     useHandleLogin(user);
 
     const tabs = [
