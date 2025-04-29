@@ -31,14 +31,14 @@ class RedisAdapter:
             port = int(os.getenv("PROD_REDIS_PORT", 6379)) # Ensure port is int
             db = int(os.getenv("PROD_REDIS_DB", 0))
             password = os.getenv("PROD_REDIS_PASSWORD", None)
-            socket_timeout = 10 # Maybe longer timeout for prod?
+            socket_timeout = 10 
             logger.info("Using Production Redis configuration.")
         else: # Default to Development
             host = os.getenv("DEV_REDIS_HOST", "localhost")
             port = int(os.getenv("DEV_REDIS_PORT", 6379))
             db = int(os.getenv("DEV_REDIS_DB", 0))
             password = os.getenv("DEV_REDIS_PASSWORD", None)
-            socket_timeout = 5
+            socket_timeout = 10
             logger.info("Using Development Redis configuration.")
 
         # Use extracted values for self.config
@@ -61,13 +61,8 @@ class RedisAdapter:
         
         logger.info(f"Initialized Redis adapter for {host}:{port}/db{db}")
 
-    @property # lazy initialization, meaning the client is not created until it is needed.
+    @property # lazy initialization, meaning the client is not created until it is needed. 
     def sync_client(self):
-        '''client = await redis.async_client
-            await client.set("key", "value")
-        
-        used like that, so with the client object, we can use redis operations.
-        '''
         if self._sync_client is None:
             try:
                 self._sync_client = redis.Redis(connection_pool=self.sync_pool)
@@ -79,6 +74,11 @@ class RedisAdapter:
     
     @property
     async def async_client(self):
+        '''client = await redis.async_client
+            await client.set("key", "value")
+        
+        used like that, so with the client object, we can use redis operations.
+        '''
         if self.async_pool is None:
             try:
                 self.async_pool = ConnectionPool(**self.config)
@@ -97,9 +97,24 @@ class RedisAdapter:
         
         return self._async_client
     
-    # --- Pipeline Method ---
     async def pipeline(self, transaction=True):
-        """Return a pipeline object from the async client."""
+        """
+        Optimize round-trip times by batching Redis commands into a single request. 
+        One network round-trip for multiple commands is more efficient than one round-trip per command.
+
+        EX:
+        # Without pipeline (3 separate network calls):
+        await redis.sadd("game:123", "player1")
+        await redis.sadd("game:123", "player2")
+        await redis.sadd("game:123", "player3")
+
+        # With pipeline (1 network call):
+        pipe = await redis.pipeline()
+        pipe.sadd("game:123", "player1")
+        pipe.sadd("game:123", "player2")
+        pipe.sadd("game:123", "player3")
+        await pipe.execute()
+        """
         client = await self.async_client
         return client.pipeline(transaction=transaction)
     
@@ -171,43 +186,9 @@ class RedisAdapter:
             logger.error(f"Redis error in get operation for key {key}: {e}")
             return default
     
-    # Hash operations
-    async def hset(self, name, key, value):
-        """Set a hash field"""
-        try:
-            client = await self.async_client
-            
-            # Handle JSON serialization if value is dict or list
-            if isinstance(value, (dict, list)):
-                value = json.dumps(value)
-                
-            return await client.hset(name, key, value)
-        except RedisError as e:
-            logger.error(f"Redis error in hset operation for {name}:{key}: {e}")
-            return False
-    
-    async def hget(self, name, key, default=None):
-        """Get a hash field value with automatic JSON deserialization if applicable"""
-        try:
-            client = await self.async_client
-            value = await client.hget(name, key)
-            
-            if value is None:
-                return default
-            
-            # Try to deserialize JSON if it looks like JSON
-            try:
-                if value.startswith('{') and value.endswith('}') or \
-                   value.startswith('[') and value.endswith(']'):
-                    return json.loads(value)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-                
-            return value
-        except RedisError as e:
-            logger.error(f"Redis error in hget operation for {name}:{key}: {e}")
-            return default
-    
+    # --- Hash Operations ---
+    # used for lobby metadata for reconnection logic
+
     async def hgetall(self, name):
         """Get all fields and values in a hash, robustly handling decoding and JSON deserialization."""
         try:
@@ -247,15 +228,6 @@ class RedisAdapter:
             logger.error(f"Redis error in hgetall operation for {name}: {e}")
             return {}
     
-    async def hdel(self, name, *keys):
-        """Delete one or more hash fields"""
-        try:
-            client = await self.async_client
-            return await client.hdel(name, *keys)
-        except RedisError as e:
-            logger.error(f"Redis error in hdel operation for {name}: {e}")
-            return 0
-    
     async def hmset(self, name: KeyT, mapping: dict):
         """Set multiple hash fields and values (maps dict)"""
         try:
@@ -272,9 +244,17 @@ class RedisAdapter:
              logger.error(f"Type error during hmset serialization for hash {name}: {e}. Mapping: {mapping}")
              return False
     
-    # --- Set Operations (Added) ---
+
+    # --- Set Operations ---
     async def sadd(self, name: KeyT, *values: EncodableT) -> int:
-        """Add members to a set."""
+        """Add members to a set. Determines that player X belongs to game Y.
+        
+        named like this because it is Redis built-in set function.
+
+        EX:
+        Key: "game:abc123:players"
+        Set contents: ["player456", "player789", "player101"]
+        """
         try:
             client = await self.async_client
             return await client.sadd(name, *values)
@@ -301,7 +281,9 @@ class RedisAdapter:
             logger.error(f"Redis error in smembers operation for set {name}: {e}")
             return set()
 
-    # Pub/Sub operations
+
+    # --- Pub/Sub Operations ---
+    # (does not store messages, only sends them)
     async def publish(self, channel, message):
         """Publish a message to a channel"""
         try:
@@ -317,7 +299,22 @@ class RedisAdapter:
             return 0
     
     async def subscribe(self, *channels):
-        """Subscribe to channels and return the pubsub object"""
+        """
+        Subscribe to channels and return the pubsub object
+        
+        EX:
+        pubsub = await redis.subscribe("channel1", "channel2")
+        await pubsub.get_message() # blocks until a message is received
+
+        A client could subscribe to a channel without being in the corresponding lobby (like a spectator), or be in a lobby but temporarily disconnected from the channel.
+        Channels are just string identifiers for message routing, completely independent from game logic. 
+
+        Example channel names:
+        game:123:broadcast      # Messages to all players in game 123
+        game:123:to_host        # Messages only to the host of game 123
+
+        That is why we need set operations, because we can't look up the players conncted to that channel because Redis pub/sub does not store subscribers in a queryable way. It is in memory only.
+        """
         try:
             client = await self.async_client
             pubsub = client.pubsub()

@@ -8,12 +8,14 @@ from backend.configuration.RedisConfig import RedisKeyPrefix
 
 logger = logging.getLogger(__name__)
 
-# Time-to-live for lobby information in seconds (e.g., 2 hours)
-LOBBY_TTL = 7200
-CLIENT_GAME_TTL = 7200
+# Use same value for both TTL constants
+LOBBY_TTL = 15 * 60 # Expire the lobby after 15 minutes of inactivity if delete_lobby() does not run properly.
+CLIENT_GAME_TTL = LOBBY_TTL  # Used if disconnections aren't handled properly with remove_player_from_lobby() 
 
 class LobbyService:
-
+    """
+    Service for managing lobbies using Redis. 
+    """
     def __init__(self, qrCodeGenerator: QRCodeGenerator, redis_adapter: RedisAdapter):
         self.qrCodeGenerator = qrCodeGenerator
         self.redis: RedisAdapter = redis_adapter
@@ -28,7 +30,7 @@ class LobbyService:
     def _get_client_game_key(self, client_id: str) -> str:
         return f"{RedisKeyPrefix.PLAYER.value}:{client_id}:game"
 
-    async def create_lobby(self, host_id: str, game_type: str = "trivia") -> Union[dict, None]:
+    async def create_lobby(self, host_id: str, game_type: str) -> Union[dict, None]:
         """Creates a new lobby in Redis, adds the host, and returns lobby details."""
         game_id = str(uuid.uuid4())
         lobby_key = self._get_lobby_key(game_id)

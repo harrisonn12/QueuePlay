@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class MessageService:
     """
-    Service for handling pub/sub messaging between servers.
+    Service for handling pub/sub messaging between servers using Redis.
     Provides a centralized way to:
     - Publish messages to channels
     - Subscribe to channels
