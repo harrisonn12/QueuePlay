@@ -9,17 +9,42 @@ from backend.LobbyService.LobbyService import LobbyService
 from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from backend.QuestionService.QuestionService import QuestionService
 from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from backend.PaymentService.PaymentService import PaymentService
-from backend.PaymentService.adapters.StripeAdapter import StripeAdapter
+from backend.PaymentService.PaymentService import PaymentService # Keep commented for now
+from backend.PaymentService.adapters.StripeAdapter import StripeAdapter # Keep commented for now
 from backend.commons.adapters.RedisAdapter import RedisAdapter
 from pydantic import BaseModel
 import logging
 
-import stripe
+# import stripe # Keep commented for now
 import os
 import uvicorn
 
+# Basic logging setup
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Load environment variables
+load_dotenv()
+
+# Determine the stage (dev/prod)
+stage_str = os.environ.get("STAGE", "DEVO").lower()
+stage = Stage.PROD if stage_str == 'prod' else Stage.DEVO
+appConfig = AppConfig(stage=stage)
+logging.info(f"Running in {appConfig.stage.name} stage.")
+
+# Initialize all services
+try:
+    qrCodeGenerator = QRCodeGenerator(appConfig) 
+    redis_adapter = RedisAdapter(app_config=appConfig) 
+    lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter) 
+    chatGptAdapter = ChatGptAdapter() 
+    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter) 
+    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator) 
+    # paymentService = PaymentService() # Keep commented
+    # stripeAdapter = StripeAdapter() # Keep commented
+    logging.info("Initialized services (excl. payment).")
+except Exception as e:
+    logging.error(f"Error initializing services: {e}", exc_info=True)
+    # We'll continue even with errors, as the FastAPI app can start and show appropriate error messages
 
 tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
@@ -47,6 +72,22 @@ app.include_router(PaymentServiceRouter.router)
 app.include_router(PaymentDatabaseRouter.router)
 app.include_router(StripeRouter.router)
 
+# CORS Middleware setup
+if appConfig.stage == Stage.PROD:
+    origins = [] # Define empty for prod if needed
+else: # DEVO stage
+    origins = [
+        "http://localhost:5173", "http://localhost:80", "http://localhost",
+    ]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+logging.info("Added CORS middleware.")
+
 # Define Pydantic model for the request body
 class CreateLobbyRequest(BaseModel):
    hostId: str
@@ -56,18 +97,25 @@ class CreateLobbyRequest(BaseModel):
 async def createLobby(request_data: CreateLobbyRequest) -> dict:
     """Creates a new lobby and returns its ID."""
     logging.info(f"Received createLobby request: hostId={request_data.hostId}, gameType={request_data.gameType}")
+    # Ensure lobbyService is initialized before calling
+    if 'lobbyService' not in globals():
+        logging.error("LobbyService not initialized!")
+        return {"error": "Server configuration error"}
     lobby_details = await lobbyService.create_lobby(host_id=request_data.hostId, game_type=request_data.gameType)
     logging.info(f"lobbyService.create_lobby returned: {lobby_details}")
-    if lobby_details:
+    if lobby_details and 'gameId' in lobby_details:
         logging.info(f"Lobby created successfully: {lobby_details['gameId']}")
         return {"gameId": lobby_details["gameId"]}
     else:
-        logging.error("Failed to create lobby in LobbyService.")
-        # Handle error, maybe raise HTTPException
+        logging.error(f"Failed to create lobby in LobbyService. Details: {lobby_details}")
         return {"error": "Failed to create lobby"}
 
 @app.get("/getLobbyQRCode")
 def getLobbyQRCode(gameId: str) -> dict:
+    # Ensure lobbyService is initialized
+    if 'lobbyService' not in globals():
+        logging.error("LobbyService not initialized!")
+        return {"error": "Server configuration error"}
     qr_data = lobbyService.generateLobbyQRCode(gameId)
     if qr_data:
         return {"qrCodeData": qr_data}
@@ -78,33 +126,50 @@ def getLobbyQRCode(gameId: str) -> dict:
 @app.get("/getQuestions")
 def getQuestions(gameId: str, count: int = 10) -> dict:
     """ Fetches a set of questions, potentially based on gameId or defaults. """
-    logging.info(f"Received getQuestions request for gameId: {gameId}, count: {count}")
-    question_set = questionService.getQuestionAnswerSet(count)
-    if question_set and "questions" in question_set:
-        logging.info(f"Returning {len(question_set['questions'])} questions for gameId: {gameId}")
-        return {"questions": question_set["questions"]}
-    else:
-        logging.error(f"Failed to retrieve questions for gameId: {gameId}")
-        return {"error": "Failed to retrieve questions"}
+    # Ensure questionService is initialized
+    if 'questionService' not in globals():
+        logging.error("QuestionService not initialized!")
+        return {"error": "Server configuration error"}
+    
+    try:
+        logging.info(f"Received getQuestions request for gameId: {gameId}, count: {count}")
+        
+        # Add extensive error handling around questionService call
+        try:
+            question_set = questionService.getQuestionAnswerSet(count)
+            logging.info(f"QuestionService.getQuestionAnswerSet returned: {type(question_set)}")
+        except Exception as e:
+            logging.error(f"CRITICAL ERROR in questionService.getQuestionAnswerSet: {str(e)}", exc_info=True)
+            return {"error": f"Question service error: {str(e)}"}
+        
+        if question_set and "questions" in question_set:
+            question_count = len(question_set["questions"])
+            logging.info(f"Returning {question_count} questions for gameId: {gameId}")
+            return {"questions": question_set["questions"]}
+        else:
+            logging.error(f"Failed to retrieve questions for gameId: {gameId}. Return value: {question_set}")
+            return {"error": "Failed to retrieve questions"}
+    except Exception as outer_e:
+        logging.error(f"Unhandled exception in getQuestions route: {str(outer_e)}", exc_info=True)
+        return {"error": f"Server error: {str(outer_e)}"}
 
+# Keep payment routes commented out
+''' # Start payment route comment block
 @app.post("/createNewUser", tags=["Payment Service"])
 def createNewUser(name: str, email: str):
-    """ Generate a new user account """
-    return paymentService.createAccount(name, email)
+    pass # Placeholder
 
 @app.get("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
 def listPaymentMethod(customerId: str):
-    """ Display all Payment Methods """
-    return stripeAdapter.listPaymentMethods(customerId)
+    pass # Placeholder
 
 @app.put("/createPaymentIntent", tags=["Payment Service: Stripe Adapter"])
 def createPaymentIntent(customerId, paymentMethodId, charge):
-    return stripeAdapter.createPaymentIntent(customerId, paymentMethodId, charge)
+    pass # Placeholder
 
 @app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
-    """ Attach Payment Method to a Customer"""
-    return paymentService.addPaymentMethod(customerId, paymentId, defaultMethod)
+    pass # Placeholder
 
 @app.post("/createPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def createPaymentMethod(
@@ -112,24 +177,11 @@ def createPaymentMethod(
     expMonth: str = "04",
     expYear: str = "2044",
     cvc: str = "939"):
-    """ Generate a Payment Method """
-    
-    cardDetails = {
-        "number": cardNumber,
-        "exp_month": expMonth,
-        "exp_year": expYear,
-        "cvc": cvc
-    }
+    pass # Placeholder
 
-    return stripeAdapter.createPaymentMethod(cardDetails)
-
-@app.post("/assignCoupon")
-def assignCoupon(assignCouponRequest: AssignCouponRequest):
-    return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
-
-@app.post("/createCoupon")
-def createCoupon(createCouponRequest: CreateCouponRequest):
-    return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
+@app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
+def deletePaymentMethod(paymentMethodId):
+    pass # Placeholder
 
 @app.post("/getCoupons")
 def getCoupons(getCouponRequest: GetCouponRequest):

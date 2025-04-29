@@ -1,11 +1,34 @@
 version: '3.8'
 
 services:
-  # Redis service for state management and pub/sub
+  # HAProxy Load Balancer
+  haproxy:
+    image: haproxy:2.4
+    container_name: queueplay-haproxy
+    ports:
+      - "80:80"      # Frontend/UI
+      - "8000:8000"  # API
+      - "6789:6789"  # WebSocket
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - frontend
+      - backend-api-1
+      - backend-api-2
+      - backend-websocket-1
+      - backend-websocket-2
+    networks:
+      - queueplay-network
+    restart: unless-stopped
+
+  # Redis service
   redis:
     image: redis:7.0-alpine
+    container_name: queueplay-redis
+    # Remove direct port exposure since HAProxy will handle external connections
+    # Only expose to the internal network
     ports:
-      - "6380:6379"  # Use port 6380 externally to avoid conflicts
+      - "6379:6379"  # Keep for development/debugging, could be removed in production
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
@@ -17,68 +40,135 @@ services:
       timeout: 3s
       retries: 5
 
-  # HAProxy load balancer
-  haproxy:
-    image: haproxy:2.6-alpine
-    ports:
-      - "8080:8080"  # HAProxy stats page
-      - "8081:8081"  # WebSocket traffic
+  # Backend API Server (FastAPI) - Instance 1
+  backend-api-1:
+    container_name: queueplay-backend-api-1
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1
+    # Use volumes for development to reflect code changes without rebuilding
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    depends_on:
-      - server1
-      - server2
-    networks:
-      - queueplay-network
-    restart: always
-    healthcheck:
-      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  # Game server instances
-  server1:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "6789:6789" # Expose for direct testing
-      - "6790:6790" # Health check port
+      - ./backend:/app/backend
+      - ./MultiplayerServer.py:/app/MultiplayerServer.py
+      - ./requirements.txt:/app/requirements.txt
+      - ./.env:/app/.env
+    # Remove direct port exposure since HAProxy will handle external connections
+    # Only expose to the internal network
+    expose:
+      - "8000"
     environment:
-      - WS_HOST=0.0.0.0
-      - WS_PORT=6789
-      - HEALTH_PORT=6790
+      # Pass OpenAI API key from host environment or .env file
+      - CHATGPT_KEY=${CHATGPT_KEY}
+      # Ensure Redis connection uses the service name within Docker
       - REDIS_HOST=redis
-      - REDIS_PORT=6379  # Inside Docker network, Redis is on standard port
-      - SERVER_ID=server1
-    networks:
-      - queueplay-network
+      - DEV_REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONUNBUFFERED=1
     depends_on:
       redis:
         condition: service_healthy
-    restart: always
-
-  server2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "6791:6789" # Expose on different port to avoid conflict
-      - "6792:6790" # Health check port
-    environment:
-      - WS_HOST=0.0.0.0
-      - WS_PORT=6789
-      - HEALTH_PORT=6790
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379  # Inside Docker network, Redis is on standard port
-      - SERVER_ID=server2
     networks:
       - queueplay-network
+    restart: unless-stopped
+
+  # Backend API Server (FastAPI) - Instance 2
+  backend-api-2:
+    container_name: queueplay-backend-api-2
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1
+    volumes:
+      - ./backend:/app/backend
+      - ./MultiplayerServer.py:/app/MultiplayerServer.py
+      - ./requirements.txt:/app/requirements.txt
+      - ./.env:/app/.env
+    expose:
+      - "8000"
+    environment:
+      - CHATGPT_KEY=${CHATGPT_KEY}
+      - REDIS_HOST=redis
+      - DEV_REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONUNBUFFERED=1
     depends_on:
       redis:
         condition: service_healthy
-    restart: always
+    networks:
+      - queueplay-network
+    restart: unless-stopped
+
+  # Backend WebSocket Server - Instance 1
+  backend-websocket-1:
+    container_name: queueplay-backend-websocket-1
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python MultiplayerServer.py
+    volumes:
+      - ./backend:/app/backend
+      - ./MultiplayerServer.py:/app/MultiplayerServer.py
+      - ./requirements.txt:/app/requirements.txt
+      - ./.env:/app/.env
+    expose:
+      - "6789"
+    environment:
+      - CHATGPT_KEY=${CHATGPT_KEY}
+      - REDIS_HOST=redis
+      - DEV_REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WS_HOST=0.0.0.0
+      - WS_PORT=6789
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - queueplay-network
+    restart: unless-stopped
+
+  # Backend WebSocket Server - Instance 2
+  backend-websocket-2:
+    container_name: queueplay-backend-websocket-2
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python MultiplayerServer.py
+    volumes:
+      - ./backend:/app/backend
+      - ./MultiplayerServer.py:/app/MultiplayerServer.py
+      - ./requirements.txt:/app/requirements.txt
+      - ./.env:/app/.env
+    expose:
+      - "6789"
+    environment:
+      - CHATGPT_KEY=${CHATGPT_KEY}
+      - REDIS_HOST=redis
+      - DEV_REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WS_HOST=0.0.0.0
+      - WS_PORT=6789
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - queueplay-network
+    restart: unless-stopped
+
+  # Frontend (React App served by Nginx)
+  frontend:
+    container_name: queueplay-frontend
+    build:
+      context: .
+      dockerfile: frontend/QueuePlay/Dockerfile
+    # Remove direct port exposure since HAProxy will handle external connections
+    expose:
+      - "80"
+    networks:
+      - queueplay-network
+    restart: unless-stopped
 
 networks:
   queueplay-network:
@@ -86,3 +176,4 @@ networks:
 
 volumes:
   redis-data:
+    driver: local

@@ -4,20 +4,33 @@ from ..enums.LLMModel import LLMModel
 from ..enums.Prompt import Prompt
 from ..enums.Role import Role
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # https://dagster.io/blog/python-environment-variables
 class ChatGptAdapter:
   def __init__(self):
-    try:
-        apiKey = os.environ['CHATGPT_KEY']
-    except KeyError:
-        print("Environment variable does not exist")
-        os.environ['CHATGPT_KEY'] = input("What is your OpenAI key?\n")
-        apiKey = os.environ['CHATGPT_KEY']
-
-    self.client = OpenAI(api_key=apiKey)
+    logger.info("Attempting to initialize ChatGptAdapter...")
+    apiKey = os.environ.get('CHATGPT_KEY')
+    if not apiKey:
+        logger.error("FATAL: Environment variable 'CHATGPT_KEY' not found!")
+        raise ValueError("Missing required environment variable: CHATGPT_KEY")
+    else:
+      key_start = apiKey[:5] if len(apiKey) > 5 else apiKey
+      logger.info(f"Found CHATGPT_KEY starting with: {key_start}...")
+      try:
+          logger.info("Attempting to initialize OpenAI client...")
+          self.client = OpenAI(api_key=apiKey)
+          logger.info("ChatGptAdapter initialized successfully.")
+      except Exception as e:
+          logger.error(f"Error initializing OpenAI client: {e}", exc_info=True)
+          raise
 
   def generateSummary(self, message: str):
+    if not self.client:
+        logger.error("Cannot generate summary: ChatGptAdapter client not initialized.")
+        return "Error: Service not configured."
     response = self.client.chat.completions.create(
       model= LLMModel.GPT_35_TURBO.value,
       messages=[

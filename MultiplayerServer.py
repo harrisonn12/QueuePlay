@@ -174,15 +174,17 @@ async def main(args):
     # Log server info
     logger.info(f"Starting WebSocket server {server_id} on {host}:{port}")
     
-    # STEP 2) Initialize Redis adapter
-    redis_config = RedisConfig(stage)
-    #middleman between app code and redis server. handles all communication with Redis.
-    #everything goes through this redis client.
-    #redis client does not maintain subscription state.  
-    redis_adapter = RedisAdapter(**redis_config.get_connection_params())
-    logger.info(f"Connecting to Redis at {redis_config.host}:{redis_config.port}")
+    # STEP 1.5) Initialize AppConfig
+    # Create an AppConfig instance using the determined stage
+    app_config = AppConfig(stage=stage)
+
+    # STEP 2) Initialize Redis adapter using AppConfig
+    # RedisAdapter now reads connection details from AppConfig based on the stage
+    redis_adapter = RedisAdapter(app_config=app_config)
+    logger.info(f"Initialized Redis adapter using AppConfig for stage {stage.name}")
     
     # Test Redis connection
+    # No need to log host/port here again, RedisAdapter init does it
     redis_alive = await redis_adapter.ping()
     if not redis_alive:
         logger.error("Could not connect to Redis!")
