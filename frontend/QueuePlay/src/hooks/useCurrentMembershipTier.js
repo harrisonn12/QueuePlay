@@ -15,7 +15,7 @@ export const useCurrentMembershipTier = (auth0ID) => {
             .then((response) => {
                 response = response.data;
                 setCurrentMembershipTier(response);
-            })
+             })
             .catch((e) => {
                 console.error('Error fetching client membership tier:', e);
             });

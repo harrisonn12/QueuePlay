@@ -1,9 +1,4 @@
 export const PerksSection = () => {
-    /**
-     * Display available coupons
-     * Generate coupons (product, rate, type)
-     * Button to destroy coupons (Vended)
-     */
 
     const text = {
         perksRewardsSection: 'Your Perks & Rewards',

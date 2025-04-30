@@ -1,7 +1,8 @@
 import { UserMembershipTierContext } from '../../context/UserMembershipTierContext';
 import { useContext } from 'react';
+import { CheckIcon } from '@heroicons/react/24/solid';
 
-export const MembershipCards = ({ tier, name, price, perks }) => {
+export const MembershipCard = ({ tier, name, price, perks }) => {
     const text = {
         currency: '$',
         rate: 'month',
@@ -38,19 +39,7 @@ export const MembershipCards = ({ tier, name, price, perks }) => {
                         perks.map((perk, index) => (
                             <div key={index} className='flex items-start'>
                                 <div className='flex-shrink-0'>
-                                    <svg
-                                        className='h-5 w-5 text-indigo-500'
-                                        fill='none'
-                                        viewBox='0 0 24 24'
-                                        stroke='currentColor'
-                                    >
-                                        <path
-                                            strokeLinecap='round'
-                                            strokeLinejoin='round'
-                                            strokeWidth='2'
-                                            d='M5 13l4 4L19 7'
-                                        />
-                                    </svg>
+                                    <CheckIcon className='h-5 w-5 text-indigo-500' />
                                 </div>
                                 <p className='ml-3 text-sm font-medium text-gray-800'>
                                     {perk}
