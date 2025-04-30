@@ -3,6 +3,7 @@ import { AccountSection } from './dashboard/AccountSection';
 import { MembershipSection } from './dashboard/MembershipSection';
 import { PerksSection } from './dashboard/PerksSection';
 import { DashboardSection } from './dashboard/DashboardSection';
+import { CouponsSection } from './dashboard/CouponsSection';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LogoutButton } from '../LogoutButton';
 import { useHandleLogin } from '../../hooks/useHandleLogin';
@@ -20,6 +21,7 @@ export const UserDashboard = () => {
         { id: 'account', label: 'Account' },
         { id: 'membership', label: 'Membership' },
         { id: 'perks', label: 'Perks' },
+        { id: 'coupons', label: 'Coupons' },
     ];
 
     const renderContent = () => {
@@ -32,6 +34,8 @@ export const UserDashboard = () => {
                 return <MembershipSection userMembershipTier />;
             case 'perks':
                 return <PerksSection />;
+            case 'coupons':
+                return <CouponsSection />;
             default:
                 return <DashboardSection />;
         }
