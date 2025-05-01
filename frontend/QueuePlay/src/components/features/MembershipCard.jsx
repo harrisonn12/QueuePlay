@@ -2,10 +2,10 @@ import { UserMembershipTierContext } from '../../context/UserMembershipTierConte
 import { useContext } from 'react';
 import { CheckIcon } from '@heroicons/react/24/solid';
 
-export const MembershipCard = ({ tier, name, price, perks }) => {
+export const MembershipCard = ({ tier, name, price, perks, billFrequency }) => {
     const text = {
         currency: '$',
-        rate: 'month',
+        rate: billFrequency,
     };
 
     const currentMembershipTier = useContext(UserMembershipTierContext);

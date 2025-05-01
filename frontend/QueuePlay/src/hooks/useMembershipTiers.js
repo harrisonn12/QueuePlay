@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-export const useFetchMembershipTiers = () => {
+export const useMembershipTiers = () => {
     const [membershipTiers, setMembershipTiers] = useState(null);
 
     /* Get all existing membership tiers */
@@ -10,7 +10,6 @@ export const useFetchMembershipTiers = () => {
             .get('http://127.0.0.1:8000/paymentService/getMembershipTiers')
             .then((response) => {
                 setMembershipTiers(response.data);
-                console.log(response.data);
             })
             .catch((e) => {
                 console.error('Error fetching membership tiers:', e);

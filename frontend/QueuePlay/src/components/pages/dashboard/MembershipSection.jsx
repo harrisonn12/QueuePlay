@@ -1,9 +1,9 @@
 import { KeyIcon } from '@heroicons/react/24/solid';
-import { useFetchMembershipTiers } from '../../../hooks/useFetchMembershipTiers';
+import { useMembershipTiers } from '../../../hooks/useMembershipTiers';
 import { MembershipCard } from '../../features/MembershipCard';
 import { useAuth0 } from '@auth0/auth0-react';
 import { usePriceFilter } from '../../../hooks/usePriceFilter';
-import { useManagementSubscription } from '../../../hooks/useManageSubscription';
+import { useManagementSubscription as managementSubscription } from '../../../hooks/useManageSubscription';
 
 export const MembershipSection = () => {
     const text = {
@@ -15,9 +15,8 @@ export const MembershipSection = () => {
         manageMembershipButton: 'Manage Membership',
         membershipLoadingText: 'Loading membership tiers...',
     };
-    const { membershipTiers } = useFetchMembershipTiers();
+    const { membershipTiers } = useMembershipTiers();
     const { user } = useAuth0();
-    const managementSubscription = useManagementSubscription;
     const { priceFilter, handleMonthlyFilter, handleYearlyFilter } =
         usePriceFilter();
 
@@ -64,19 +63,22 @@ export const MembershipSection = () => {
                     {/* Membership Cards */}
                     <div className='grid gap-6 sm:grid-cols-2 xl:grid-cols-4'>
                         {membershipTiers ? (
-                            membershipTiers.map((tier) => (
-                                <MembershipCard
-                                    key={tier.tierID}
-                                    tier={tier.tierID}
-                                    name={tier.tierName}
-                                    price={
-                                        priceFilter === 'month'
-                                            ? tier.monthlyRate
-                                            : tier.yearlyRate
-                                    }
-                                    perks={tier.perks}
-                                />
-                            ))
+                            membershipTiers
+                                .sort((a, b) => a.monthlyRate > b.monthlyRate)
+                                .map((tier) => (
+                                    <MembershipCard
+                                        key={tier.tierID}
+                                        tier={tier.tierID}
+                                        name={tier.tierName}
+                                        price={
+                                            priceFilter === 'month'
+                                                ? tier.monthlyRate
+                                                : tier.yearlyRate
+                                        }
+                                        billFrequency={priceFilter}
+                                        perks={tier.perks}
+                                    />
+                                ))
                         ) : (
                             <div className='col-span-full flex justify-center items-center py-12'>
                                 <div className='flex flex-col items-center space-y-4'>
