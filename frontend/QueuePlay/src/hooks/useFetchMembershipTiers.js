@@ -10,6 +10,7 @@ export const useFetchMembershipTiers = () => {
             .get('http://127.0.0.1:8000/paymentService/getMembershipTiers')
             .then((response) => {
                 setMembershipTiers(response.data);
+                console.log(response.data);
             })
             .catch((e) => {
                 console.error('Error fetching membership tiers:', e);
