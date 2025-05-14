@@ -10,8 +10,12 @@ from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from backend.QuestionService.QuestionService import QuestionService
 from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 from backend.PaymentService.PaymentService import PaymentService # Keep commented for now
-from backend.PaymentService.adapters.StripeAdapter import StripeAdapter # Keep commented for now
+from backend.commons.adapters.StripeAdapter import StripeAdapter # Keep commented for now
 from backend.commons.adapters.RedisAdapter import RedisAdapter
+from backend.CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
+from backend.CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
+from backend.CouponService.src.CouponIdGenerator import CouponIdGenerator
+from backend.commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from pydantic import BaseModel
 import logging
 
@@ -68,9 +72,9 @@ class DestroyCouponRequest(BaseModel):
     couponId: str
 
 app = FastAPI(openapi_tags=tags_metadata)
-app.include_router(PaymentServiceRouter.router)
-app.include_router(PaymentDatabaseRouter.router)
-app.include_router(StripeRouter.router)
+# app.include_router(PaymentServiceRouter.router)
+# app.include_router(PaymentDatabaseRouter.router)
+# app.include_router(StripeRouter.router)
 
 # CORS Middleware setup
 if appConfig.stage == Stage.PROD:
@@ -154,7 +158,6 @@ def getQuestions(gameId: str, count: int = 10) -> dict:
         return {"error": f"Server error: {str(outer_e)}"}
 
 # Keep payment routes commented out
-''' # Start payment route comment block
 @app.post("/createNewUser", tags=["Payment Service"])
 def createNewUser(name: str, email: str):
     pass # Placeholder
@@ -247,13 +250,13 @@ if __name__ == '__main__':
     availableOffersAdapter = AvailableOffersAdapter()
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
-    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
-    couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
-    gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
+    # supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    # couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
+    # gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
+    # couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
     
-    gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
-    paymentService = PaymentService()
-    stripeAdapter = StripeAdapter()
+    # gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
+    # paymentService = PaymentService()
+    # stripeAdapter = StripeAdapter()
     
     uvicorn.run(app, host="0.0.0.0", port=8000)

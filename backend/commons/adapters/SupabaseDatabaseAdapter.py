@@ -2,20 +2,21 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-class SupabaseDatabaseAdapter():
+class SupabaseDatabaseAdapter:
 
-    load_dotenv()
-    
-    url: str = os.environ.get("SUPABASE_URL")
-    key: str = os.environ.get("SUPABASE_KEY")
-    supabase: Client = create_client(url, key)
-    email: str = os.environ.get("SUPABASE_USERNAME")
-    password: str = os.environ.get("SUPABASE_PASSWORD")
-        
-    supabase.auth.sign_in_with_password({
-        "email": email,
-        "password": password,
-    })
+    def __init__(self):
+        load_dotenv()
+        url: str = os.environ.get("SUPABASE_URL")
+        key: str = os.environ.get("SUPABASE_KEY")
+        self.email: str = os.environ.get("SUPABASE_USERNAME")
+        self.password: str = os.environ.get("SUPABASE_PASSWORD")
+
+        self.supabaseClient = create_client(url, key)
+
+        self.supabaseClient.auth.sign_in_with_password({
+            "email": self.email,
+            "password": self.password,
+        })
 
     def getTable(self, table):
         response = (
