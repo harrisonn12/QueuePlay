@@ -192,8 +192,22 @@ export const useGameState = () => {
     setTimerKey(prev => prev + 1);
   }, []);
   
-  // Placeholder API functions (replace with actual implementation)
-  const API_BASE_URL = 'http://localhost:8000'; // Or your API server URL
+  // Dynamic API base URL based on current location
+  const getApiBaseUrl = () => {
+    const protocol = window.location.protocol;
+    const host = window.location.hostname;
+    const port = window.location.port;
+    
+    // For production, use same host as frontend
+    // For development, use same host with /api prefix
+    if (port) {
+        return `${protocol}//${host}:${port}/api`;  // http://localhost/api
+    } else {
+        return `${protocol}//${host}/api`;          // https://yourdomain.com/api  
+    }
+  };
+
+  const API_BASE_URL = getApiBaseUrl();
 
   const createLobbyAPI = async (clientId, gameType) => {
     console.log("Calling createLobby API...");

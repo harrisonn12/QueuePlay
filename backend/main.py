@@ -16,6 +16,7 @@ from backend.CouponService.src.adapters.AvailableOffersAdapter import AvailableO
 from backend.CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from backend.CouponService.src.CouponIdGenerator import CouponIdGenerator
 from backend.commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
+from backend.UsernameService.UsernameService import UsernameService
 from pydantic import BaseModel
 import logging
 
@@ -43,6 +44,7 @@ try:
     chatGptAdapter = ChatGptAdapter() 
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter) 
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator) 
+    usernameService = UsernameService(chatGptAdapter)
     # paymentService = PaymentService() # Keep commented
     # stripeAdapter = StripeAdapter() # Keep commented
     logging.info("Initialized services (excl. payment).")
@@ -54,6 +56,7 @@ tags_metadata = [
     {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
     {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
     {"name": "Payment Service: Supabase", "description": "Database actions"},
+    {"name": "Username Service", "description": "Username generation and validation"},
 ]
 
 class CreateCouponRequest(BaseModel):
@@ -70,6 +73,12 @@ class GetCouponRequest(BaseModel):
 
 class DestroyCouponRequest(BaseModel):
     couponId: str
+
+class GenerateUsernameRequest(BaseModel):
+    pass  # No parameters needed
+
+class ValidateUsernameRequest(BaseModel):
+    username: str
 
 app = FastAPI(openapi_tags=tags_metadata)
 # app.include_router(PaymentServiceRouter.router)
@@ -91,6 +100,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 logging.info("Added CORS middleware.")
+
+# Health check endpoint for load balancer
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for load balancers."""
+    return {"status": "healthy", "service": "queueplay-api"}
 
 # Define Pydantic model for the request body
 class CreateLobbyRequest(BaseModel):
@@ -156,6 +171,41 @@ def getQuestions(gameId: str, count: int = 10) -> dict:
     except Exception as outer_e:
         logging.error(f"Unhandled exception in getQuestions route: {str(outer_e)}", exc_info=True)
         return {"error": f"Server error: {str(outer_e)}"}
+
+# Username Service Endpoints
+@app.post("/username/generate", tags=["Username Service"])
+async def generate_username(request_data: GenerateUsernameRequest = None) -> dict:
+    """Generate a new username with moderation and validation."""
+    if 'usernameService' not in globals():
+        logging.error("UsernameService not initialized!")
+        return {"error": "Server configuration error"}
+    
+    try:
+        logging.info("Generating username")
+        result = usernameService.generate_username()
+        logging.info(f"Username generation result: {result}")
+        return result
+        
+    except Exception as e:
+        logging.error(f"Error generating username: {e}", exc_info=True)
+        return {"error": f"Username generation failed: {str(e)}"}
+
+@app.post("/username/validate", tags=["Username Service"])
+async def validate_username(request_data: ValidateUsernameRequest) -> dict:
+    """Validate a username with format checking and moderation."""
+    if 'usernameService' not in globals():
+        logging.error("UsernameService not initialized!")
+        return {"error": "Server configuration error"}
+    
+    try:
+        logging.info(f"Validating username: {request_data.username}")
+        result = usernameService.validate_username(request_data.username)
+        logging.info(f"Username validation result: {result}")
+        return result
+        
+    except Exception as e:
+        logging.error(f"Error validating username: {e}", exc_info=True)
+        return {"error": f"Username validation failed: {str(e)}"}
 
 # Keep payment routes commented out
 @app.post("/createNewUser", tags=["Payment Service"])

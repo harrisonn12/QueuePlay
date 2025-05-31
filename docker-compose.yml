@@ -1,70 +1,100 @@
 version: '3.8'
 
 services:
-  # HAProxy Load Balancer
-  haproxy:
-    image: haproxy:2.4
-    container_name: queueplay-haproxy
+  # ==================== SIMPLE REDIS (NO SENTINEL) ====================
+  # Single Redis with persistence - handles restart automatically
+  
+  redis:
+    image: redis:7.0-alpine
+    container_name: queueplay-redis
     ports:
-      - "80:80"      # Frontend/UI
-      - "8000:8000"  # API
-      - "6789:6789"  # WebSocket
+      - "6379:6379"  # Expose for debugging
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - queueplay-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ==================== EDGE LOAD BALANCER ====================
+  # Routes traffic by path to appropriate service LBs
+  
+  edge-lb:
+    image: nginx:alpine
+    container_name: queueplay-edge-lb
+    ports:
+      - "80:80"      # Main entry point
+      - "443:443"    # HTTPS (if needed later)
+    volumes:
+      - ./nginx/edge-lb.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - frontend
+      - api-lb
+      - websocket-lb
+    networks:
+      - queueplay-network
+    restart: unless-stopped
+
+  # ==================== SERVICE LOAD BALANCERS ====================
+  
+  # API Load Balancer  
+  api-lb:
+    image: haproxy:2.4
+    container_name: queueplay-api-lb
+    volumes:
+      - ./haproxy/api-lb.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    expose:
+      - "8000"
+    depends_on:
       - backend-api-1
       - backend-api-2
+    networks:
+      - queueplay-network
+    restart: unless-stopped
+
+  # WebSocket Load Balancer (with sticky sessions)
+  websocket-lb:
+    image: haproxy:2.4
+    container_name: queueplay-websocket-lb
+    volumes:
+      - ./haproxy/websocket-lb.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    expose:
+      - "6789"
+    depends_on:
       - backend-websocket-1
       - backend-websocket-2
     networks:
       - queueplay-network
     restart: unless-stopped
 
-  # Redis service
-  redis:
-    image: redis:7.0-alpine
-    container_name: queueplay-redis
-    # Remove direct port exposure since HAProxy will handle external connections
-    # Only expose to the internal network
-    ports:
-      - "6379:6379"  # Keep for development/debugging, could be removed in production
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-    networks:
-      - queueplay-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  # Backend API Server (FastAPI) - Instance 1
+  # ==================== APPLICATION SERVICES ====================
+  
+  # Backend API Server - Instance 1
   backend-api-1:
     container_name: queueplay-backend-api-1
     build:
       context: .
       dockerfile: backend/Dockerfile
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1
-    # Use volumes for development to reflect code changes without rebuilding
     volumes:
       - ./backend:/app/backend
       - ./MultiplayerServer.py:/app/MultiplayerServer.py
       - ./requirements.txt:/app/requirements.txt
       - ./.env:/app/.env
-    # Remove direct port exposure since HAProxy will handle external connections
-    # Only expose to the internal network
     expose:
       - "8000"
     environment:
-      # Pass OpenAI API key from host environment or .env file
       - CHATGPT_KEY=${CHATGPT_KEY}
-      # Ensure Redis connection uses the service name within Docker
-      - REDIS_HOST=redis
-      - DEV_REDIS_HOST=redis
+      - REDIS_HOST=redis  # Simple Redis connection
       - REDIS_PORT=6379
       - PYTHONUNBUFFERED=1
+      - SERVER_ID=api-1
     depends_on:
       redis:
         condition: service_healthy
@@ -72,7 +102,7 @@ services:
       - queueplay-network
     restart: unless-stopped
 
-  # Backend API Server (FastAPI) - Instance 2
+  # Backend API Server - Instance 2
   backend-api-2:
     container_name: queueplay-backend-api-2
     build:
@@ -88,10 +118,10 @@ services:
       - "8000"
     environment:
       - CHATGPT_KEY=${CHATGPT_KEY}
-      - REDIS_HOST=redis
-      - DEV_REDIS_HOST=redis
+      - REDIS_HOST=redis  # Simple Redis connection
       - REDIS_PORT=6379
       - PYTHONUNBUFFERED=1
+      - SERVER_ID=api-2
     depends_on:
       redis:
         condition: service_healthy
@@ -115,12 +145,12 @@ services:
       - "6789"
     environment:
       - CHATGPT_KEY=${CHATGPT_KEY}
-      - REDIS_HOST=redis
-      - DEV_REDIS_HOST=redis
+      - REDIS_HOST=redis  # Simple Redis connection
       - REDIS_PORT=6379
       - WS_HOST=0.0.0.0
       - WS_PORT=6789
       - PYTHONUNBUFFERED=1
+      - SERVER_ID=websocket-1
     depends_on:
       redis:
         condition: service_healthy
@@ -144,12 +174,12 @@ services:
       - "6789"
     environment:
       - CHATGPT_KEY=${CHATGPT_KEY}
-      - REDIS_HOST=redis
-      - DEV_REDIS_HOST=redis
+      - REDIS_HOST=redis  # Simple Redis connection
       - REDIS_PORT=6379
       - WS_HOST=0.0.0.0
       - WS_PORT=6789
       - PYTHONUNBUFFERED=1
+      - SERVER_ID=websocket-2
     depends_on:
       redis:
         condition: service_healthy
@@ -163,7 +193,6 @@ services:
     build:
       context: .
       dockerfile: frontend/QueuePlay/Dockerfile
-    # Remove direct port exposure since HAProxy will handle external connections
     expose:
       - "80"
     networks:
@@ -176,4 +205,4 @@ networks:
 
 volumes:
   redis-data:
-    driver: local
+    driver: local 

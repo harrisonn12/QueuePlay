@@ -1,6 +1,6 @@
 import React from 'react';
 import QRCodeDisplay from '../components/QRCodeDisplay';
-
+import {useUsernameGenerator} from '../../../../hooks/useUsernameGenerator';
 /**
  * Game Lobby View - Displays host/player lobby UI before game start
  */
@@ -14,9 +14,7 @@ const GameLobby = ({
   playerInfoStage,
   hostGame,
   initiateJoinGame,
-  handlePlayerInfoSubmit,
   startGame,
-  playerNameInput,
   setPlayerNameInput,
   playerPhoneInput,
   setPlayerPhoneInput,
@@ -25,47 +23,108 @@ const GameLobby = ({
   clientId,
   setPlayerInfoStage,
   setJoinTargetGameId,
-  setStatus
+  setStatus,
+  setGameId,
+  setRole,
+  setLocalPlayerName
 }) => {
+  const { generateUsername, isGenerating, error } = useUsernameGenerator();
+
+  // Modified submit handler to auto-generate username
+  const handleAutoGenerateSubmit = async (event) => {
+    event.preventDefault();
+    
+    if (!playerPhoneInput.trim()) {
+      setStatus("Error: Please enter a phone number.");
+      return;
+    }
+    
+    if (!/^\+?[0-9\s\-()]{7,}$/.test(playerPhoneInput.trim())) {
+      setStatus("Error: Please enter a valid phone number.");
+      return;
+    }
+
+    // Auto-generate username
+    setStatus("Generating your username...");
+    const generatedUsername = await generateUsername();
+    
+    if (!generatedUsername) {
+      setStatus("Error: Failed to generate username. Please try again.");
+      return;
+    }
+
+    // Set the generated username
+    setPlayerNameInput(generatedUsername);
+
+    // Store info locally (directly use the generated username)
+    localStorage.setItem(`phoneNumber_${joinTargetGameId}`, playerPhoneInput);
+    localStorage.setItem(`playerName_${joinTargetGameId}`, generatedUsername);
+    
+    setPlayerInfoStage('joining');
+    setStatus(`Joining game ${joinTargetGameId} as ${generatedUsername}...`);
+
+    // Set role and gameId directly (using the generated username)
+    console.log(`Setting state for joining: gameId=${joinTargetGameId}, role=player`);
+    setGameId(joinTargetGameId);
+    setRole('player');
+    setLocalPlayerName(generatedUsername);
+  };
   
   // If player is entering info, show that form first
   if (playerInfoStage === 'enterInfo' || playerInfoStage === 'joining') {
     return (
-      <div className="player-info-form">
-        <h2>Join Game: {joinTargetGameId}</h2>
-        <form onSubmit={handlePlayerInfoSubmit}>
-          <div className="form-group">
-            <label htmlFor="playerName">Username:</label>
+      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Join Game: {joinTargetGameId}</h2>
+        <form onSubmit={handleAutoGenerateSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="playerPhone" className="block text-sm font-semibold text-gray-700 mb-2">
+              Phone Number:
+            </label>
             <input 
-              type="text" 
-              id="playerName"
-              value={playerNameInput}
-              onChange={(e) => setPlayerNameInput(e.target.value)}
-              required 
-              maxLength="20" // Add a reasonable max length
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="playerPhone">Phone Number:</label>
-            <input 
-              type="tel" // Use tel type for better mobile UX
+              type="tel"
               id="playerPhone"
               value={playerPhoneInput}
               onChange={(e) => setPlayerPhoneInput(e.target.value)}
               required 
-              placeholder="+1 (555) 123-4567" // Example placeholder
+              placeholder="+1 (555) 123-4567"
+              disabled={playerInfoStage === 'joining' || isGenerating}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
-          <button type="submit" disabled={playerInfoStage === 'joining'}>
-            {playerInfoStage === 'joining' ? 'Joining...' : 'Submit and Join'}
-          </button>
-          <button type="button" onClick={() => { 
-            setPlayerInfoStage('none'); 
-            setJoinTargetGameId(''); 
-            setStatus(''); 
-          }}>
-            Cancel
-          </button>
+          
+          {isGenerating && (
+            <div className="flex items-center space-x-2 text-blue-600">
+              <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="text-sm">Generating your username...</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200">
+              {error}
+            </div>
+          )}
+          
+          <div className="flex space-x-3">
+            <button 
+              type="submit" 
+              disabled={playerInfoStage === 'joining' || isGenerating}
+              className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {playerInfoStage === 'joining' ? 'Joining...' : isGenerating ? 'Generating...' : 'Join Game'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => { 
+                setPlayerInfoStage('none'); 
+                setJoinTargetGameId(''); 
+                setStatus(''); 
+              }}
+              className="px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </div>
     );
@@ -121,11 +180,22 @@ const GameLobby = ({
           </button>
         </div>
       ) : role === 'player' && playerInfoStage === 'joined' ? ( // Player waiting screen
-        <div className="player-lobby">
-          <h2>Waiting for Host to Start Game</h2>
-          <p>Game ID: {gameId}</p>
-          <p>Your Name: {localPlayerName || `Player ${clientId?.substring(0,4)}`}</p>
-          <p>Status: Waiting for host to start the game...</p>
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Waiting for Host to Start Game</h2>
+          <div className="space-y-3">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600">Game ID:</p>
+              <p className="font-mono text-lg font-semibold text-gray-800">{gameId}</p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-600">Your Username:</p>
+              <p className="text-xl font-bold text-blue-800">{localPlayerName || `Player ${clientId?.substring(0,4)}`}</p>
+            </div>
+            <div className="flex items-center space-x-2 text-gray-600">
+              <div className="animate-pulse w-2 h-2 bg-gray-400 rounded-full"></div>
+              <p className="text-sm">Waiting for host to start the game...</p>
+            </div>
+          </div>
         </div>
       ) : (
         // Fallback or initial loading state before role/gameId is set

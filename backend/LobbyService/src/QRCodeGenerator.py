@@ -4,7 +4,12 @@ import configparser
 import qrcode
 from qrcode.image.pil import PilImage
 from backend.configuration.AppConfig import AppConfig, Stage
+import io
+import os
+import logging
+from backend.commons.enums.Stage import Stage
 
+logger = logging.getLogger(__name__)
 
 class QRCodeGenerator:
 
@@ -12,17 +17,20 @@ class QRCodeGenerator:
         self.appConfig = appConfig
         self.config = configparser.ConfigParser()
         self.config.read('backend/configuration/AppConfig.ini')
+        
+        # Dynamic frontend URL based on environment
+        if appConfig.stage == Stage.PROD:
+            # For production, use environment variable or default
+            self.frontend_url = os.getenv("FRONTEND_URL", "https://yourdomain.com")
+        else:
+            # For development, use environment variable or default
+            self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost")
+            
+        logger.info(f"QRCodeGenerator initialized with frontend URL: {self.frontend_url}")
 
     def generate(self, gameSessionId: str) -> str:
-        # Frontend URL where the app is running (Vite default port)
-        frontend_url = "http://localhost:5173"
-        
-        # In production, use production URL instead
-        if self.appConfig.stage == Stage.PROD:
-            frontend_url = "https://www.queueplay.com"
-            
         # Generate URL with gameId parameter that can be used with the existing join functionality
-        join_url = f"{frontend_url}/?gameId={gameSessionId}"
+        join_url = f"{self.frontend_url}/?gameId={gameSessionId}"
         
         img = qrcode.make(join_url)
         

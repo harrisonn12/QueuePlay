@@ -77,9 +77,12 @@ export const useGameWebSocket = (gameId, clientId, role, onMessage) => {
         // Use window location for dynamic WebSocket URL
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
-        // Default WebSocket port
-        const port = '6789';
-        const wsUrl = `${protocol}//${host}:${port}/`;
+        const port = window.location.port; // Use the same port as the current page
+        
+        // Construct URL to go through edge load balancer (/ws/ route)
+        const wsUrl = port ? 
+            `${protocol}//${host}:${port}/ws/` :  // For dev: ws://localhost:80/ws/
+            `${protocol}//${host}/ws/`;           // For prod: wss://yourdomain.com/ws/
         
         console.log(`Attempting WebSocket connection to: ${wsUrl}`);
         try {

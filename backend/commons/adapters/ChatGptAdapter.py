@@ -50,3 +50,77 @@ class ChatGptAdapter:
     )
     
     return response.choices[0].message.content
+
+  def moderateContent(self, text: str) -> dict:
+    """
+    Moderate content using OpenAI's moderation API.
+    
+    Args:
+        text: The text content to moderate
+        
+    Returns:
+        dict: Moderation response containing flagged status and categories
+        
+    Raises:
+        Exception: If moderation API call fails
+    """
+    if not self.client:
+      logger.error("Cannot moderate content: ChatGptAdapter client not initialized.")
+      raise ValueError("ChatGptAdapter client not initialized")
+    
+    try:
+      logger.debug(f"Moderating content: '{text[:50]}{'...' if len(text) > 50 else ''}'")
+      response = self.client.moderations.create(input=text)
+      
+      moderation_result = response.results[0]
+      result = {
+        "flagged": moderation_result.flagged,
+        "categories": {k: v for k, v in moderation_result.categories.model_dump().items() if v},
+        "category_scores": moderation_result.category_scores.model_dump(),
+        "original_text": text
+      }
+      
+      if result["flagged"]:
+        logger.warning(f"Content flagged by moderation: {result['categories']}")
+      else:
+        logger.debug("Content passed moderation check")
+        
+      return result
+      
+    except Exception as e:
+      logger.error(f"Error in content moderation: {e}", exc_info=True)
+      raise
+
+  def generateText(self, prompt: str, system_message: str = None) -> str:
+    """
+    Generate text using OpenAI's chat completion API.
+    
+    Args:
+        prompt: The user prompt
+        system_message: Optional system message to guide the AI
+        
+    Returns:
+        str: Generated text response
+    """
+    if not self.client:
+      logger.error("Cannot generate text: ChatGptAdapter client not initialized.")
+      return "Error: Service not configured."
+      
+    try:
+      messages = []
+      if system_message:
+        messages.append({"role": "system", "content": system_message})
+      messages.append({"role": "user", "content": prompt})
+      
+      response = self.client.chat.completions.create(
+        model=LLMModel.GPT_35_TURBO.value,
+        messages=messages,
+        max_tokens=100,  # Keep responses concise for username generation
+        temperature=0.7  # Add some creativity
+      )
+      
+      return response.choices[0].message.content.strip()
+      
+    except Exception as e:
+      logger.error(f"Error generating text: {e}", exc_info=True)
+      raise

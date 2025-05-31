@@ -172,48 +172,6 @@ const TriviaGame = () => {
     gameState.setPlayerInfoStage('enterInfo');
     setStatus("Please enter your details to join.");
   }, [gameState, setStatus]);
-  
-  // Handle player info submission for joining a game
-  const handlePlayerInfoSubmit = useCallback((event) => {
-    event.preventDefault();
-    
-    if (!gameState.playerNameInput.trim()) {
-      setStatus("Error: Please enter a username.");
-      return;
-    }
-    
-    if (!gameState.playerPhoneInput.trim()) {
-      setStatus("Error: Please enter a phone number.");
-      return;
-    }
-    
-    if (!/^\+?[0-9\s\-()]{7,}$/.test(gameState.playerPhoneInput.trim())) {
-      setStatus("Error: Please enter a valid phone number.");
-      return;
-    }
-
-    // Store info locally
-    localStorage.setItem(`phoneNumber_${gameState.joinTargetGameId}`, gameState.playerPhoneInput);
-    localStorage.setItem(`playerName_${gameState.joinTargetGameId}`, gameState.playerNameInput);
-    
-    gameState.setPlayerInfoStage('joining');
-    setStatus(`Joining game ${gameState.joinTargetGameId}...`);
-
-    // Set role and gameId - the useEffect below will trigger ensureConnected
-    console.log(`Setting state for joining: gameId=${gameState.joinTargetGameId}, role=player`);
-    setGameId(gameState.joinTargetGameId);
-    setRole('player');
-    setLocalPlayerName(gameState.playerNameInput);
-  }, [
-    gameState.joinTargetGameId, 
-    gameState.playerNameInput, 
-    gameState.playerPhoneInput,
-    setStatus, 
-    setGameId, 
-    setRole, 
-    setLocalPlayerName, 
-    gameState.setPlayerInfoStage // Keep this if needed
-  ]);
 
   // Effect to connect WebSocket *after* state is set for joining
   useEffect(() => {
@@ -341,9 +299,7 @@ const TriviaGame = () => {
         playerInfoStage={playerInfoStage}
         hostGame={hostGame}
         initiateJoinGame={initiateJoinGame}
-        handlePlayerInfoSubmit={handlePlayerInfoSubmit}
         startGame={startGame}
-        playerNameInput={gameState.playerNameInput}
         setPlayerNameInput={gameState.setPlayerNameInput}
         playerPhoneInput={gameState.playerPhoneInput}
         setPlayerPhoneInput={gameState.setPlayerPhoneInput}
@@ -353,6 +309,9 @@ const TriviaGame = () => {
         setPlayerInfoStage={gameState.setPlayerInfoStage}
         setJoinTargetGameId={gameState.setJoinTargetGameId}
         setStatus={setStatus}
+        setGameId={setGameId}
+        setRole={setRole}
+        setLocalPlayerName={setLocalPlayerName}
       />
     );
   } else if (gameStatus === 'playing') {

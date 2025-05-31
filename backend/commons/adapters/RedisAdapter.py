@@ -1,4 +1,5 @@
 import redis
+from redis.sentinel import Sentinel
 import json
 import asyncio
 import logging
@@ -15,6 +16,7 @@ class RedisAdapter:
     wrapper (helper class/function that simplifies another tool/library) to interact with redis.
     organizes all redis operations in a single class.
     customizing the way Redis is used to fit this app's needs.
+    Supports both direct Redis connections and Redis Sentinel for high availability.
     Without wrapper: 
         Only accept strings (not dicts or lists)
         Don't handle errors
@@ -24,49 +26,96 @@ class RedisAdapter:
     
     '''
     def __init__(self, app_config: AppConfig):
-        # Extract config based on stage
-        if app_config.stage == Stage.PROD:
-            # Define your Production Redis settings (replace placeholders)
-            host = os.getenv("PROD_REDIS_HOST", "your_prod_redis_host") 
-            port = int(os.getenv("PROD_REDIS_PORT", 6379)) # Ensure port is int
-            db = int(os.getenv("PROD_REDIS_DB", 0))
-            password = os.getenv("PROD_REDIS_PASSWORD", None)
-            socket_timeout = 10 
-            logger.info("Using Production Redis configuration.")
-        else: # Default to Development
-            host = os.getenv("DEV_REDIS_HOST", "localhost")
-            port = int(os.getenv("DEV_REDIS_PORT", 6379))
-            db = int(os.getenv("DEV_REDIS_DB", 0))
-            password = os.getenv("DEV_REDIS_PASSWORD", None)
-            socket_timeout = 10
-            logger.info("Using Development Redis configuration.")
+        # Check if we should use Redis Sentinel
+        use_sentinel = os.getenv("USE_REDIS_SENTINEL", "false").lower() == "true"
+        
+        if use_sentinel:
+            # Sentinel configuration
+            sentinel_hosts_str = os.getenv("REDIS_SENTINEL_HOSTS", "localhost:26379")
+            sentinel_service = os.getenv("REDIS_SENTINEL_SERVICE", "mymaster")
+            
+            # Parse comma-separated sentinel hosts
+            sentinel_hosts = []
+            for host_port in sentinel_hosts_str.split(','):
+                host_port = host_port.strip()
+                if ':' in host_port:
+                    host, port = host_port.split(':')
+                    sentinel_hosts.append((host.strip(), int(port.strip())))
+                else:
+                    sentinel_hosts.append((host_port.strip(), 26379))
+            
+            logger.info(f"Using Redis Sentinel configuration with hosts: {sentinel_hosts}")
+            logger.info(f"Sentinel service name: {sentinel_service}")
+            
+            # Initialize Sentinel
+            self.sentinel = Sentinel(sentinel_hosts, socket_timeout=0.1)
+            self.sentinel_service = sentinel_service
+            self.use_sentinel = True
+            
+            # Get current master info
+            try:
+                master_info = self.sentinel.discover_master(sentinel_service)
+                logger.info(f"Current Redis master: {master_info[0]}:{master_info[1]}")
+            except Exception as e:
+                logger.error(f"Failed to discover Redis master: {e}")
+                raise
+                
+        else:
+            # Direct Redis connection (original logic)
+            self.use_sentinel = False
+            
+            # Extract config based on stage
+            if app_config.stage == Stage.PROD:
+                host = os.getenv("PROD_REDIS_HOST", "your_prod_redis_host") 
+                port = int(os.getenv("PROD_REDIS_PORT", 6379))
+                db = int(os.getenv("PROD_REDIS_DB", 0))
+                password = os.getenv("PROD_REDIS_PASSWORD", None)
+                socket_timeout = 10 
+                logger.info("Using Production Redis configuration.")
+            else: # Default to Development
+                host = os.getenv("REDIS_HOST", "localhost")
+                port = int(os.getenv("REDIS_PORT", 6379))
+                db = int(os.getenv("REDIS_DB", 0))
+                password = os.getenv("REDIS_PASSWORD", None)
+                socket_timeout = 10
+                logger.info("Using Development Redis configuration.")
 
-        # Use extracted values for self.config
-        self.config = {
-            "host": host,
-            "port": port,
-            "db": db,
-            "password": password,
-            "socket_timeout": socket_timeout,
-            "decode_responses": True,  # Always decode Redis responses to strings
-        }
-        
-        # Initialize pools for sync and async connections
-        self.sync_pool = redis.ConnectionPool(**self.config)
-        self.async_pool = None  # Will be initialized on demand
-        
-        # Clients are initialized on first use
+            # Use extracted values for self.config
+            self.config = {
+                "host": host,
+                "port": port,
+                "db": db,
+                "password": password,
+                "socket_timeout": socket_timeout,
+                "decode_responses": True,
+            }
+            
+            logger.info(f"Initialized Redis adapter for {host}:{port}/db{db}")
+
+        # Initialize pools and clients
+        self.sync_pool = None
+        self.async_pool = None
         self._sync_client = None
         self._async_client = None
-        
-        logger.info(f"Initialized Redis adapter for {host}:{port}/db{db}")
 
     @property # lazy initialization, meaning the client is not created until it is needed. 
     def sync_client(self):
         if self._sync_client is None:
             try:
-                self._sync_client = redis.Redis(connection_pool=self.sync_pool)
-                logger.debug("Initialized sync Redis client")
+                if self.use_sentinel:
+                    # Get master connection through Sentinel
+                    self._sync_client = self.sentinel.master_for(
+                        self.sentinel_service, 
+                        decode_responses=True,
+                        socket_timeout=10
+                    )
+                    logger.debug("Initialized sync Redis client via Sentinel")
+                else:
+                    # Direct connection (original logic)
+                    if self.sync_pool is None:
+                        self.sync_pool = redis.ConnectionPool(**self.config)
+                    self._sync_client = redis.Redis(connection_pool=self.sync_pool)
+                    logger.debug("Initialized sync Redis client directly")
             except RedisError as e:
                 logger.error(f"Failed to initialize sync Redis client: {e}")
                 raise
@@ -79,18 +128,32 @@ class RedisAdapter:
         
         used like that, so with the client object, we can use redis operations.
         '''
-        if self.async_pool is None:
-            try:
-                self.async_pool = ConnectionPool(**self.config)
-                logger.debug("Initialized async Redis connection pool")
-            except RedisError as e:
-                logger.error(f"Failed to initialize async Redis pool: {e}")
-                raise
-        
         if self._async_client is None:
             try:
-                self._async_client = Redis(connection_pool=self.async_pool)
-                logger.debug("Initialized async Redis client")
+                if self.use_sentinel:
+                    # For async Sentinel, we need to get master info and create async connection
+                    master_info = self.sentinel.discover_master(self.sentinel_service)
+                    host, port = master_info
+                    
+                    if self.async_pool is None:
+                        self.async_pool = ConnectionPool(
+                            host=host,
+                            port=port,
+                            decode_responses=True,
+                            socket_timeout=10
+                        )
+                        logger.debug(f"Initialized async Redis pool via Sentinel to {host}:{port}")
+                    
+                    self._async_client = Redis(connection_pool=self.async_pool)
+                    logger.debug("Initialized async Redis client via Sentinel")
+                else:
+                    # Direct connection (original logic)
+                    if self.async_pool is None:
+                        self.async_pool = ConnectionPool(**self.config)
+                        logger.debug("Initialized async Redis connection pool")
+                    
+                    self._async_client = Redis(connection_pool=self.async_pool)
+                    logger.debug("Initialized async Redis client directly")
             except RedisError as e:
                 logger.error(f"Failed to initialize async Redis client: {e}")
                 raise
