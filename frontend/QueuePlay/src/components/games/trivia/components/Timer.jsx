@@ -8,7 +8,7 @@ const Timer = ({ seconds, onTimerEnd }) => {
                 duration={seconds}
                 colors={['#0b5425', '#06810c', '#ffc107', '#e6162b']}  
                 colorsTime={[seconds, seconds/3 * 2, seconds/3,0]}
-                onComplete={onTimerEnd} 
+                onComplete={onTimerEnd}
                 size={80}
                 strokeWidth={5}
                 trailColor="#e9e9e9"

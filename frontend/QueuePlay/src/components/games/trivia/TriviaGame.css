@@ -1,0 +1,39 @@
+/* Styling for the Trivia Game Component */
+
+.tie-player-list {
+  list-style: none;
+  padding: 0;
+  margin: 1em 0;
+  font-size: 1.1em; /* Make names slightly larger */
+}
+
+.tie-player-list li {
+  padding: 0.3em 0.5em;
+  margin-bottom: 0.2em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out; /* Add transitions */
+}
+
+.tie-player-list li.highlighted-tie-player {
+  background-color: #f8d7da; /* A light red highlight */
+  color: #721c24;
+  border-color: #f5c6cb;
+  font-weight: bold;
+  transform: scale(1.05); /* Slightly enlarge highlighted item */
+}
+
+/* Optional: Add some basic styling for other elements if needed */
+.resolve-tie-button {
+    margin-top: 1em;
+    padding: 0.8em 1.5em;
+    font-size: 1.1em;
+}
+
+.winner-screen h2 {
+    color: green;
+}
+
+.loser-screen h2 {
+    color: #dc3545; /* Bootstrap danger color */
+} 

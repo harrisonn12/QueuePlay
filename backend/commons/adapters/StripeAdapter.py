@@ -1,9 +1,9 @@
 import stripe
 import os
-from PaymentService.exceptions.DuplicatePaymentException import DuplicatePaymentException
-from commons.models.PaymentMethodRequest import PaymentMethodRequest
-from commons.models.CreditCardDetails import CreditCardDetails
-from commons.models.BillingDetails import BillingDetails
+from backend.PaymentService.exceptions.DuplicatePaymentException import DuplicatePaymentException
+from backend.commons.models.PaymentMethodRequest import PaymentMethodRequest
+from backend.commons.models.CreditCardDetails import CreditCardDetails
+from backend.commons.models.BillingDetails import BillingDetails
 from dotenv import load_dotenv
 
 load_dotenv()
