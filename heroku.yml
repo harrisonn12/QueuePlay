@@ -9,7 +9,7 @@ build:
     multiplayer: ./Dockerfile.multiplayer
 run:
   web:
-    command: npm start
+    command: cd frontend/QueuePlay && npm start
     image: web
   backend:
     command: python main.py
