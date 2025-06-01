@@ -10,7 +10,7 @@ build:
 run:
   web:
     command:
-      - cd frontend/QueuePlay && npm run build && npm start
+      - npm start
     image: web
   backend:
     command:
