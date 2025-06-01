@@ -16,3 +16,5 @@ run:
     command:
       - python backend/MultiplayerServer.py
     image: multiplayer
+    environment:
+      STAGE: PROD
