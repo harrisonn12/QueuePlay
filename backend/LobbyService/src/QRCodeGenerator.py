@@ -3,11 +3,11 @@ import base64
 import configparser
 import qrcode
 from qrcode.image.pil import PilImage
-from backend.configuration.AppConfig import AppConfig, Stage
+from configuration.AppConfig import AppConfig, Stage
 import io
 import os
 import logging
-from backend.commons.enums.Stage import Stage
+from commons.enums.Stage import Stage
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class QRCodeGenerator:
         self.appConfig = appConfig
         self.config = configparser.ConfigParser()
         self.config.read('backend/configuration/AppConfig.ini')
-        
+
         # Dynamic frontend URL based on environment
         if appConfig.stage == Stage.PROD:
             # For production, use environment variable or default
@@ -25,15 +25,15 @@ class QRCodeGenerator:
         else:
             # For development, use environment variable or default
             self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost")
-            
+
         logger.info(f"QRCodeGenerator initialized with frontend URL: {self.frontend_url}")
 
     def generate(self, gameSessionId: str) -> str:
         # Generate URL with gameId parameter that can be used with the existing join functionality
         join_url = f"{self.frontend_url}/?gameId={gameSessionId}"
-        
+
         img = qrcode.make(join_url)
-        
+
         type(img)  # qrcode.image.pil.PilImage
         return self.__serializePilImageToBase64(img)
 

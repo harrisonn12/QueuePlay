@@ -1,22 +1,22 @@
 import argparse
-from backend.commons.adapters.ChatGptAdapter import ChatGptAdapter
-from backend.configuration.AppConfig import AppConfig
-from backend.configuration.AppConfig import Stage
+from commons.adapters.ChatGptAdapter import ChatGptAdapter
+from configuration.AppConfig import AppConfig
+from configuration.AppConfig import Stage
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.LobbyService.LobbyService import LobbyService
-from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
-from backend.QuestionService.QuestionService import QuestionService
-from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from backend.PaymentService.PaymentService import PaymentService # Keep commented for now
-from backend.commons.adapters.StripeAdapter import StripeAdapter # Keep commented for now
-from backend.commons.adapters.RedisAdapter import RedisAdapter
-from backend.CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
-from backend.CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
-from backend.CouponService.src.CouponIdGenerator import CouponIdGenerator
-from backend.commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
-from backend.UsernameService.UsernameService import UsernameService
+from LobbyService.LobbyService import LobbyService
+from LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from QuestionService.QuestionService import QuestionService
+from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from PaymentService.PaymentService import PaymentService # Keep commented for now
+from commons.adapters.StripeAdapter import StripeAdapter # Keep commented for now
+from commons.adapters.RedisAdapter import RedisAdapter
+from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
+from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
+from CouponService.src.CouponIdGenerator import CouponIdGenerator
+from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
+from UsernameService.UsernameService import UsernameService
 from pydantic import BaseModel
 import logging
 
@@ -38,12 +38,12 @@ logging.info(f"Running in {appConfig.stage.name} stage.")
 
 # Initialize all services
 try:
-    qrCodeGenerator = QRCodeGenerator(appConfig) 
-    redis_adapter = RedisAdapter(app_config=appConfig) 
-    lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter) 
-    chatGptAdapter = ChatGptAdapter() 
-    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter) 
-    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator) 
+    qrCodeGenerator = QRCodeGenerator(appConfig)
+    redis_adapter = RedisAdapter(app_config=appConfig)
+    lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter)
+    chatGptAdapter = ChatGptAdapter()
+    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
+    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
     usernameService = UsernameService(chatGptAdapter)
     # paymentService = PaymentService() # Keep commented
     # stripeAdapter = StripeAdapter() # Keep commented
@@ -94,7 +94,7 @@ else: # DEVO stage
     ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, 
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -149,10 +149,10 @@ def getQuestions(gameId: str, count: int = 10) -> dict:
     if 'questionService' not in globals():
         logging.error("QuestionService not initialized!")
         return {"error": "Server configuration error"}
-    
+
     try:
         logging.info(f"Received getQuestions request for gameId: {gameId}, count: {count}")
-        
+
         # Add extensive error handling around questionService call
         try:
             question_set = questionService.getQuestionAnswerSet(count)
@@ -160,7 +160,7 @@ def getQuestions(gameId: str, count: int = 10) -> dict:
         except Exception as e:
             logging.error(f"CRITICAL ERROR in questionService.getQuestionAnswerSet: {str(e)}", exc_info=True)
             return {"error": f"Question service error: {str(e)}"}
-        
+
         if question_set and "questions" in question_set:
             question_count = len(question_set["questions"])
             logging.info(f"Returning {question_count} questions for gameId: {gameId}")
@@ -179,13 +179,13 @@ async def generate_username(request_data: GenerateUsernameRequest = None) -> dic
     if 'usernameService' not in globals():
         logging.error("UsernameService not initialized!")
         return {"error": "Server configuration error"}
-    
+
     try:
         logging.info("Generating username")
         result = usernameService.generate_username()
         logging.info(f"Username generation result: {result}")
         return result
-        
+
     except Exception as e:
         logging.error(f"Error generating username: {e}", exc_info=True)
         return {"error": f"Username generation failed: {str(e)}"}
@@ -196,13 +196,13 @@ async def validate_username(request_data: ValidateUsernameRequest) -> dict:
     if 'usernameService' not in globals():
         logging.error("UsernameService not initialized!")
         return {"error": "Server configuration error"}
-    
+
     try:
         logging.info(f"Validating username: {request_data.username}")
         result = usernameService.validate_username(request_data.username)
         logging.info(f"Username validation result: {result}")
         return result
-        
+
     except Exception as e:
         logging.error(f"Error validating username: {e}", exc_info=True)
         return {"error": f"Username validation failed: {str(e)}"}
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     if args.env == 'prod':
         appConfig.stage = Stage.PROD
         origins = [
-            "https://your-production-site.com/",  # Update with your production site
+            "queue-play-34edc7c1b26f.herokuapp.com/",  # Update with your production site
         ]
 
     else:
@@ -282,13 +282,13 @@ if __name__ == '__main__':
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     load_dotenv()
 
     qrCodeGenerator = QRCodeGenerator(appConfig)
 
     # Initialize Redis Adapter
-    redis_adapter = RedisAdapter(appConfig) 
+    redis_adapter = RedisAdapter(appConfig)
 
     # Inject dependencies into LobbyService
     lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter)
@@ -304,9 +304,9 @@ if __name__ == '__main__':
     # couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
     # gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
     # couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
-    
+
     # gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
     # paymentService = PaymentService()
     # stripeAdapter = StripeAdapter()
-    
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

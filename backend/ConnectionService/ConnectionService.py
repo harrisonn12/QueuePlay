@@ -8,8 +8,8 @@ from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 from websockets.connection import State
 
 # Removed LobbyService and QuestionService imports
-# from backend.LobbyService.LobbyService import LobbyService 
-from backend.MessageService.MessageService import MessageService
+# from backend.LobbyService.LobbyService import LobbyService
+from MessageService.MessageService import MessageService
 # from backend.QuestionService.QuestionService import QuestionService
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class ConnectionService:
     Handles WebSocket connections and message relaying via MessageService (Redis Pub/Sub).
     Manages client connections *local to this server instance*.
     Acts as a pure relay, interpreting only minimal actions like 'identify'.
-    
+
     Responsibilities:
     - Manage WebSocket connection lifecycle (connect, disconnect).
     - Assign temporary IDs until client identification.
@@ -32,7 +32,7 @@ class ConnectionService:
         self.redis = None # Keep if direct Redis needed, but plan aims to minimize
         # self.lobbyService = None
         self.messageService: MessageService = None # Injected by MultiplayerServer
-        # self.questionService = None 
+        # self.questionService = None
 
         # Stores websockets for clients connected to THIS server instance
         self.localConnections = {} # {clientId: websocket}
@@ -70,9 +70,9 @@ class ConnectionService:
         # 1. Assign temporary ID and store connection
         temp_client_id = f"temp_{uuid.uuid4()}"
         self.localConnections[temp_client_id] = websocket
-        
+
         # State variables for this specific connection handler instance
-        client_id = temp_client_id 
+        client_id = temp_client_id
         game_id = None
         is_host = None # Role is unknown until identified
         is_identified = False
@@ -87,7 +87,7 @@ class ConnectionService:
                     action = data.get("action")
 
                     # --- Simplified Message Handling --- #
-                    
+
                     # A. Handle Identification
                     if action == "identify" and not is_identified:
                         identified_client_id = data.get("clientId")
@@ -127,29 +127,29 @@ class ConnectionService:
                         if is_host:
                             host_channel = f"game:{game_id}:to_host"
                             await self.messageService.subscribe_client(client_id, host_channel, websocket)
-                        
+
                         # --- Acknowledge Identification --- #
                         await self.sendToClient(client_id, {"action": "identified", "success": True}, websocket)
                         logger.info(f"Client {client_id} successfully identified and subscribed to channels for game {game_id}.")
-                        
-                        # --- Notify Host (if applicable) --- # 
+
+                        # --- Notify Host (if applicable) --- #
                         # The plan relies on the client sending a separate message
                         # (e.g., joinGame event) *after* identifying, which gets relayed.
                         # This keeps the server simpler.
                         # Alternatively, we could publish playerJoined here, but let's stick to the plan.
-                    
+
                     # B. Handle Unidentified Client Messages
                     elif not is_identified:
                         logger.warning(f"Received action '{action}' from unidentified client {temp_client_id}. Ignoring until identified.")
                         # Optionally send an error message
                         await self.sendToClient(temp_client_id, {"action": "error", "message": "Please identify first."}, websocket)
                         continue
-                    
+
                     # C. Handle Identified Client Messages (Relay)
                     else:
                         # Add sender context before relaying
                         data_to_publish = data.copy()
-                        data_to_publish["senderId"] = client_id 
+                        data_to_publish["senderId"] = client_id
                         message_to_publish = json.dumps(data_to_publish)
                         target_channel = None
 
@@ -162,7 +162,7 @@ class ConnectionService:
                             # Message from player -> to_host channel
                             target_channel = f"game:{game_id}:to_host"
                             # logger.debug(f"Player {client_id} sending action '{action}' to {target_channel}")
-                        
+
                         # Publish the raw message via MessageService
                         if target_channel:
                             await self.messageService.publish_raw(target_channel, message_to_publish)
@@ -171,8 +171,8 @@ class ConnectionService:
                              logger.error(f"Cannot determine target channel for client {client_id} in game {game_id} with role {is_host}")
 
                     # --- Removed all game-specific action handlers --- #
-                    # (initializeGame, joinGame, reconnect [replaced by identify], startGame, 
-                    #  submitAnswer, questionResult, nextQuestion, gameFinished, 
+                    # (initializeGame, joinGame, reconnect [replaced by identify], startGame,
+                    #  submitAnswer, questionResult, nextQuestion, gameFinished,
                     #  finishGame, resolveTie, leaveGame [handled by client message relay])
 
                 except json.JSONDecodeError:
@@ -189,8 +189,8 @@ class ConnectionService:
         except (ConnectionClosedOK, ConnectionClosedError) as e:
             disconnected_client_id = client_id # Use the last known ID (actual or temp)
             logger.info(f"Client {disconnected_client_id} disconnected ({type(e).__name__}). Server: {self.serverId}")
-            # Note: Game ending logic (if host disconnects) is now implicitly 
-            # handled by the host client NOT sending heartbeats or the server detecting 
+            # Note: Game ending logic (if host disconnects) is now implicitly
+            # handled by the host client NOT sending heartbeats or the server detecting
             # the disconnect and broadcasting gameEnded (see finally block).
             # Player disconnects are handled by the host receiving playerLeft messages.
         except Exception as e:
@@ -200,17 +200,17 @@ class ConnectionService:
             # 4. Cleanup Connection
             final_client_id = client_id # Use the actual client_id if identified, otherwise temp_id
             logger.info(f"Cleaning up connection for client {final_client_id}. Server: {self.serverId}")
-            
+
             # Remove from local tracking
             self.localConnections.pop(final_client_id, None)
             self.connectionState.pop(final_client_id, None)
             # Ensure temp ID is also removed if identification never happened
             if final_client_id == temp_client_id:
                  self.localConnections.pop(temp_client_id, None)
-            
+
             # Unsubscribe the client (actual or temp) from all Pub/Sub channels
             await self.messageService.unsubscribe_client_from_all(final_client_id)
-            
+
             # --- Server-Side Host Disconnect Handling --- #
             # If the disconnected client was identified as a host for a game,
             # the server should broadcast a generic GameEnded message.
@@ -230,7 +230,7 @@ class ConnectionService:
                     logger.error(f"Failed to publish gameEnded for game {game_id} after host disconnect: {pub_e}")
             # --- End Server-Side Host Disconnect --- #
             # Note: Player disconnects are implicitly handled by the host client no longer receiving messages / receiving playerLeft.
-            
+
             logger.info(f"Finished cleanup for client {final_client_id}.")
 
     # --- Helper Methods --- #

@@ -1,7 +1,7 @@
 import openai
-from backend.commons.adapters.ChatGptAdapter import ChatGptAdapter
-from backend.QuestionService.src.enums.QuestionTopic import QuestionTopic
-from backend.QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
+from commons.adapters.ChatGptAdapter import ChatGptAdapter
+from QuestionService.src.enums.QuestionTopic import QuestionTopic
+from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
 
 class QuestionService:
     #there should not be any business logic in the service, so

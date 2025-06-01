@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from backend.CouponService.src.enums.OfferType import OfferType
+from CouponService.src.enums.OfferType import OfferType
 
 @dataclass
 class Offer:

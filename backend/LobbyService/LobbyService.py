@@ -2,19 +2,19 @@ import uuid
 import logging
 import time
 from typing import Union, Set
-from backend.LobbyService.src.QRCodeGenerator import QRCodeGenerator
-from backend.commons.adapters.RedisAdapter import RedisAdapter
-from backend.configuration.RedisConfig import RedisKeyPrefix
+from LobbyService.src.QRCodeGenerator import QRCodeGenerator
+from commons.adapters.RedisAdapter import RedisAdapter
+from configuration.RedisConfig import RedisKeyPrefix
 
 logger = logging.getLogger(__name__)
 
 # Use same value for both TTL constants
 LOBBY_TTL = 15 * 60 # Expire the lobby after 15 minutes of inactivity if delete_lobby() does not run properly.
-CLIENT_GAME_TTL = LOBBY_TTL  # Used if disconnections aren't handled properly with remove_player_from_lobby() 
+CLIENT_GAME_TTL = LOBBY_TTL  # Used if disconnections aren't handled properly with remove_player_from_lobby()
 
 class LobbyService:
     """
-    Service for managing lobbies using Redis. 
+    Service for managing lobbies using Redis.
     """
     def __init__(self, qrCodeGenerator: QRCodeGenerator, redis_adapter: RedisAdapter):
         self.qrCodeGenerator = qrCodeGenerator
@@ -69,7 +69,7 @@ class LobbyService:
                 "gameId": game_id,
                 "hostId": host_id
                 # Removed qrCodeData
-                # "qrCodeData": qr_code_data 
+                # "qrCodeData": qr_code_data
             }
         except Exception as e:
             logger.error(f"Error creating lobby for host {host_id}: {e}", exc_info=True)

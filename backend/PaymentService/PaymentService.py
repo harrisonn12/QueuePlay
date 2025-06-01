@@ -1,5 +1,5 @@
-from backend.commons.adapters.StripeAdapter import StripeAdapter
-from backend.commons.models.PaymentMethodRequest import PaymentMethodRequest
+from commons.adapters.StripeAdapter import StripeAdapter
+from commons.models.PaymentMethodRequest import PaymentMethodRequest
 
 
 class PaymentService:
@@ -12,14 +12,14 @@ class PaymentService:
 
     def createAccount(self, auth0ID: str):
         """ Use Auth0 user ID to create a new Stripe Customer """
-        
+
         # Create Stripe customer
         stripeCustomer = self.stripeAdapter.createCustomer(user)
 
         # store Auth0 id and Stripe customer id
 
         return f'New customer ID: {stripeCustomer.id}'
-    
+
     def addPaymentMethod(self, paymentMethodRequest: PaymentMethodRequest):
         """ Attach a Stripe Payment Method to a Stripe Customer """
         try:
@@ -27,7 +27,7 @@ class PaymentService:
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return False
-        
+
     def userLogin(self, auth0Id):
         # user has auth0Id in database
         #   check if they have a Stripe account
