@@ -8,6 +8,8 @@ from redis.asyncio import Redis, ConnectionPool
 from redis.typing import KeyT, EncodableT
 from configuration.AppConfig import AppConfig, Stage
 import os
+from configuration.RedisConfig import RedisConfig
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,72 +27,84 @@ class RedisAdapter:
 
 
     '''
-    def __init__(self, app_config: AppConfig):
-        # Check if we should use Redis Sentinel
-        use_sentinel = os.getenv("USE_REDIS_SENTINEL", "false").lower() == "true"
-
-        if use_sentinel:
-            # Sentinel configuration
-            sentinel_hosts_str = os.getenv("REDIS_SENTINEL_HOSTS", "localhost:26379")
-            sentinel_service = os.getenv("REDIS_SENTINEL_SERVICE", "mymaster")
-
-            # Parse comma-separated sentinel hosts
-            sentinel_hosts = []
-            for host_port in sentinel_hosts_str.split(','):
-                host_port = host_port.strip()
-                if ':' in host_port:
-                    host, port = host_port.split(':')
-                    sentinel_hosts.append((host.strip(), int(port.strip())))
-                else:
-                    sentinel_hosts.append((host_port.strip(), 26379))
-
-            logger.info(f"Using Redis Sentinel configuration with hosts: {sentinel_hosts}")
-            logger.info(f"Sentinel service name: {sentinel_service}")
-
-            # Initialize Sentinel
-            self.sentinel = Sentinel(sentinel_hosts, socket_timeout=0.1)
-            self.sentinel_service = sentinel_service
-            self.use_sentinel = True
-
-            # Get current master info
-            try:
-                master_info = self.sentinel.discover_master(sentinel_service)
-                logger.info(f"Current Redis master: {master_info[0]}:{master_info[1]}")
-            except Exception as e:
-                logger.error(f"Failed to discover Redis master: {e}")
-                raise
-
-        else:
-            # Direct Redis connection (original logic)
+    def __init__(self, app_config: AppConfig = None, redis_config: RedisConfig = None):
+        # Ensure one of the configs is provided
+        if app_config is None and redis_config is None:
+            raise ValueError("Either app_config or redis_config must be provided")
+        
+        # If RedisConfig is provided, use it directly
+        if redis_config is not None:
             self.use_sentinel = False
+            self.config = redis_config.get_connection_params()
+            logger.info(f"Using provided Redis configuration.")
+            logger.info(f"Initialized Redis adapter for {redis_config.host}:{redis_config.port}/db{redis_config.db}")
+        else:
+            # Original AppConfig logic
+            # Check if we should use Redis Sentinel
+            use_sentinel = os.getenv("USE_REDIS_SENTINEL", "false").lower() == "true"
 
-            # Extract config based on stage
-            if app_config.stage == Stage.PROD:
-                host = os.getenv("PROD_REDIS_HOST", "your_prod_redis_host")
-                port = int(os.getenv("PROD_REDIS_PORT", 6379))
-                db = int(os.getenv("PROD_REDIS_DB", 0))
-                password = os.getenv("PROD_REDIS_PASSWORD", None)
-                socket_timeout = 10
-                logger.info("Using Production Redis configuration.")
-            else: # Default to Development
-                host = os.getenv("REDIS_HOST", "localhost")
-                port = int(os.getenv("REDIS_PORT", 6379))
-                db = int(os.getenv("REDIS_DB", 0))
-                password = os.getenv("REDIS_PASSWORD", None)
-                socket_timeout = 10
-                logger.info("Using Development Redis configuration.")
+            if use_sentinel:
+                # Sentinel configuration
+                sentinel_hosts_str = os.getenv("REDIS_SENTINEL_HOSTS", "localhost:26379")
+                sentinel_service = os.getenv("REDIS_SENTINEL_SERVICE", "mymaster")
 
-            # Use extracted values for self.config
-            self.config = {
-                "host": host,
-                "port": port,
-                "db": db,
-                "password": password,
-                "socket_timeout": socket_timeout,
-                "decode_responses": True,
-            }
+                # Parse comma-separated sentinel hosts
+                sentinel_hosts = []
+                for host_port in sentinel_hosts_str.split(','):
+                    host_port = host_port.strip()
+                    if ':' in host_port:
+                        host, port = host_port.split(':')
+                        sentinel_hosts.append((host.strip(), int(port.strip())))
+                    else:
+                        sentinel_hosts.append((host_port.strip(), 26379))
 
-            logger.info(f"Initialized Redis adapter for {host}:{port}/db{db}")
+                logger.info(f"Using Redis Sentinel configuration with hosts: {sentinel_hosts}")
+                logger.info(f"Sentinel service name: {sentinel_service}")
+
+                # Initialize Sentinel
+                self.sentinel = Sentinel(sentinel_hosts, socket_timeout=0.1)
+                self.sentinel_service = sentinel_service
+                self.use_sentinel = True
+
+                # Get current master info
+                try:
+                    master_info = self.sentinel.discover_master(sentinel_service)
+                    logger.info(f"Current Redis master: {master_info[0]}:{master_info[1]}")
+                except Exception as e:
+                    logger.error(f"Failed to discover Redis master: {e}")
+                    raise
+
+            else:
+                # Direct Redis connection (original logic)
+                self.use_sentinel = False
+
+                # Extract config based on stage
+                if app_config.stage == Stage.PROD:
+                    host = os.getenv("PROD_REDIS_HOST", "your_prod_redis_host")
+                    port = int(os.getenv("PROD_REDIS_PORT", 6379))
+                    db = int(os.getenv("PROD_REDIS_DB", 0))
+                    password = os.getenv("PROD_REDIS_PASSWORD", None)
+                    socket_timeout = 10
+                    logger.info("Using Production Redis configuration.")
+                else: # Default to Development
+                    host = os.getenv("REDIS_HOST", "localhost")
+                    port = int(os.getenv("REDIS_PORT", 6379))
+                    db = int(os.getenv("REDIS_DB", 0))
+                    password = os.getenv("REDIS_PASSWORD", None)
+                    socket_timeout = 10
+                    logger.info("Using Development Redis configuration.")
+
+                # Use extracted values for self.config
+                self.config = {
+                    "host": host,
+                    "port": port,
+                    "db": db,
+                    "password": password,
+                    "socket_timeout": socket_timeout,
+                    "decode_responses": True,
+                }
+
+                logger.info(f"Initialized Redis adapter for {host}:{port}/db{db}")
 
         # Initialize pools and clients
         self.sync_pool = None
