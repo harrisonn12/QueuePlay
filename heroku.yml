@@ -3,6 +3,8 @@ build:
     web: frontend/Dockerfile
     backend: backend/Dockerfile
     multiplayer: ./Dockerfile.multiplayer
+addons:
+  - heroku-redis:hobby-dev
 run:
   web:
     command:
