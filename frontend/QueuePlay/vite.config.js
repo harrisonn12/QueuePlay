@@ -22,4 +22,7 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: ["queue-play-34edc7c1b26f.herokuapp.com"]
+  },
 });
