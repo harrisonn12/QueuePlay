@@ -212,9 +212,9 @@ export const useGameState = () => {
     // For production, use same host as frontend
     // For development, use same host with /api prefix
     if (port) {
-      return `${protocol}//${host}:${port}`; // http://localhost/api
+      return `${protocol}//${host}:${port}/api`; // http://localhost/api
     } else {
-      return `${protocol}//${host}`; // https://yourdomain.com/api
+      return `${protocol}//${host}/api`; // https://yourdomain.com/api
     }
   };
 
