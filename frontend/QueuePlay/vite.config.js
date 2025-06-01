@@ -17,7 +17,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''), // rewrite /api to ''
       },
       '/ws': {
-        target: 'ws://127.0.0.1:6789', // target is the WebSocket server
+        target: 'ws://multiplayer:6789', // target is the multiplayer service in Docker
         ws: true, // enable WebSocket proxy
         changeOrigin: true,
       },
