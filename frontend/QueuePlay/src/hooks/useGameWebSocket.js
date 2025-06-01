@@ -161,7 +161,7 @@ export const useGameWebSocket = (gameId, clientId, role, onMessage) => {
         }
     // Dependencies: onMessageRef is stable. We don't want this function 
     // itself to change reference frequently.
-    }, [status]); // Add status to dependency array to re-evaluate guard if status changes
+    }, []); // Add status to dependency array to re-evaluate guard if status changes
 
     // Effect to send Identify message when connection is open and details are available
     useEffect(() => {

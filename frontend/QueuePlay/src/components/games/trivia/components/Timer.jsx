@@ -1,23 +1,52 @@
 import { CountdownCircleTimer } from 'react-countdown-circle-timer';
 
-const Timer = ({ seconds, onTimerEnd }) => {
+const Timer = ({ seconds, onTimerEnd = () => {}, size = 120 }) => {
+    // Calculate inner circle size based on outer size
+    const innerSize = size - 20;
+    const fontSize = size === 120 ? '2.5rem' : size === 80 ? '1.8rem' : '1.5rem';
+    
     return (
-        <div>
+        <div className="timer-wrapper">
             <CountdownCircleTimer
                 isPlaying={true}
                 duration={seconds}
-                colors={['#0b5425', '#06810c', '#ffc107', '#e6162b']}  
-                colorsTime={[seconds, seconds/3 * 2, seconds/3,0]}
+                colors={['#00d4ff', '#00ff88', '#f59e0b', '#ef4444']}  
+                colorsTime={[seconds, seconds/2, seconds/4, 0]}
                 onComplete={onTimerEnd}
-                size={80}
-                strokeWidth={5}
-                trailColor="#e9e9e9"
+                size={size}
+                strokeWidth={8}
+                trailColor="rgba(71, 85, 105, 0.3)"
             > 
-                {({ remainingTime, color }) => ( // a function for the color and remaining time change on the inside.
-                <div style={{ position: 'absolute', fontSize: '1.8rem', fontWeight: 'bold', color }}> 
-                    {remainingTime}
-                </div>
-                )}
+                {({ remainingTime, color }) => {
+                    // Determine the timer state for additional styling
+                    let timerClass = 'timer';
+                    if (remainingTime <= seconds/4) {
+                        timerClass += ' critical';
+                    } else if (remainingTime <= seconds/2) {
+                        timerClass += ' warning';
+                    }
+                    
+                    return (
+                        <div className={timerClass} style={{ 
+                            position: 'absolute',
+                            width: `${innerSize}px`,
+                            height: `${innerSize}px`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: fontSize,
+                            fontWeight: '700',
+                            color: color,
+                            textShadow: `0 0 10px ${color}`,
+                            borderRadius: '50%',
+                            background: 'var(--card-bg)',
+                            border: `2px solid ${color}`,
+                            boxShadow: `0 0 20px ${color}40`
+                        }}> 
+                            {remainingTime}
+                        </div>
+                    );
+                }}
             </CountdownCircleTimer>
         </div>
   );

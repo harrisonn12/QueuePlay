@@ -12,10 +12,11 @@ import GameLobby from './views/GameLobby';
 import PlayerGameView from './views/PlayerGameView';
 import HostGameView from './views/HostGameView';
 import GameResults from './views/GameResults';
+import LoadingSpinner from './components/LoadingSpinner';
 
 const TriviaGame = () => {
   // Game configuration
-  const timePerQuestion = 5; // seconds per question
+  const timePerQuestion = 10; // seconds per question
   
   // Use game state hook to manage all state
   const gameState = useGameState();
@@ -286,7 +287,7 @@ const TriviaGame = () => {
   let content;
   
   if (gameStatus === 'loading' || playerInfoStage === 'joining') {
-    content = <p>Loading...</p>;
+    content = <LoadingSpinner message={playerInfoStage === 'joining' ? 'Joining game...' : 'Loading game...'} />;
   } else if (gameStatus === 'waiting' || playerInfoStage === 'enterInfo') {
     content = (
       <GameLobby 
@@ -331,6 +332,8 @@ const TriviaGame = () => {
         <PlayerGameView 
           questions={gameState.questions}
           currentQuestionIndex={gameState.currentQuestionIndex}
+          timerKey={gameState.timerKey}
+          timePerQuestion={timePerQuestion}
           submitAnswer={submitAnswer}
           hasAnswered={gameState.hasAnswered}
           selectedAnswer={gameState.selectedAnswer}

@@ -49,48 +49,54 @@ const HostGameView = ({
     <div className="host-game-view">
       <h2>Question {currentQuestionIndex + 1} of {questions.length}</h2>
       
-      {/* Timer display for host */}
-      <div className="timer-container">
-        <Timer 
-          key={timerKey} 
-          seconds={timePerQuestion} 
-          onTimerEnd={handleTimerComplete} 
-        />
-      </div>
-      
-      <h3>{currentQuestion.question}</h3>
-      
-      <div className="options">
-        {currentQuestion.options.map((option, index) => (
-          <div 
-            key={index} 
-            className={`option ${index === currentQuestion.answerIndex ? 'correct' : ''}`}
-          >
-            {option}
+      <div className="host-game-content">
+        <div className="game-main-section">
+          {/* Timer display for host */}
+          <div className="timer-container">
+            <Timer 
+              key={timerKey} 
+              seconds={timePerQuestion} 
+              onTimerEnd={handleTimerComplete} 
+            />
           </div>
-        ))}
-      </div>
-      
-      <div className="scores">
-        <h3>Current Scores:</h3>
-        {Object.entries(scores).length > 0 ? (
-          <ol className="score-list">
-            {sortedCurrentScores // Use pre-sorted list
-              .map(([playerId, score], index) => {
-                const player = players.find(p => p.clientId === playerId);
-                const playerName = player?.name || `Player ${playerId.substring(0, 4)}`; 
-                
-                return (
-                  <li key={playerId} className={index === 0 ? 'leader' : ''}>
-                    {playerName}: <strong>{score}</strong> points
-                  </li>
-                );
-              })
-            }
-          </ol>
-        ) : (
-          <p>No scores yet</p>
-        )}
+          
+          <h3>{currentQuestion.question}</h3>
+          
+          <div className="options">
+            {currentQuestion.options.map((option, index) => (
+              <div 
+                key={index} 
+                className="option"
+              >
+                {option}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="game-scores-section">
+          <div className="scores">
+            <h3>Current Scores:</h3>
+            {Object.entries(scores).length > 0 ? (
+              <ol className="score-list">
+                {sortedCurrentScores // Use pre-sorted list
+                  .map(([playerId, score], index) => {
+                    const player = players.find(p => p.clientId === playerId);
+                    const playerName = player?.name || `Player ${playerId.substring(0, 4)}`; 
+                    
+                    return (
+                      <li key={playerId} className={index === 0 ? 'leader' : ''}>
+                        {playerName}: <strong>{score}</strong> points
+                      </li>
+                    );
+                  })
+                }
+              </ol>
+            ) : (
+              <p>No scores yet</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

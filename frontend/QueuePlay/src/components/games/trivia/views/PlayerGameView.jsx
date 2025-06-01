@@ -1,4 +1,5 @@
 import React from 'react';
+import Timer from '../components/Timer';
 
 /**
  * Player Game View - Shows the player's view during active gameplay
@@ -6,6 +7,8 @@ import React from 'react';
 const PlayerGameView = ({
   questions,
   currentQuestionIndex,
+  timerKey,
+  timePerQuestion,
   submitAnswer,
   hasAnswered,
   selectedAnswer,
@@ -24,6 +27,15 @@ const PlayerGameView = ({
       <p className="player-name-display">
         Playing as: {localPlayerName || `Player ${clientId?.substring(0,4)}`}
       </p>
+      
+      {/* Timer display for player */}
+      <div className="timer-container">
+        <Timer 
+          key={timerKey} 
+          seconds={timePerQuestion}
+          size={80}
+        />
+      </div>
       
       {/* Question text removed for players */}
       <h2>Answer Now!</h2>
