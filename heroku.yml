@@ -12,11 +12,7 @@ run:
     command:
       - python main.py
     image: backend
-    environment:
-      STAGE: PROD
   multiplayer:
     command:
       - python backend/MultiplayerServer.py
     image: multiplayer
-    environment:
-      STAGE: PROD
