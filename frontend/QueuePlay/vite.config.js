@@ -12,7 +12,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: process.env.BACKEND_URL || 'http://backend:8000', // Use env var for Heroku, fallback for local
+        target: process.env.BACKEND_URL || 'http://localhost:8000', // Use env var for Heroku, fallback for local
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''), // rewrite /api to ''
       },
