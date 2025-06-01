@@ -6,7 +6,11 @@ build:
 run:
   web:
     command:
-      - npm start
+      - serve
+      - -s
+      - dist
+      - -l
+      - $PORT
     image: web
   backend:
     command:
