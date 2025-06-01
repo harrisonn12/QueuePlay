@@ -23,11 +23,27 @@ class RedisConfig:
 
     def _loadFromEnv(self):
         """Load Redis configuration from environment variables"""
-        self._host = os.environ.get("REDIS_HOST", self._host)
-        self._port = int(os.environ.get("REDIS_PORT", self._port))
-        self._db = int(os.environ.get("REDIS_DB", self._db))
-        self._password = os.environ.get("REDIS_PASSWORD", self._password)
-        self._socketTimeout = int(os.environ.get("REDIS_SOCKET_TIMEOUT", self._socketTimeout))
+        # Check for Heroku Redis URL format first
+        redis_url = os.environ.get("REDIS_URL")
+        if redis_url:
+            self._parseRedisUrl(redis_url)
+        else:
+            # Fall back to individual environment variables
+            self._host = os.environ.get("REDIS_HOST", self._host)
+            self._port = int(os.environ.get("REDIS_PORT", self._port))
+            self._db = int(os.environ.get("REDIS_DB", self._db))
+            self._password = os.environ.get("REDIS_PASSWORD", self._password)
+            self._socketTimeout = int(os.environ.get("REDIS_SOCKET_TIMEOUT", self._socketTimeout))
+
+    def _parseRedisUrl(self, redis_url):
+        """Parse Redis URL format: redis://[:password@]host:port[/db]"""
+        import urllib.parse
+        parsed = urllib.parse.urlparse(redis_url)
+        self._host = parsed.hostname or self._host
+        self._port = parsed.port or self._port
+        self._password = parsed.password or self._password
+        if parsed.path and len(parsed.path) > 1:
+            self._db = int(parsed.path[1:]) or self._db
 
     @property
     def host(self):
