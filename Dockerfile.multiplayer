@@ -1,0 +1,20 @@
+# Use Python 3.11 slim as base image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the multiplayer server file
+COPY MultiplayerServer.py .
+
+# Expose port 6789 for WebSocket connections
+EXPOSE 6789
+
+# Start the multiplayer server
+CMD ["python", "MultiplayerServer.py"]
