@@ -39,11 +39,11 @@ class RedisConfig:
         """Parse Redis URL format: redis://[:password@]host:port[/db]"""
         import urllib.parse
         parsed = urllib.parse.urlparse(redis_url)
-        self._host = parsed.hostname or self._host
-        self._port = parsed.port or self._port
-        self._password = parsed.password or self._password
+        self._host = parsed.hostname
+        self._port = parsed.port
+        self._password = parsed.password
         if parsed.path and len(parsed.path) > 1:
-            self._db = int(parsed.path[1:]) or self._db
+            self._db = int(parsed.path[1:])
 
     @property
     def host(self):
