@@ -9,9 +9,10 @@ export default defineConfig({
     tailwindcss()
   ],
   server: {
+    host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000', // target is the backend server
+        target: 'http://backend:8000', // target is the backend service in Docker
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''), // rewrite /api to ''
       },

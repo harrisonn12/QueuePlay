@@ -1,7 +1,3 @@
-setup:
-  addons:
-    - plan: heroku-postgresql
-      as: DATABASE
 build:
   docker:
     web: frontend/Dockerfile
@@ -18,5 +14,5 @@ run:
     image: backend
   multiplayer:
     command:
-      - python MultiplayerServer.py
+      - python backend/MultiplayerServer.py
     image: multiplayer

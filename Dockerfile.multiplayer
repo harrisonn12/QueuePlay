@@ -10,11 +10,11 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the multiplayer server file
-COPY MultiplayerServer.py .
+# Copy backend directory with multiplayer server
+COPY backend/ ./backend/
 
 # Expose port 6789 for WebSocket connections
 EXPOSE 6789
 
 # Start the multiplayer server
-CMD ["python", "MultiplayerServer.py"]
+CMD ["python", "backend/MultiplayerServer.py"]

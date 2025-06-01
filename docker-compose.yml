@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: ./frontend
+    command: npm start
+    working_dir: /app/frontend/QueuePlay
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    command: python main.py
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  multiplayer:
+    build:
+      context: .
+      dockerfile: Dockerfile.multiplayer
+    command: python backend/MultiplayerServer.py
+    working_dir: /app
+    ports:
+      - "9000:9000"
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
