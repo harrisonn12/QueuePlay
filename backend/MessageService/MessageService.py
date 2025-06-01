@@ -8,6 +8,7 @@ from backend.commons.enums.Stage import Stage
 from backend.commons.adapters.RedisAdapter import RedisAdapter
 from websockets.server import WebSocketServerProtocol
 from websockets.exceptions import ConnectionClosed
+from websockets.connection import State
 
 logger = logging.getLogger(__name__)
 
@@ -369,7 +370,7 @@ class MessageService:
             client_tasks = []
             for client_id in client_ids_to_notify:
                 websocket = self.client_websockets.get(client_id)
-                if websocket and websocket.open:
+                if websocket and websocket.state == State.OPEN:
                     client_tasks.append(self._send_to_websocket(websocket, message_data, client_id, channel))
                 elif websocket:
                     logger.warning(f"Websocket for client {client_id} on channel {channel} is closed. Scheduling cleanup.")

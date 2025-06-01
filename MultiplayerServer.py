@@ -150,15 +150,26 @@ async def health_handler(request):
 
 async def setup_health_server(health_port):
     """Set up HTTP server for health checks. Runs once during startup."""
-    app = web.Application()
-    app.add_routes([web.get('/health', health_handler)])
-    
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', health_port)
-    await site.start()
-    logger.info(f"Health check server started on port {health_port}")
-    return runner
+    try:
+        app = web.Application()
+        app.add_routes([web.get('/health', health_handler)])
+        
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', health_port)
+        await site.start()
+        logger.info(f"Health check server started on port {health_port}")
+        return runner
+    except OSError as e:
+        if e.errno == 48:  # Address already in use
+            logger.error(f"Health check port {health_port} is already in use. Another server instance may be running.")
+            raise RuntimeError(f"Port {health_port} is already in use")
+        else:
+            logger.error(f"Failed to start health check server on port {health_port}: {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Unexpected error starting health check server: {e}")
+        raise
 
 async def main(args):
     global connection_service, message_service, redis_adapter
@@ -214,13 +225,25 @@ async def main(args):
     health_runner = await setup_health_server(health_port)
     
     # STEP 10) Start the WebSocket server
-    async with websockets.serve(connection_service.handleConnection, host, port):
-        logger.info(f"WebSocket server {server_id} started on ws://{host}:{port}")
-        logger.info(f"Health check endpoint available at http://{host}:{health_port}/health")
-        logger.info(f"Server ready! Redis and all services started successfully.")
-        
-        # Run forever
-        await asyncio.Future()
+    try:
+        async with websockets.serve(connection_service.handleConnection, host, port):
+            logger.info(f"WebSocket server {server_id} started on ws://{host}:{port}")
+            logger.info(f"Health check endpoint available at http://{host}:{health_port}/health")
+            logger.info(f"Server ready! Redis and all services started successfully.")
+            
+            # Run forever
+            await asyncio.Future()
+    except OSError as e:
+        if e.errno == 48:  # Address already in use
+            logger.error(f"WebSocket port {port} is already in use. Another server instance may be running.")
+            logger.error(f"Please check if another instance is running with: lsof -i :{port}")
+            raise RuntimeError(f"Port {port} is already in use")
+        else:
+            logger.error(f"Failed to start WebSocket server on port {port}: {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Unexpected error starting WebSocket server: {e}")
+        raise
 
 # command line interface
 def parse_args():

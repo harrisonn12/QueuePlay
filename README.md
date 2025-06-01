@@ -1,4 +1,2 @@
-First Commit
-# QueuePlay
-hello, daniel was here
-amanda's here too
+STEP 1) docker-compose up --build
+STEP 2) 

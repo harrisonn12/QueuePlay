@@ -5,6 +5,7 @@ import asyncio
 import time
 import websockets
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
+from websockets.connection import State
 
 # Removed LobbyService and QuestionService imports
 # from backend.LobbyService.LobbyService import LobbyService 
@@ -113,7 +114,7 @@ class ConnectionService:
                         if client_id in self.localConnections:
                             logger.warning(f"Closing existing connection for identified client {client_id}")
                             existing_ws = self.localConnections.pop(client_id, None)
-                            if existing_ws and existing_ws != websocket and existing_ws.open:
+                            if existing_ws and existing_ws != websocket and not existing_ws.closed:
                                 asyncio.create_task(existing_ws.close(1008, "Replaced by new connection"))
                         # Store the new websocket under the actual client ID
                         self.localConnections[client_id] = websocket
@@ -238,7 +239,7 @@ class ConnectionService:
         """Send a JSON message to a specific client connected to this server instance."""
         # Find the WebSocket connection using the provided client_id
         ws = websocket or self.localConnections.get(client_id)
-        if ws and ws.open:
+        if ws and ws.state == State.OPEN:
             try:
                 await ws.send(json.dumps(message))
                 # logger.debug(f"Sent to {client_id}: {message}")
