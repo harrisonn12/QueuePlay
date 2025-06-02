@@ -114,10 +114,10 @@ class RedisConfig:
         
         # Add SSL parameters if SSL is enabled
         if self._ssl:
-            # Simplified SSL configuration - let redis-py handle the connection class automatically
-            params["ssl"] = True
-            if self._ssl_cert_reqs is not None:
-                params["ssl_cert_reqs"] = self._ssl_cert_reqs
+            # For async redis connections, we need to use individual SSL parameters
+            # instead of ssl=True which is not accepted by AsyncConnection classes
+            params["ssl_cert_reqs"] = self._ssl_cert_reqs if self._ssl_cert_reqs is not None else "none"
+            params["ssl_check_hostname"] = False  # Heroku Redis uses self-signed certificates
             
         return params
 
