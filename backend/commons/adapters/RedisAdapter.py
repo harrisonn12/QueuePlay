@@ -34,12 +34,20 @@ class RedisAdapter:
         
         # If RedisConfig is provided, use it directly
         if redis_config is not None:
+            self.use_redis_config = True
+            self.redis_config = redis_config
             self.use_sentinel = False
-            self.config = redis_config.get_connection_params()
-            logger.info(f"Using provided Redis configuration.")
+            
+            logger.info("Using provided Redis configuration.")
+            # Get the Redis URL from environment (used by from_url method)
+            self.redis_url = os.environ.get("REDIS_URL")
+            if not self.redis_url:
+                # Fall back to individual parameters if no URL
+                self.config = redis_config.get_connection_params()
             logger.info(f"Initialized Redis adapter for {redis_config.host}:{redis_config.port}/db{redis_config.db}")
         else:
             # Original AppConfig logic
+            self.use_redis_config = False
             # Check if we should use Redis Sentinel
             use_sentinel = os.getenv("USE_REDIS_SENTINEL", "false").lower() == "true"
 
@@ -144,7 +152,15 @@ class RedisAdapter:
         '''
         if self._async_client is None:
             try:
-                if self.use_sentinel:
+                if self.use_redis_config and hasattr(self, 'redis_url') and self.redis_url:
+                    # Use from_url for Redis URLs (handles SSL automatically for rediss://)
+                    self._async_client = Redis.from_url(
+                        self.redis_url,
+                        decode_responses=True,
+                        socket_timeout=self.redis_config.socket_timeout
+                    )
+                    logger.debug(f"Initialized async Redis client from URL: {self.redis_url[:20]}...")
+                elif self.use_sentinel:
                     # For async Sentinel, we need to get master info and create async connection
                     master_info = self.sentinel.discover_master(self.sentinel_service)
                     host, port = master_info
