@@ -154,10 +154,14 @@ class RedisAdapter:
             try:
                 if self.use_redis_config and hasattr(self, 'redis_url') and self.redis_url:
                     # Use from_url for Redis URLs (handles SSL automatically for rediss://)
+                    # For Heroku Redis, disable SSL certificate verification as they use self-signed certs
                     self._async_client = Redis.from_url(
                         self.redis_url,
                         decode_responses=True,
-                        socket_timeout=self.redis_config.socket_timeout
+                        socket_timeout=self.redis_config.socket_timeout,
+                        ssl_cert_reqs=None,  # Disable SSL certificate verification for Heroku Redis
+                        ssl_check_hostname=False,  # Don't verify hostname
+                        ssl_ca_certs=None  # Don't use CA certificates
                     )
                     logger.debug(f"Initialized async Redis client from URL: {self.redis_url[:20]}...")
                 elif self.use_sentinel:
