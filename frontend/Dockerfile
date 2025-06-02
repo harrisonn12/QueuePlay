@@ -16,11 +16,11 @@ COPY QueuePlay/ .
 # Build the application
 RUN npm run build
 
-# Install serve to serve the built application
+# Install serve to serve the built application (kept for compatibility)
 RUN npm install -g serve
 
 # Expose port 3000
 EXPOSE 3000
 
-# Start the application
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Start the application using npm start (vite preview)
+CMD ["npm", "start"]
