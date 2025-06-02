@@ -112,9 +112,10 @@ class RedisConfig:
             "decode_responses": True 
         }
         
-        # For rediss:// URLs, don't pass explicit SSL parameters
-        # Let redis-py handle SSL configuration automatically from the URL scheme
-        # This avoids issues with AbstractConnection SSL parameter compatibility
+        # Add SSL parameter if SSL is enabled (for rediss:// URLs)
+        # Only use the basic ssl=True parameter that async redis connections accept
+        if self._ssl:
+            params["ssl"] = True
         
         return params
 
