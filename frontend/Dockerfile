@@ -23,21 +23,4 @@ RUN npm install -g serve
 EXPOSE 3000
 
 # Start the application using npm start (vite preview)
-CMD ["npm", "start"]
-
-# Stage 2: Serve the application with Nginx
-FROM nginx:alpine
-
-# Copy the built static files from the build stage to the Nginx html directory
-# /app/dist is the output of the build stage
-# /usr/share/nginx/html is the default directory for Nginx
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy the custom Nginx configuration
-COPY frontend/QueuePlay/nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port 80
-EXPOSE 80
-
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["npm", "start"] 
