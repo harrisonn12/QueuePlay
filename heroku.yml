@@ -4,11 +4,7 @@ build:
     backend: backend/Dockerfile
     multiplayer: ./Dockerfile.multiplayer
 run:
-  web:
-    command:
-      - npm
-      - start
-    image: web
+  web: npm start
   backend:
     command:
       - python main.py
