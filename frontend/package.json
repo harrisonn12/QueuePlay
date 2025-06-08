@@ -1,39 +1,38 @@
 {
-  "name": "queueplay",
+  "name": "queueplay-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "vite preview --host 0.0.0.0 --port $PORT",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "start": "vite"
   },
   "dependencies": {
-    "@auth0/auth0-react": "^2.3.0",
-    "@stripe/react-stripe-js": "^3.4.0",
-    "@stripe/stripe-js": "^6.0.0",
-    "@tailwindcss/vite": "^4.0.15",
-    "axios": "^1.8.4",
-    "dotenv": "^16.4.7",
-    "install": "^0.13.0",
-    "qrcode": "^1.5.4",
-    "react": "^19.0.0",
-    "react-countdown-circle-timer": "^3.2.1",
-    "react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.15",
-    "uuid": "^11.1.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.14.2",
+    "@auth0/auth0-react": "^2.2.1",
+    "axios": "^1.4.0",
+    "uuid": "^9.0.0",
+    "react-countdown-circle-timer": "^3.2.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.21.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "@vitejs/plugin-react-swc": "^3.8.0",
-    "eslint": "^9.21.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^15.15.0",
-    "vite": "^6.2.0"
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react-swc": "^3.3.2",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "vite": "^4.4.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
-}
+} 

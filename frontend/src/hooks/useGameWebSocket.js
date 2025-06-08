@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getWebSocketUrl } from '../utils/api';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY = 1000; // Start with 1 second delay
@@ -74,15 +75,8 @@ export const useGameWebSocket = (gameId, clientId, role, onMessage) => {
         // Clear identified flag for new connection
         identifiedRef.current = false;
 
-        // Use window location for dynamic WebSocket URL
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname;
-        const port = window.location.port; // Use the same port as the current page
-        
-        // Construct URL to go through edge load balancer (/ws/ route)
-        const wsUrl = port ? 
-            `${protocol}//${host}:${port}/ws/` :  // For dev: ws://localhost:80/ws/
-            `${protocol}//${host}/ws/`;           // For prod: wss://yourdomain.com/ws/
+        // Use centralized WebSocket URL configuration
+        const wsUrl = getWebSocketUrl();
         
         console.log(`Attempting WebSocket connection to: ${wsUrl}`);
         try {

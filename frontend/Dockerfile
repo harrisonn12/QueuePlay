@@ -20,7 +20,7 @@ RUN npm run build
 RUN npm install -g serve
 
 # Expose port 3000
-EXPOSE 3000
+EXPOSE 5173
 
 # Start the application using npm start (vite preview)
 CMD ["npm", "start"] 

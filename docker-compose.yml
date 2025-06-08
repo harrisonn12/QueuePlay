@@ -7,7 +7,7 @@ services:
     command: npm start
     working_dir: /app/frontend/QueuePlay
     ports:
-      - "3000:3000"
+      - "5173:5173"
     depends_on:
       - backend
       - multiplayer
@@ -24,6 +24,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
       - REDIS_HOST=redis
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
     depends_on:
       - redis
 
@@ -47,3 +48,6 @@ services:
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+
+volumes:
+  redis_data:

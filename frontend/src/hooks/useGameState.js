@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { getApiBaseUrl } from "../utils/api";
 
 /**
  * Custom hook to manage game state
@@ -202,21 +203,6 @@ export const useGameState = () => {
     setSelectedAnswer(null);
     setTimerKey((prev) => prev + 1);
   }, []);
-
-  // Dynamic API base URL based on current location
-  const getApiBaseUrl = () => {
-    const protocol = window.location.protocol;
-    const host = window.location.hostname;
-    const port = window.location.port;
-
-    // For production, use same host as frontend
-    // For development, use same host with /api prefix
-    if (port) {
-      return `${protocol}//${host}:${port}/api`; // http://localhost/api
-    } else {
-      return `${protocol}//${host}/api`; // https://yourdomain.com/api
-    }
-  };
 
   const API_BASE_URL = getApiBaseUrl();
 
