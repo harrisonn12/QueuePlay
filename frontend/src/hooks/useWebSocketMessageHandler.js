@@ -42,16 +42,25 @@ export const useWebSocketMessageHandler = (gameState) => {
     switch(data.action) {
       // --- Connection/Identification Cases ---
       case "identified":
-        if (data.success) {
+      {
+        console.log("Handling action: identified");
+        // Check if identification was successful by presence of clientId and gameId
+        if (data.clientId && data.gameId) {
           console.log("Successfully identified with the server.");
           setStatus("Connected & Identified");
           setIsClientIdentified(true); // Set identification flag
 
+          // Update the clientId if the server assigned a new one
+          if (data.clientId !== gameState.clientId) {
+            console.log(`Server assigned new clientId: ${data.clientId} (was: ${gameState.clientId})`);
+            setClientId(data.clientId);
+          }
+
           // If host, add self to player list
-          if (role === 'host' && !players.some(p => p.clientId === gameState.clientId)) {
+          if (role === 'host' && !players.some(p => p.clientId === data.clientId)) {
             console.log("Identified as host. Adding self to player list.");
             // Ensure host isn't added multiple times if message is somehow duplicated
-            addPlayer(gameState.clientId, localPlayerName || "Host");
+            addPlayer(data.clientId, localPlayerName || "Host");
           }
           // If player, set joined status
           if (role === 'player') {
@@ -59,13 +68,12 @@ export const useWebSocketMessageHandler = (gameState) => {
             setPlayerInfoStage('joined');
           }
         } else {
-          console.error("Server identification failed.", data.message);
-          setStatus(`Error: Identification failed. ${data.message || ''}`);
+          console.error("Server identification failed.", data.message || "Missing clientId or gameId");
+          setStatus(`Error: Identification failed. ${data.message || 'Invalid response format'}`);
           setIsClientIdentified(false); // Ensure flag is false on failure
-          // Handle failure? Maybe reset state?
-          // resetGame(); 
         }
         break;
+      }
 
       // --- Lobby/Join/Reconnect Cases ---
       // REMOVE: case "lobbyInitialized" - This logic is now handled by the API calls + identify flow

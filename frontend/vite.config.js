@@ -1,12 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
-import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss()
   ],
   server: {
     host: '0.0.0.0',
@@ -22,8 +20,5 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-  preview: {
-    allowedHosts: ["queue-play-34edc7c1b26f.herokuapp.com"]
   },
 });

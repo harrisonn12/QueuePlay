@@ -1,17 +1,5 @@
 import { useState } from 'react';
-
-// Dynamic API base URL
-const getApiBaseUrl = () => {
-    const protocol = window.location.protocol;
-    const host = window.location.hostname; 
-    const port = window.location.port;
-    
-    if (port) {
-        return `${protocol}//${host}:${port}/api`;  // http://localhost/api
-    } else {
-        return `${protocol}//${host}/api`;          // https://yourdomain.com/api
-    }
-};
+import { getApiBaseUrl } from '../utils/api';
 
 export const useUsernameGenerator = () => {
     const [isGenerating, setIsGenerating] = useState(false);
