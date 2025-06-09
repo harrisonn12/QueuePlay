@@ -80,8 +80,8 @@ class ConnectionService:
 
     async def handleConnection(self, websocket):
         """
-        Handle a new WebSocket connection: optional authentication, identify and relay messages.
-        Supports both authenticated hosts (with JWT) and unauthenticated players (Jackbox-style).
+        Handle a new WebSocket connection: JWT authentication required, then identify and relay messages.
+        All connections (hosts and players) must provide valid JWT tokens.
         """
         # 1. Assign temporary ID and store connection
         temp_client_id = f"temp_{uuid.uuid4()}"
@@ -94,38 +94,41 @@ class ConnectionService:
         is_identified = False
         is_authenticated = False
         user_id = None
+        payload = None  # Store JWT payload for later use
 
-        logger.info(f"Client connected with temporary ID {temp_client_id}. Waiting for authentication (optional) and identification.")
+        logger.info(f"Client connected with temporary ID {temp_client_id}. Waiting for JWT authentication (required).")
 
         try:
-            # 2. Process messages: Optional authentication, then identify, then relay
+            # 2. Process messages: Authentication REQUIRED, then identify, then relay
             async for message in websocket:
                 try:
                     data = json.loads(message)
                     action = data.get("action")
 
-                    # --- Optional Authentication Step --- #
-                    if action == "authenticate":
+                    # --- Authentication Step (REQUIRED) --- #
+                    if action == "authenticate" and not is_authenticated:
                         token = data.get("token")
                         if not token:
                             logger.warning(f"Authentication attempt without token from {temp_client_id}")
-                            await self.sendToClient(temp_client_id, {"action": "error", "message": "Token required for authentication."}, websocket)
+                            await self.sendToClient(temp_client_id, {"action": "error", "message": "JWT token required for WebSocket connection."}, websocket)
                             continue
 
                         # Validate JWT token
-                        payload = self.validate_jwt_token(token)
-                        if not payload:
+                        token_payload = self.validate_jwt_token(token)
+                        if not token_payload:
                             logger.warning(f"Invalid token from {temp_client_id}")
-                            await self.sendToClient(temp_client_id, {"action": "error", "message": "Invalid or expired token."}, websocket)
+                            await self.sendToClient(temp_client_id, {"action": "error", "message": "Invalid or expired JWT token."}, websocket)
                             continue
 
                         # Extract user info from token
-                        user_id = payload.get("user_id")
+                        user_id = token_payload.get("user_id")
                         if not user_id:
                             logger.warning(f"Token missing user_id from {temp_client_id}")
                             await self.sendToClient(temp_client_id, {"action": "error", "message": "Invalid token payload."}, websocket)
                             continue
 
+                        # Store payload for later use
+                        payload = token_payload
                         is_authenticated = True
                         logger.info(f"Client {temp_client_id} authenticated as user {user_id}")
                         
@@ -133,10 +136,11 @@ class ConnectionService:
                         await self.sendToClient(temp_client_id, {"action": "authenticated", "success": True}, websocket)
                         continue
 
-                    # --- Identification Step (Required for All) --- #
+                    # --- Identification Step (Requires Authentication) --- #
                     elif action == "identify" and not is_identified:
-                        # Players can identify without authentication (Jackbox-style)
-                        # Hosts should authenticate first, but we'll allow identification either way
+                        if not is_authenticated:
+                            await self.sendToClient(temp_client_id, {"action": "error", "message": "Must authenticate with JWT token before identification."}, websocket)
+                            continue
                         
                         game_id = data.get("gameId")
                         role = data.get("role", "player")  # Default to player
@@ -147,15 +151,16 @@ class ConnectionService:
                             await self.sendToClient(temp_client_id, {"action": "error", "message": "gameId is required for identification."}, websocket)
                             continue
 
-                        # For hosts, we might want to require authentication in the future
-                        # For now, allow both authenticated and unauthenticated identification
+                        # For guest tokens, validate they're for the correct game
+                        token_type = payload.get("type", "access_token")
+                        if token_type == "guest":
+                            token_game_id = payload.get("game_id")
+                            if token_game_id != game_id:
+                                await self.sendToClient(temp_client_id, {"action": "error", "message": "JWT token not valid for this game."}, websocket)
+                                continue
                         
-                        # Generate a proper client ID based on authentication status
-                        if is_authenticated:
-                            client_id = f"auth_{user_id}_{uuid.uuid4().hex[:8]}"
-                        else:
-                            # For unauthenticated players, use a player-specific ID
-                            client_id = f"player_{uuid.uuid4().hex[:8]}"
+                        # Generate a proper client ID based on authentication
+                        client_id = f"auth_{user_id}_{uuid.uuid4().hex[:8]}"
 
                         # Update local connection tracking
                         del self.localConnections[temp_client_id]  # Remove temp ID
@@ -168,11 +173,13 @@ class ConnectionService:
                             "isHost": is_host,
                             "authenticated": is_authenticated,
                             "playerName": player_name,
-                            "phoneNumber": phone_number
+                            "phoneNumber": phone_number,
+                            "tokenType": token_type,
+                            "userId": user_id
                         }
                         
                         is_identified = True
-                        logger.info(f"Client identified: {client_id} in game {game_id} as {'host' if is_host else 'player'} (authenticated: {is_authenticated})")
+                        logger.info(f"Client identified: {client_id} in game {game_id} as {'host' if is_host else 'player'} (token type: {token_type})")
                         
                         # Subscribe to game channels
                         broadcast_channel = f"game:{game_id}:broadcast"
@@ -188,17 +195,22 @@ class ConnectionService:
                             "clientId": client_id,
                             "gameId": game_id,
                             "role": role,
-                            "authenticated": is_authenticated
+                            "authenticated": is_authenticated,
+                            "tokenType": token_type
                         }, websocket)
                         continue
 
-                    # --- Require Identification for All Other Actions --- #
+                    # --- Require Authentication and Identification for All Other Actions --- #
+                    elif not is_authenticated:
+                        logger.warning(f"Unauthenticated action '{action}' from {temp_client_id}. JWT authentication required.")
+                        await self.sendToClient(temp_client_id, {"action": "error", "message": "Must authenticate with JWT token first."}, websocket)
+                        continue
                     elif not is_identified:
                         logger.warning(f"Unidentified action '{action}' from {temp_client_id}. Identification required.")
                         await self.sendToClient(temp_client_id, {"action": "error", "message": "Please identify first with gameId and role."}, websocket)
                         continue
 
-                    # --- Handle Identified Client Messages (Relay) --- #
+                    # --- Handle Authenticated Client Messages (Relay) --- #
                     else:
                         # Add sender context before relaying
                         data_to_publish = data.copy()
@@ -237,10 +249,6 @@ class ConnectionService:
         except (ConnectionClosedOK, ConnectionClosedError) as e:
             disconnected_client_id = client_id # Use the last known ID (actual or temp)
             logger.info(f"Client {disconnected_client_id} disconnected ({type(e).__name__}). Server: {self.serverId}")
-            # Note: Game ending logic (if host disconnects) is now implicitly
-            # handled by the host client NOT sending heartbeats or the server detecting
-            # the disconnect and broadcasting gameEnded (see finally block).
-            # Player disconnects are handled by the host receiving playerLeft messages.
         except Exception as e:
             error_client_id = client_id # Use the last known ID
             logger.error(f"Error in connection handler for client {error_client_id}: {e}", exc_info=True)
@@ -296,12 +304,23 @@ class ConnectionService:
             # Use provided websocket or look up from connections
             target_ws = websocket or self.localConnections.get(client_id)
             
-            if target_ws and not target_ws.closed:
-                message_str = json.dumps(message)
-                await target_ws.send(message_str)
-                logger.debug(f"Sent message to client {client_id}: {message.get('action', 'unknown')}")
+            if target_ws:
+                # Check if websocket is still open using proper attribute
+                try:
+                    if hasattr(target_ws, 'close_code') and target_ws.close_code is not None:
+                        # Connection is closed
+                        logger.warning(f"Cannot send message to client {client_id}: connection is closed")
+                        return
+                    
+                    message_str = json.dumps(message)
+                    await target_ws.send(message_str)
+                    logger.debug(f"Sent message to client {client_id}: {message.get('action', 'unknown')}")
+                except websockets.exceptions.ConnectionClosed:
+                    logger.warning(f"Cannot send message to client {client_id}: connection closed during send")
+                    # Remove the client from our connections if send failed
+                    self.localConnections.pop(client_id, None)
             else:
-                logger.warning(f"Cannot send message to client {client_id}: connection not found or closed")
+                logger.warning(f"Cannot send message to client {client_id}: connection not found")
                 
         except Exception as e:
             logger.error(f"Error sending message to client {client_id}: {e}")

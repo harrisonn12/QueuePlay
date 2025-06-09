@@ -27,6 +27,7 @@ class AuthService:
         self.redis = redis_adapter
         self.jwt_secret = jwt_secret
         self.token_expiry_minutes = 15
+        self.guest_token_expiry_minutes = 30
         self.session_expiry_hours = 24 
         
     async def create_session(self, user_id: str, metadata: Dict[str, Any] = None) -> str:
@@ -128,4 +129,27 @@ class AuthService:
             logger.info(f"Invalidated session {session_id}")
             return True
         return False    
+    
+    async def create_guest_jwt_token(self, user_id: str, game_id: str, player_name: str = None, metadata: Dict[str, Any] = None) -> str:
+        """
+        Create a limited-scope JWT token for guest players.
+        No session required - direct token generation with 30-minute expiry.
+        Used for players who join games without full authentication.
+        """
+        now = datetime.utcnow()
+        payload = {
+            "user_id": user_id,
+            "game_id": game_id,
+            "player_name": player_name,
+            "iat": now,
+            "exp": now + timedelta(minutes=self.guest_token_expiry_minutes),  # 30-minute expiry for guests
+            "type": "guest",
+            "metadata": metadata or {}
+        }
+        
+        # Generate JWT token
+        token = jwt.encode(payload, self.jwt_secret, algorithm="HS256")
+        
+        logger.info(f"Generated guest JWT token for user {user_id} in game {game_id}")
+        return token
     

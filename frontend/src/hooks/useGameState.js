@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { getApiBaseUrl } from "../utils/api";
+import { getApiBaseUrl, authenticatedApiRequest, getStoredToken } from "../utils/api";
 
 /**
  * Custom hook to manage game state
@@ -214,71 +214,80 @@ export const useGameState = () => {
     if (!gameType) {
       throw new Error("Cannot create lobby: gameType is missing.");
     }
-    const response = await fetch(`${API_BASE_URL}/createLobby`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Add any other headers your API might require, like Authorization
-      },
-      body: JSON.stringify({
-        hostId: clientId,
-        gameType: gameType, // Use the provided gameType
-      }),
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("createLobby API Error:", response.status, errorText);
-      throw new Error(
-        `Failed to create lobby: ${response.status} ${errorText}`,
-      );
+    
+    try {
+      // Get token at execution time, not definition time
+      const currentToken = getStoredToken();
+      console.log(`Using token for createLobby API: ${currentToken ? 'present' : 'missing'}`);
+      
+      const data = await authenticatedApiRequest('/createLobby', {
+        method: "POST",
+        body: JSON.stringify({
+          hostId: clientId,
+          gameType: gameType,
+        }),
+      }, currentToken);
+      
+      console.log("createLobby API Success:", data);
+      if (!data.gameId) {
+        throw new Error("Lobby created, but gameId missing in response.");
+      }
+      return data.gameId;
+    } catch (error) {
+      console.error("createLobby API Error:", error);
+      throw new Error(`Failed to create lobby: ${error.message}`);
     }
-    const data = await response.json();
-    console.log("createLobby API Success:", data);
-    if (!data.gameId) {
-      throw new Error("Lobby created, but gameId missing in response.");
-    }
-    return data.gameId;
   };
 
   const getQrCodeAPI = async (gameId) => {
     console.log(`Calling getLobbyQRCode API for game ${gameId}...`);
-    const response = await fetch(
-      `${API_BASE_URL}/getLobbyQRCode?gameId=${gameId}`,
-    );
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("getLobbyQRCode API Error:", response.status, errorText);
-      throw new Error(`Failed to get QR code: ${response.status} ${errorText}`);
+    
+    try {
+      // Get token at execution time, not definition time
+      const currentToken = getStoredToken();
+      console.log(`Using token for QR API: ${currentToken ? 'present' : 'missing'}`);
+      
+      const data = await authenticatedApiRequest(
+        `/getLobbyQRCode?gameId=${gameId}`,
+        { method: "GET" },
+        currentToken
+      );
+      
+      console.log("getLobbyQRCode API Success:", data);
+      if (!data.qrCodeData) {
+        console.warn("QR code data missing in API response.");
+        return null;
+      }
+      return data.qrCodeData;
+    } catch (error) {
+      console.error("getLobbyQRCode API Error:", error);
+      throw new Error(`Failed to get QR code: ${error.message}`);
     }
-    const data = await response.json();
-    console.log("getLobbyQRCode API Success:", data);
-    if (!data.qrCodeData) {
-      // Decide if this is critical - maybe return null or a default?
-      console.warn("QR code data missing in API response.");
-      return null;
-    }
-    return data.qrCodeData; // Return the string data (e.g., URL) to be encoded
   };
 
   const getQuestionsAPI = async (gameId) => {
     console.log(`Calling getQuestions API for game ${gameId}...`);
-    // Adjust endpoint/query params as needed by your backend
-    const response = await fetch(
-      `${API_BASE_URL}/getQuestions?gameId=${gameId}`,
-    );
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("getQuestions API Error:", response.status, errorText);
-      throw new Error(
-        `Failed to get questions: ${response.status} ${errorText}`,
+    
+    try {
+      // Get token at execution time, not definition time
+      const currentToken = getStoredToken();
+      console.log(`Using token for Questions API: ${currentToken ? 'present' : 'missing'}`);
+      
+      const data = await authenticatedApiRequest(
+        `/getQuestions?gameId=${gameId}`,
+        { method: "GET" },
+        currentToken
       );
+      
+      console.log("getQuestions API Success:", data);
+      if (!data.questions || !Array.isArray(data.questions)) {
+        throw new Error("Invalid questions data received from API.");
+      }
+      return data.questions;
+    } catch (error) {
+      console.error("getQuestions API Error:", error);
+      throw new Error(`Failed to get questions: ${error.message}`);
     }
-    const data = await response.json();
-    console.log("getQuestions API Success:", data);
-    if (!data.questions || !Array.isArray(data.questions)) {
-      throw new Error("Invalid questions data received from API.");
-    }
-    return data.questions;
   };
 
   return {
