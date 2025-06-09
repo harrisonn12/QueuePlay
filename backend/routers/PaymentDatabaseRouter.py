@@ -2,7 +2,7 @@ import ast
 from dotenv import load_dotenv
 from fastapi import APIRouter
 from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
-from GamerManagementService.src.databases.Gamer import Gamer
+from backend.GamerManagementService.models.Gamer import Gamer
 from GamerManagementService.GamerManagementService import GamerManagementService
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 from CouponService.src.databases.Coupon import Coupon
+from commons.enums import NotificationType
 
 EXPIRATION_IN_DAYS = 7
 
@@ -11,8 +12,14 @@ class GamerManagementService:
         self.gamersDatabase = gamersDatabase
         self.couponsDatabase = couponsDatabase
 
-    def sendSMS(self, gamerId, notification):
-        pass
+    # Sends a text message to a gamerId.phoneNumber
+    def sendSMSByNotificationType(self, gamerId, notificationType: NotificationType) -> bool:
+        builder = NotificationBuilder.get(notificationType)
+
+        message = builder.buildMessage()
+
+        gamer = self.gamersDatabase.getGamer(gamerId)
+        return self.sendSMS(gamer.phoneNumber, message)
 
     # Returns a dictionary mapping gamers who have expiring coupons to a list of their couponId's where coupons will expire within EXPIRATION_IN_DAYS
     def getGamersWithExpiringCoupons(self) -> dict:

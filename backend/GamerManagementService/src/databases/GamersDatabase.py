@@ -1,5 +1,5 @@
 import json
-from GamerManagementService.src.databases.Gamer import Gamer
+from backend.GamerManagementService.models.Gamer import Gamer
 from commons.enums.DatabaseType import DatabaseType
 from commons.adapters.DatabaseAdapter import DatabaseAdapter
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
