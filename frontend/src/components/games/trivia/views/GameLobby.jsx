@@ -15,6 +15,7 @@ const GameLobby = ({
   playerInfoStage,
   hostGame,
   initiateJoinGame,
+  completePlayerJoin,
   startGame,
   setPlayerNameInput,
   playerPhoneInput,
@@ -61,14 +62,8 @@ const GameLobby = ({
     localStorage.setItem(`phoneNumber_${joinTargetGameId}`, playerPhoneInput);
     localStorage.setItem(`playerName_${joinTargetGameId}`, generatedUsername);
     
-    setPlayerInfoStage('joining');
-    setStatus(`Joining game ${joinTargetGameId} as ${generatedUsername}...`);
-
-    // Set role and gameId directly (using the generated username)
-    console.log(`Setting state for joining: gameId=${joinTargetGameId}, role=player`);
-    setGameId(joinTargetGameId);
-    setRole('player');
-    setLocalPlayerName(generatedUsername);
+    // Call the actual join function - this was missing!
+    await completePlayerJoin(joinTargetGameId, generatedUsername, playerPhoneInput);
   };
   
   // If player is entering info, show that form first

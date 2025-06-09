@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getApiBaseUrl, getWebSocketUrl } from '../utils/api';
+import { getApiBaseUrl, getWebSocketUrl, getStoredToken, storeToken, clearStoredToken, getGuestToken, storeGuestInfo, getGuestUserId } from '../utils/api';
 
 /**
  * Authentication hook for QueuePlay JWT management
@@ -12,174 +12,217 @@ import { getApiBaseUrl, getWebSocketUrl } from '../utils/api';
  */
 export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [userType, setUserType] = useState(null); // 'host' or 'guest'
 
-  const API_BASE_URL = getApiBaseUrl();
+
 
   // Auto-refresh token every 10 minutes (before 15-minute expiry)
   const TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
   /**
-   * Get fresh JWT token using session cookie
+   * Login function for hosts (OAuth integration point)
+   */
+  const login = useCallback(async (email = "test@example.com", password = "password") => {
+    try {
+      console.log('useAuth: Starting login process for:', email);
+      // Step 1: Host authentication via OAuth would go here
+      // For now, using the existing test flow
+      
+      // Step 2: Create session with backend
+      console.log('useAuth: Creating session with backend...');
+      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          user_id: email,
+          username: email.split('@')[0]
+        })
+      });
+
+      console.log('useAuth: Login response status:', response.status);
+
+      if (response.ok) {
+        // Step 3: Get JWT token
+        console.log('useAuth: Fetching JWT token...');
+        const tokenResponse = await fetch(`${getApiBaseUrl()}/auth/token`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+
+        console.log('useAuth: Token response status:', tokenResponse.status);
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          console.log('useAuth: Token response data:', tokenData);
+          
+          // Backend returns 'access_token', not 'token'
+          const jwtToken = tokenData.access_token;
+          setToken(jwtToken);
+          storeToken(jwtToken, tokenData.expires_in || 900); // Use expires_in from response
+          setIsAuthenticated(true);
+          setUser({ id: email, email, name: email.split('@')[0] });
+          setUserType('host');
+          
+          console.log('useAuth: Login successful, authentication set');
+          return { success: true };
+        } else {
+          console.error('useAuth: Token fetch failed with status:', tokenResponse.status);
+        }
+      } else {
+        console.error('useAuth: Session creation failed with status:', response.status);
+      }
+      
+      return { success: false, error: 'Authentication failed' };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: error.message };
+    }
+  }, []);
+
+  /**
+   * Guest authentication for players
+   */
+  const loginAsGuest = useCallback(async (gameId, playerName = null, phoneNumber = null) => {
+    try {
+      const response = await getGuestToken(gameId, playerName, phoneNumber);
+      
+      setToken(response.token);
+      storeToken(response.token, response.expires_in);
+      storeGuestInfo(response.user_id);
+      setIsAuthenticated(true);
+      setUser({ 
+        id: response.user_id, 
+        name: playerName || 'Guest Player',
+        type: 'guest',
+        gameId: gameId
+      });
+      setUserType('guest');
+      
+      return { success: true, userId: response.user_id };
+    } catch (error) {
+      console.error('Guest login error:', error);
+      return { success: false, error: error.message };
+    }
+  }, []);
+
+  /**
+   * Refresh JWT token for hosts
    */
   const refreshToken = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/token`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setToken(data.access_token);
-        return data.access_token;
-      } else {
-        // Session expired, clear auth state
-        setIsAuthenticated(false);
-        setCurrentUser(null);
-        setToken(null);
-        return null;
+      if (userType === 'guest') {
+        // Guest tokens can't be refreshed, return existing token
+        return token;
       }
-    } catch (err) {
-      console.error('Token refresh error:', err);
+
+      // Prevent multiple simultaneous refresh attempts
+      if (refreshToken._inProgress) {
+        console.log('Token refresh already in progress, waiting...');
+        return refreshToken._promise;
+      }
+
+      refreshToken._inProgress = true;
+      refreshToken._promise = (async () => {
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/auth/token`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Token refresh successful');
+            
+            // Backend returns 'access_token', not 'token'
+            const jwtToken = data.access_token;
+            setToken(jwtToken);
+            storeToken(jwtToken, data.expires_in || 900); // Use expires_in from response
+            return jwtToken;
+          } else if (response.status === 429) {
+            console.warn('Rate limit hit during token refresh, using existing token');
+            const existingToken = getStoredToken();
+            if (existingToken) {
+              return existingToken;
+            }
+            throw new Error('Rate limited and no existing token');
+          } else {
+            throw new Error(`Token refresh failed: ${response.status}`);
+          }
+        } finally {
+          refreshToken._inProgress = false;
+          refreshToken._promise = null;
+        }
+      })();
+
+      return await refreshToken._promise;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      
+      // Don't logout on rate limit - use existing token if available
+      if (error.message.includes('Rate limited')) {
+        const existingToken = getStoredToken();
+        if (existingToken) {
+          console.log('Using existing token after rate limit');
+          return existingToken;
+        }
+      }
+      
+      // On other failures, clear authentication
+      logout();
       return null;
     }
-  }, [API_BASE_URL]);
+  }, [userType, token]);
 
   /**
-   * Login with user credentials
-   * TODO: Replace with OAuth provider integration (Auth0, Google, etc.)
-   */
-  const login = useCallback(async (userId, username) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Step 1: Login to get session cookie
-      const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Include cookies
-        body: JSON.stringify({ user_id: userId, username: username })
-      });
-      
-      if (!loginResponse.ok) {
-        throw new Error(`Login failed: ${loginResponse.status}`);
-      }
-      
-      const loginData = await loginResponse.json();
-      console.log('Login successful:', loginData);
-      
-      // Step 2: Get JWT token using session cookie
-      const tokenResponse = await fetch(`${API_BASE_URL}/auth/token`, {
-        method: 'POST',
-        credentials: 'include' // Include session cookie
-      });
-      
-      if (!tokenResponse.ok) {
-        throw new Error(`Token generation failed: ${tokenResponse.status}`);
-      }
-      
-      const tokenData = await tokenResponse.json();
-      console.log('Token received:', tokenData);
-      
-      // Update state
-      setToken(tokenData.access_token);
-      setCurrentUser({ user_id: userId, username: username });
-      setIsAuthenticated(true);
-      
-      return tokenData.access_token;
-      
-    } catch (err) {
-      console.error('Authentication error:', err);
-      setError(err.message);
-      setIsAuthenticated(false);
-      setCurrentUser(null);
-      setToken(null);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [API_BASE_URL]);
-
-  /**
-   * Logout and clear session
+   * Logout function
    */
   const logout = useCallback(async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (err) {
-      console.error('Logout error:', err);
+      if (userType === 'host') {
+        // For hosts, call logout endpoint
+        await fetch(`${getApiBaseUrl()}/auth/logout`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+      }
+      // For guests, just clear local state
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Always clear local state
+      setIsAuthenticated(false);
+      setUser(null);
+      setToken(null);
+      setUserType(null);
+      clearStoredToken();
     }
-    
-    // Clear state regardless of API call success
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setToken(null);
-    setError(null);
-  }, [API_BASE_URL]);
+  }, [userType]);
 
   /**
-   * Make authenticated API request with auto-retry on token expiry
+   * Get current JWT token (from state or storage)
    */
-  const apiRequest = useCallback(async (url, options = {}) => {
-    let currentToken = token;
-    
-    // If no token, try to refresh first
-    if (!currentToken) {
-      currentToken = await refreshToken();
-      if (!currentToken) {
-        throw new Error('No valid authentication token');
-      }
-    }
-
-    // Make request with current token
-    const requestOptions = {
-      ...options,
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentToken}`,
-        ...options.headers,
-      },
-    };
-
-    let response = await fetch(url, requestOptions);
-
-    // If token expired, refresh and retry once
-    if (response.status === 401) {
-      console.log('Token expired, refreshing...');
-      currentToken = await refreshToken();
-      
-      if (currentToken) {
-        requestOptions.headers['Authorization'] = `Bearer ${currentToken}`;
-        response = await fetch(url, requestOptions);
-      } else {
-        throw new Error('Authentication failed');
-      }
-    }
-
-    return response;
-  }, [token, refreshToken]);
+  const getCurrentToken = useCallback(() => {
+    return token || getStoredToken();
+  }, [token]);
 
   /**
    * Get WebSocket connection with JWT authentication
    */
   const getWebSocketConnection = useCallback(async (gameId, role = 'host') => {
-    let currentToken = token;
+    let currentToken = getCurrentToken();
     
-    // Ensure we have a fresh token
-    if (!currentToken) {
+    // Ensure we have a fresh token for hosts
+    if (!currentToken && userType === 'host') {
       currentToken = await refreshToken();
       if (!currentToken) {
         throw new Error('No valid authentication token for WebSocket');
       }
+    }
+
+    if (!currentToken) {
+      throw new Error('No authentication token available');
     }
 
     // Create WebSocket connection using centralized URL
@@ -205,41 +248,90 @@ export const useAuth = () => {
     };
 
     return ws;
-  }, [token, refreshToken]);
+  }, [getCurrentToken, userType, refreshToken]);
 
   /**
-   * Check if session exists on app load
+   * Check for existing authentication on app load (OAuth-ready)
+   * No automatic login - only restore existing valid sessions
    */
   useEffect(() => {
-    const checkSession = async () => {
+    const checkExistingAuth = () => {
       try {
-        const newToken = await refreshToken();
-        if (newToken) {
-          // Session exists, we'll need to get user info from somewhere
-          // For now, just mark as authenticated
+        const storedToken = getStoredToken();
+        const guestUserId = getGuestUserId();
+        
+        if (storedToken) {
+          // Only restore if we have a valid stored token
+          setToken(storedToken);
           setIsAuthenticated(true);
+          
+          if (guestUserId) {
+            // Restore guest session
+            setUserType('guest');
+            setUser({ 
+              id: guestUserId, 
+              name: 'Guest Player',
+              type: 'guest'
+            });
+            console.log('Restored guest session');
+          } else {
+            // Restore host session from valid JWT
+            try {
+              if (storedToken.includes('.') && storedToken.split('.').length === 3) {
+                const payload = JSON.parse(atob(storedToken.split('.')[1]));
+                setUserType('host');
+                setUser({ 
+                  id: payload.user_id || 'host', 
+                  name: payload.username || 'Host',
+                  type: 'host'
+                });
+                console.log('Restored host session from JWT');
+              }
+            } catch (e) {
+              console.log('Invalid stored token, clearing auth state');
+              logout();
+            }
+          }
+        } else {
+          // No stored token - user needs to login
+          setIsAuthenticated(false);
+          console.log('No stored authentication - login required');
         }
       } catch (error) {
-        console.log('No existing session');
+        console.log('Error checking existing auth:', error);
+        setIsAuthenticated(false);
       }
     };
 
-    checkSession();
-  }, [refreshToken]);
+    checkExistingAuth();
+  }, []); // No dependencies - only run once on mount
 
   /**
-   * Set up automatic token refresh
+   * Set up automatic token refresh for hosts only
+   * TEMPORARILY DISABLED to prevent rate limiting
    */
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || userType !== 'host') return;
 
-    const interval = setInterval(() => {
-      console.log('Auto-refreshing token...');
-      refreshToken();
+    // TEMPORARILY DISABLED automatic refresh to prevent rate limiting
+    console.log('Auto token refresh disabled to prevent rate limiting');
+    return;
+
+    /* const interval = setInterval(async () => {
+      // Only auto-refresh if we have a valid stored token that's close to expiry
+      const storedToken = getStoredToken();
+      if (storedToken) {
+        console.log('Auto-refreshing host token...');
+        try {
+          await refreshToken();
+        } catch (error) {
+          console.log('Auto-refresh failed, will retry next interval');
+        }
+      }
     }, TOKEN_REFRESH_INTERVAL);
 
-    return () => clearInterval(interval);
-  }, [isAuthenticated, refreshToken]);
+    return () => clearInterval(interval); */
+  }, [isAuthenticated, userType]);
 
   const getAuthHeaders = useCallback(() => {
     if (token) {
@@ -253,15 +345,14 @@ export const useAuth = () => {
 
   return {
     isAuthenticated,
-    currentUser,
-    token,
-    loading,
-    error,
+    user,
+    token: getCurrentToken(),
+    userType,
     login,
+    loginAsGuest,
     logout,
     refreshToken,
-    getAuthHeaders,
-    apiRequest,
-    getWebSocketConnection,
+    getCurrentToken,
+    getWebSocketConnection
   };
 }; 

@@ -1,0 +1,185 @@
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-container {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+}
+
+.login-header h1 {
+  color: #2d3748;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-header p {
+  color: #718096;
+  font-size: 1.1rem;
+  margin: 0 0 30px 0;
+}
+
+.login-content h2 {
+  color: #2d3748;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.login-content > p {
+  color: #718096;
+  margin: 0 0 30px 0;
+  font-size: 1rem;
+}
+
+.error-message {
+  background: #fed7d7;
+  color: #c53030;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  border: 1px solid #feb2b2;
+}
+
+.test-login-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f7fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.test-login-section h3 {
+  color: #4a5568;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 15px 0;
+}
+
+.test-login-btn {
+  width: 100%;
+  padding: 12px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.test-login-btn:hover:not(:disabled) {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.test-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.oauth-section {
+  margin-bottom: 30px;
+}
+
+.oauth-section h3 {
+  color: #4a5568;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 15px 0;
+}
+
+.oauth-btn {
+  width: 100%;
+  padding: 12px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #4a5568;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.oauth-btn:hover:not(:disabled) {
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
+}
+
+.oauth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.oauth-icon {
+  font-size: 1.2rem;
+}
+
+.google-btn:hover:not(:disabled) {
+  border-color: #db4437;
+  color: #db4437;
+}
+
+.github-btn:hover:not(:disabled) {
+  border-color: #333;
+  color: #333;
+}
+
+.player-info {
+  margin-top: 30px;
+  padding-top: 20px;
+}
+
+.player-info hr {
+  border: none;
+  height: 1px;
+  background: #e2e8f0;
+  margin: 0 0 20px 0;
+}
+
+.player-info p {
+  color: #718096;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 30px 20px;
+    margin: 10px;
+  }
+  
+  .login-header h1 {
+    font-size: 2rem;
+  }
+  
+  .oauth-btn {
+    font-size: 0.9rem;
+  }
+} 

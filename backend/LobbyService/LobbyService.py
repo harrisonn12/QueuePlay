@@ -77,46 +77,7 @@ class LobbyService:
             await self.redis.delete(lobby_key, players_key, client_game_key)
             return None
 
-    async def join_lobby(self, player_id: str, game_id: str) -> Union[dict, None]:
-        """Adds a player to an existing lobby if it exists."""
-        lobby_key = self._get_lobby_key(game_id)
-        players_key = self._get_lobby_players_key(game_id)
-        client_game_key = self._get_client_game_key(player_id)
-
-        try:
-            # Check if lobby exists first
-            lobby_info = await self.get_lobby_info(game_id)
-            if not lobby_info:
-                logger.warning(f"Attempt to join non-existent lobby {game_id} by {player_id}")
-                return None
-
-            host_id = lobby_info.get("hostId")
-
-            # Add player to set and update client-game mapping
-            pipe = await self.redis.pipeline(transaction=True)
-            async with pipe:
-                pipe.sadd(players_key, player_id)
-                # Refresh TTLs on activity
-                pipe.expire(players_key, LOBBY_TTL)
-                pipe.expire(lobby_key, LOBBY_TTL)
-                # Map client to this game
-                pipe.set(client_game_key, game_id, ex=CLIENT_GAME_TTL)
-                results = await pipe.execute()
-
-            if not results[0]: # sadd returns number of elements added (0 if already member)
-                 logger.info(f"Player {player_id} was already in lobby {game_id}")
-                 # Still return success info if they were already there
-            else:
-                 logger.info(f"Player {player_id} joined lobby {game_id}")
-
-            return {
-                 "gameId": game_id,
-                 "hostId": host_id # Return hostId to the joining player
-            }
-
-        except Exception as e:
-            logger.error(f"Error joining lobby {game_id} for player {player_id}: {e}", exc_info=True)
-            return None
+# REMOVED: Redundant method - functionality moved to add_player_to_lobby()
 
     async def get_lobby_info(self, game_id: str) -> Union[dict, None]:
         """Retrieves basic lobby information (hostId, etc.)."""
@@ -151,21 +112,7 @@ class LobbyService:
             logger.error(f"Error getting game ID for client {client_id}: {e}", exc_info=True)
             return None
 
-    async def remove_player_from_lobby(self, client_id: str, game_id: str) -> bool:
-        """Removes a player from the lobby's player set and their client-game mapping."""
-        players_key = self._get_lobby_players_key(game_id)
-        client_game_key = self._get_client_game_key(client_id)
-        try:
-            pipe = await self.redis.pipeline(transaction=True)
-            async with pipe:
-                pipe.srem(players_key, client_id) # Remove from game player set
-                pipe.delete(client_game_key) # Remove client's game mapping
-                results = await pipe.execute()
-            logger.info(f"Removed player {client_id} from lobby {game_id} (Removed from set: {results[0] > 0})")
-            return True # Indicate success even if player wasn't in set (idempotent)
-        except Exception as e:
-            logger.error(f"Error removing player {client_id} from lobby {game_id}: {e}", exc_info=True)
-            return False
+# REMOVED: Redundant method - functionality moved to enhanced remove_player_from_lobby() below
 
     async def delete_lobby(self, game_id: str):
         """Deletes all Redis keys associated with a lobby."""
@@ -187,3 +134,92 @@ class LobbyService:
 
     def generateLobbyQRCode(self, gameSessionId: str) -> str:
         return self.qrCodeGenerator.generate(gameSessionId)
+
+    async def lobby_exists(self, game_id: str) -> bool:
+        """Check if a lobby exists."""
+        lobby_key = self._get_lobby_key(game_id)
+        try:
+            exists = await self.redis.exists(lobby_key)
+            return bool(exists)
+        except Exception as e:
+            logger.error(f"Error checking if lobby {game_id} exists: {e}", exc_info=True)
+            return False
+
+    async def add_player_to_lobby(self, game_id: str, player_id: str, player_name: str, phone_number: str = None) -> Union[dict, None]:
+        """Add a player to a lobby with their details. Replaces old join_lobby() method."""
+        players_key = self._get_lobby_players_key(game_id)
+        client_game_key = self._get_client_game_key(player_id)
+        player_details_key = f"{RedisKeyPrefix.PLAYER.value}:{player_id}:details"
+        
+        try:
+            # Check if lobby exists first and get lobby info
+            lobby_info = await self.get_lobby_info(game_id)
+            if not lobby_info:
+                logger.warning(f"Attempt to add player {player_id} to non-existent lobby {game_id}")
+                return None
+            
+            host_id = lobby_info.get("hostId")
+
+            # Store player details and add to lobby
+            pipe = await self.redis.pipeline(transaction=True)
+            async with pipe:
+                # Add player to lobby's player set
+                pipe.sadd(players_key, player_id)
+                pipe.expire(players_key, LOBBY_TTL)
+                
+                # Store player details
+                player_details = {
+                    "player_id": player_id,
+                    "player_name": player_name,
+                    "game_id": game_id,
+                    "joined_at": int(time.time())
+                }
+                if phone_number:
+                    player_details["phone_number"] = phone_number
+                
+                pipe.hmset(player_details_key, player_details)
+                pipe.expire(player_details_key, LOBBY_TTL)
+                
+                # Map client to this game
+                pipe.set(client_game_key, game_id, ex=CLIENT_GAME_TTL)
+                
+                # Refresh lobby TTL on activity
+                lobby_key = self._get_lobby_key(game_id)
+                pipe.expire(lobby_key, LOBBY_TTL)
+                
+                results = await pipe.execute()
+
+            if not results[0]: # sadd returns number of elements added (0 if already member)
+                logger.info(f"Player {player_id} was already in lobby {game_id}")
+            else:
+                logger.info(f"Added player {player_id} ({player_name}) to lobby {game_id}")
+            
+            return {
+                "gameId": game_id,
+                "hostId": host_id  # Return hostId to the joining player
+            }
+
+        except Exception as e:
+            logger.error(f"Error adding player {player_id} to lobby {game_id}: {e}", exc_info=True)
+            return None
+
+    async def remove_player_from_lobby(self, game_id: str, player_id: str) -> bool:
+        """Remove a player from the lobby and clean up their details."""
+        players_key = self._get_lobby_players_key(game_id)
+        client_game_key = self._get_client_game_key(player_id)
+        player_details_key = f"{RedisKeyPrefix.PLAYER.value}:{player_id}:details"
+        
+        try:
+            pipe = await self.redis.pipeline(transaction=True)
+            async with pipe:
+                pipe.srem(players_key, player_id)  # Remove from game player set
+                pipe.delete(client_game_key)  # Remove client's game mapping
+                pipe.delete(player_details_key)  # Remove player details
+                results = await pipe.execute()
+            
+            logger.info(f"Removed player {player_id} from lobby {game_id} (Removed from set: {results[0] > 0})")
+            return True  # Indicate success even if player wasn't in set (idempotent)
+            
+        except Exception as e:
+            logger.error(f"Error removing player {player_id} from lobby {game_id}: {e}", exc_info=True)
+            return False

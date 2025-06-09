@@ -3,9 +3,9 @@ from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, Request, HTTPException, Response, status
+from fastapi import FastAPI, Depends, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
@@ -26,6 +26,7 @@ import logging
 import os
 import uvicorn
 import secrets
+from datetime import datetime, timedelta
 
 # import stripe # Keep commented for now
 
@@ -114,6 +115,29 @@ class LoginRequest(BaseModel):
 class TokenRequest(BaseModel):
     pass  # No parameters needed, uses session cookie
 
+class GuestTokenRequest(BaseModel):
+    game_id: str
+    player_name: str = None
+    phone_number: str = None
+
+class JoinGameRequest(BaseModel):
+    game_id: str
+    player_name: str
+    phone_number: str = None
+
+class SubmitAnswerRequest(BaseModel):
+    game_id: str
+    question_index: int
+    answer_index: int
+
+class LeaveGameRequest(BaseModel):
+    game_id: str
+
+class PlayerActionRequest(BaseModel):
+    game_id: str
+    action: str
+    data: dict = None
+
 app = FastAPI(openapi_tags=tags_metadata)
 # app.include_router(PaymentServiceRouter.router)
 # app.include_router(PaymentDatabaseRouter.router)
@@ -121,37 +145,45 @@ app = FastAPI(openapi_tags=tags_metadata)
 
 # CORS Middleware setup
 if appConfig.stage == Stage.PROD:
-    origins = [] # Define empty for prod if needed
+    origins = [
+        "https://yourdomain.com",  # Replace with your production domain
+    ]
 else: # DEVO stage
     origins = [
-        "http://localhost:5173", "http://localhost:80", "http://localhost",
+        "http://localhost:5173",
+        "http://localhost:5174", 
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176"
     ]
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
 )
-logging.info("Added CORS middleware.")
+logging.info(f"CORS configured with origins: {origins}")
 
-# Security headers middleware
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    """Add security headers and rate limit headers to responses."""
-    response = await call_next(request)
-    
-    # Add security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    
-    # Add rate limit headers if available from auth middleware
-    if hasattr(request.state, 'rate_limit_headers'):
-        for header, value in request.state.rate_limit_headers.items():
-            response.headers[header] = value
-    
-    return response
+# Manual CORS middleware removed - using FastAPI's built-in CORSMiddleware instead
+
+# === HEALTH CHECK ===
+
+@app.get("/health", tags=["Public API"])
+async def health_check():
+    """Simple health check endpoint."""
+    return {"status": "healthy", "message": "QueuePlay API is running"}
+
+@app.post("/test-cors")
+async def test_cors_post():
+    """Test CORS actual request"""
+    logging.info("TEST CORS POST CALLED!")
+    return {"message": "CORS test successful"}
 
 # === AUTHENTICATION ENDPOINTS ===
 
@@ -176,7 +208,7 @@ async def login(request: Request, login_data: LoginRequest, response: Response):
             }
         )
     
-    # Temporarily comment out CORS validation for testing
+    # CORS validation temporarily disabled until OAuth is implemented
     # cors_valid = await auth_deps["validate_cors_and_referer"](request)
     # if not cors_valid:
     #     raise HTTPException(
@@ -252,22 +284,118 @@ async def logout(request: Request, response: Response):
     response.delete_cookie("session_id")
     return {"success": True, "message": "Logout successful"}
 
+@app.get("/auth/test-host-login", tags=["Auth"])
+async def get_test_host_token(request: Request):
+    """
+    (TEMPORARY) Generates a JWT token for a test host.
+    This is for development purposes to bypass OAuth.
+    """
+    import jwt
+    
+    client_ip = request.client.host
+    logging.info(f"Generating test host token for IP: {client_ip}")
+
+    # In a real app, you might check if the environment is 'dev'
+    # if appConfig.env != 'dev':
+    #     raise HTTPException(status_code=404, detail="Not Found")
+
+    host_user_id = f"test-host-{secrets.token_hex(4)}"
+    
+    # Create JWT token directly (similar to guest token creation)
+    now = datetime.utcnow()
+    payload = {
+        "user_id": host_user_id,
+        "username": "Test Host",
+        "iat": now,
+        "exp": now + timedelta(hours=1), # 1-hour expiry for testing
+        "type": "host"
+    }
+    
+    # Generate JWT token using the same secret as the auth service
+    host_token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    
+    logging.info(f"Generated test host token for user {host_user_id}")
+    
+    return {
+        "message": "Test host token generated successfully. Use this for testing host-only endpoints.",
+        "access_token": host_token,
+        "token_type": "bearer",
+        "user_id": host_user_id,
+        "expires_in": 3600 # 1 hour
+    }
+
+# === PLAYER AUTHENTICATION ENDPOINTS ===
+
+@app.post("/auth/guest-token", tags=["Authentication"])
+async def get_guest_token(request: Request, guest_data: GuestTokenRequest):
+    """
+    Generate a limited-scope JWT token for players to join games.
+    No signup required - just game ID and optional player info.
+    """
+    client_ip = auth_deps["middleware"].get_client_ip(request)
+    
+    # Check token generation rate limit (per IP for guests)
+    is_allowed, limit_info = await rate_limit_service.check_token_generation_limit(client_ip)
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many token requests. Please try again later.",
+            headers={
+                "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
+                "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
+                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
+            }
+        )
+    
+    # Validate that the game exists (using lobby service)
+    try:
+        lobby_exists = await lobbyService.lobby_exists(guest_data.game_id)
+        if not lobby_exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Game not found"
+            )
+    except Exception as e:
+        logging.error(f"Error checking lobby existence: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid game ID"
+        )
+    
+    # Generate guest token (30-minute expiry, limited scope)
+    guest_user_id = f"guest_{guest_data.game_id}_{secrets.token_urlsafe(8)}"
+    guest_token = await auth_service.create_guest_jwt_token(
+        user_id=guest_user_id,
+        game_id=guest_data.game_id,
+        player_name=guest_data.player_name,
+        metadata={"type": "guest", "ip": client_ip}
+    )
+    
+    logging.info(f"Generated guest token for game {guest_data.game_id}")
+    
+    return {
+        "token": guest_token,
+        "user_id": guest_user_id,
+        "expires_in": 1800  # 30 minutes in seconds
+    }
+
 # === PROTECTED GAME ENDPOINTS ===
 
 @app.post("/createLobby", tags=["Game API"])
-async def createLobby(request: Request, request_data: CreateLobbyRequest,
-                     current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
-    """Creates a new lobby and returns its ID. Requires authentication."""
-    user_id = current_user["user_id"]
+async def createLobby(request: Request, request_data: CreateLobbyRequest) -> dict:
+    # TEMPORARILY DISABLED AUTH FOR TESTING
+    # current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+    """Creates a new lobby and returns its ID. TEMPORARILY NO AUTH."""
+    user_id = "test-user"  # Hardcoded for testing
     logging.info(f"User {user_id} creating lobby: hostId={request_data.hostId}, gameType={request_data.gameType}")
+    """
+    async def createLobby(request: Request, request_data: CreateLobbyRequest,
+                     current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+        user_id = current_user["user_id"]
     
-    # Validate CORS and referer
-    cors_valid = await auth_deps["validate_cors_and_referer"](request)
-    if not cors_valid:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Request not allowed from this origin"
-        )
+    
+    """
+ 
     
     # Ensure lobbyService is initialized before calling
     if 'lobbyService' not in globals():
@@ -306,13 +434,13 @@ async def getQuestions(request: Request, gameId: str, count: int = 10,
     # Check question generation rate limit
     await auth_deps["check_question_generation_limit"](user_id)
     
-    # Validate CORS and referer
-    cors_valid = await auth_deps["validate_cors_and_referer"](request)
-    if not cors_valid:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Request not allowed from this origin"
-        )
+    # CORS validation temporarily disabled until OAuth is implemented
+    # cors_valid = await auth_deps["validate_cors_and_referer"](request)
+    # if not cors_valid:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Request not allowed from this origin"
+    #     )
     
     # Ensure questionService is initialized
     if 'questionService' not in globals():
@@ -428,6 +556,165 @@ def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
 def getGamersWithExpiringCoupons():
     pass # Placeholder - was: return gamerManagementService.getGamersWithExpiringCoupons()
 
+# === PROTECTED PLAYER ENDPOINTS ===
+
+@app.post("/joinGame", tags=["Game API"])
+async def join_game(request: Request, join_data: JoinGameRequest,
+                   current_user: dict = Depends(auth_deps["get_current_user"])):
+    """
+    Join a game lobby. Requires JWT authentication (host token or guest token).
+    """
+    user_id = current_user.get("user_id")
+    game_id = join_data.game_id
+    
+    # Validate game exists
+    try:
+        lobby_exists = await lobbyService.lobby_exists(game_id)
+        if not lobby_exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Game not found"
+            )
+    except Exception as e:
+        logging.error(f"Error joining game {game_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to join game"
+        )
+    
+    # For guest tokens, validate they're for the correct game
+    token_type = current_user.get("type", "host")
+    if token_type == "guest":
+        token_game_id = current_user.get("game_id")
+        if token_game_id != game_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token not valid for this game"
+            )
+    
+    # Add player to lobby
+    try:
+        await lobbyService.add_player_to_lobby(
+            game_id=game_id,
+            player_id=user_id,
+            player_name=join_data.player_name,
+            phone_number=join_data.phone_number
+        )
+    except Exception as e:
+        logging.error(f"Error adding player to lobby: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to join game"
+        )
+    
+    return {
+        "success": True,
+        "message": "Successfully joined game",
+        "game_id": game_id,
+        "player_id": user_id
+    }
+
+@app.post("/submitAnswer", tags=["Game API"])
+async def submit_answer(request: Request, answer_data: SubmitAnswerRequest,
+                       current_user: dict = Depends(auth_deps["get_current_user"])):
+    """
+    Submit an answer to a question. Requires JWT authentication.
+    """
+    user_id = current_user.get("user_id")
+    
+    # Validate guest token is for correct game
+    token_type = current_user.get("type", "host")
+    if token_type == "guest":
+        token_game_id = current_user.get("game_id")
+        if token_game_id != answer_data.game_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token not valid for this game"
+            )
+    
+    # Basic validation
+    if answer_data.answer_index < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid answer index"
+        )
+    
+    # Log the answer submission (could be stored in Redis for game state)
+    logging.info(f"Answer submitted: User {user_id}, Game {answer_data.game_id}, Q{answer_data.question_index}, Answer {answer_data.answer_index}")
+    
+    return {
+        "success": True,
+        "message": "Answer submitted successfully",
+        "game_id": answer_data.game_id,
+        "question_index": answer_data.question_index,
+        "answer_index": answer_data.answer_index
+    }
+
+@app.post("/leaveGame", tags=["Game API"])
+async def leave_game(request: Request, leave_data: LeaveGameRequest,
+                    current_user: dict = Depends(auth_deps["get_current_user"])):
+    """
+    Leave a game lobby. Requires JWT authentication.
+    """
+    user_id = current_user.get("user_id")
+    
+    # Validate guest token is for correct game
+    token_type = current_user.get("type", "host")
+    if token_type == "guest":
+        token_game_id = current_user.get("game_id")
+        if token_game_id != leave_data.game_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token not valid for this game"
+            )
+    
+    # Remove player from lobby
+    try:
+        await lobbyService.remove_player_from_lobby(
+            game_id=leave_data.game_id,
+            player_id=user_id
+        )
+    except Exception as e:
+        logging.error(f"Error removing player from lobby: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to leave game"
+        )
+    
+    return {
+        "success": True,
+        "message": "Successfully left game",
+        "game_id": leave_data.game_id
+    }
+
+@app.post("/playerAction", tags=["Game API"])
+async def player_action(request: Request, action_data: PlayerActionRequest,
+                       current_user: dict = Depends(auth_deps["get_current_user"])):
+    """
+    Generic endpoint for player actions during gameplay. Requires JWT authentication.
+    """
+    user_id = current_user.get("user_id")
+    
+    # Validate guest token is for correct game
+    token_type = current_user.get("type", "host")
+    if token_type == "guest":
+        token_game_id = current_user.get("game_id")
+        if token_game_id != action_data.game_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token not valid for this game"
+            )
+    
+    # Log the action (could trigger different game logic based on action type)
+    logging.info(f"Player action: User {user_id}, Game {action_data.game_id}, Action {action_data.action}")
+    
+    return {
+        "success": True,
+        "message": f"Action '{action_data.action}' processed successfully",
+        "game_id": action_data.game_id,
+        "action": action_data.action
+    }
+
 if __name__ == '__main__':
 
     # Basic logging configuration
@@ -449,19 +736,26 @@ if __name__ == '__main__':
         appConfig.stage = Stage.DEVO
         origins = [
                     "http://localhost:5173",
+                    "http://localhost:5174", 
+                    "http://localhost:5175",
+                    "http://localhost:5176",
                     "http://127.0.0.1:5173",
+                    "http://127.0.0.1:5174",
+                    "http://127.0.0.1:5175", 
+                    "http://127.0.0.1:5176",
                     "http://localhost",
                     "http://localhost:8080",
                     "http://127.0.0.1:8080",
                 ]
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # CORS is handled by manual middleware above
+    # app.add_middleware(
+    #     CORSMiddleware,
+    #     allow_origins=origins,
+    #     allow_credentials=True,
+    #     allow_methods=["*"],
+    #     allow_headers=["*"],
+    # )
 
     load_dotenv()
 

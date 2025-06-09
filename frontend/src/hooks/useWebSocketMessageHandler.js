@@ -44,6 +44,11 @@ export const useWebSocketMessageHandler = (gameState) => {
       case "identified":
       {
         console.log("Handling action: identified");
+        console.log("DEBUG - identification data:", data);
+        console.log("DEBUG - current role:", role);
+        console.log("DEBUG - current players array:", players);
+        console.log("DEBUG - current localPlayerName:", localPlayerName);
+        
         // Check if identification was successful by presence of clientId and gameId
         if (data.clientId && data.gameId) {
           console.log("Successfully identified with the server.");
@@ -57,10 +62,18 @@ export const useWebSocketMessageHandler = (gameState) => {
           }
 
           // If host, add self to player list
-          if (role === 'host' && !players.some(p => p.clientId === data.clientId)) {
-            console.log("Identified as host. Adding self to player list.");
-            // Ensure host isn't added multiple times if message is somehow duplicated
-            addPlayer(data.clientId, localPlayerName || "Host");
+          if (role === 'host') {
+            const alreadyExists = players.some(p => p.clientId === data.clientId);
+            console.log(`DEBUG - Host identification: clientId=${data.clientId}, alreadyExists=${alreadyExists}`);
+            
+            if (!alreadyExists) {
+              console.log("Identified as host. Adding self to player list.");
+              const hostName = localPlayerName || "Host";
+              console.log(`DEBUG - Adding host with name: ${hostName}`);
+              addPlayer(data.clientId, hostName);
+            } else {
+              console.log("Host already exists in player list, skipping add.");
+            }
           }
           // If player, set joined status
           if (role === 'player') {

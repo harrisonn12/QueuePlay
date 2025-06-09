@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import './TriviaGame.css';
 
 // Custom hooks
@@ -6,8 +6,13 @@ import { useGameWebSocket } from '../../../hooks/useGameWebSocket';
 import { useGameState } from '../../../hooks/useGameState';
 import { useWebSocketMessageHandler } from '../../../hooks/useWebSocketMessageHandler';
 import { useTieBreakerAnimation } from '../../../hooks/useTieBreakerAnimation';
+import { useAuth } from '../../../hooks/useAuth';
+
+// API functions
+import { joinGameWithAuth } from '../../../utils/api';
 
 // View components
+import FrontPage from './views/FrontPage';
 import GameLobby from './views/GameLobby';
 import PlayerGameView from './views/PlayerGameView';
 import HostGameView from './views/HostGameView';
@@ -17,6 +22,9 @@ import LoadingSpinner from './components/LoadingSpinner';
 const TriviaGame = () => {
   // Game configuration
   const timePerQuestion = 10; // seconds per question
+  
+  // Authentication hook
+  const { isAuthenticated, userType, getCurrentToken, login, loginAsGuest } = useAuth();
   
   // Use game state hook to manage all state
   const gameState = useGameState();
@@ -35,9 +43,12 @@ const TriviaGame = () => {
   // Initialize message handler (no circular dependency anymore)
   const handleWebSocketMessage = useWebSocketMessageHandler(gameState);
   
-  // Initialize WebSocket connection management
+  // Get current JWT token for WebSocket authentication
+  const currentToken = getCurrentToken();
+  
+  // Initialize WebSocket connection management with JWT authentication
   const { status: webSocketStatus, ensureConnected } = useGameWebSocket(
-    gameId, clientId, role, handleWebSocketMessage
+    gameId, clientId, role, handleWebSocketMessage, currentToken
   );
   
   // Update local status based on hook status
@@ -111,14 +122,37 @@ const TriviaGame = () => {
   }, [isClientIdentified, role, gameId, clientId, localPlayerName, ensureConnected]);
 
   // --- Action Functions --- 
+  // Handle host login from front page
+  const handleHostLogin = useCallback(async (email, password) => {
+    const result = await login(email, password);
+    if (result && result.success) {
+      setStatus("Welcome! You can now create games.");
+    }
+    return result;
+  }, [login, setStatus]);
+
+  // Handle player join from front page
+  const handlePlayerJoin = useCallback((gameId) => {
+    gameState.setInputGameId(gameId);
+    gameState.setJoinTargetGameId(gameId);
+    gameState.setPlayerInfoStage('enterInfo');
+    setStatus("Please enter your details to join.");
+  }, [gameState, setStatus]);
+
   const hostGame = useCallback(async () => {
+    // Check authentication first - if not authenticated, show error
+    if (!isAuthenticated || userType !== 'host') {
+      setStatus("Authentication required. Please log in to host a game.");
+      return;
+    }
+
     resetGame();
     setStatus("Creating lobby...");
+    
     try {
       const newGameId = await createLobbyAPI(clientId, "trivia");
       setGameId(newGameId);
       setRole('host');
-      // clientId is already set in useGameState
       console.log(`Lobby created with ID: ${newGameId}. Role set to host. Client ID: ${clientId}`);
 
       // Optionally fetch QR code and questions now
@@ -126,32 +160,30 @@ const TriviaGame = () => {
       try {
         const [qrData, questionsData] = await Promise.all([
           getQrCodeAPI(newGameId),
-          getQuestionsAPI(newGameId) // Pass gameId if needed by API
+          getQuestionsAPI(newGameId)
         ]);
         setQrCodeData(qrData);
         setQuestions(questionsData);
         console.log("QR Code and Questions fetched successfully.");
       } catch (error) {
         console.error("Error fetching QR/Questions:", error);
-        // Continue even if these fail for now, maybe show error later
         setStatus("Lobby created, but failed to fetch details. Connecting...");
       }
 
       // Now that gameId, clientId, and role are set, ensure connection.
-      // useGameWebSocket will automatically send 'identify' on connection open.
       setStatus("Connecting to WebSocket...");
-      ensureConnected(); // Ensure the WebSocket connects (or reconnects)
+      ensureConnected();
 
-      // UI should update automatically based on gameStatus/role change
-      // The GameLobby component will show based on gameStatus='waiting' & role='host'
     } catch (error) {
       console.error("Failed to host game:", error);
       setStatus(`Error creating lobby: ${error.message}. Please try again.`);
-      resetGame(); // Reset state on failure
+      resetGame();
     }
   }, [
     resetGame, 
     setStatus, 
+    isAuthenticated,
+    userType,
     getQrCodeAPI, 
     getQuestionsAPI,
     setGameId, 
@@ -174,14 +206,49 @@ const TriviaGame = () => {
     setStatus("Please enter your details to join.");
   }, [gameState, setStatus]);
 
-  // Effect to connect WebSocket *after* state is set for joining
+  // Complete player join process with authentication
+  const completePlayerJoin = useCallback(async (gameId, playerName, phoneNumber = null) => {
+    try {
+      setStatus("Authenticating player...");
+      
+      // Step 1: Get guest token
+      const authResult = await loginAsGuest(gameId, playerName, phoneNumber);
+      if (!authResult.success) {
+        setStatus(`Authentication failed: ${authResult.error}`);
+        return;
+      }
+
+      // Step 2: Join the game via API
+      setStatus("Joining game...");
+      const token = getCurrentToken();
+      const joinResult = await joinGameWithAuth(gameId, playerName, phoneNumber, token);
+      console.log("Join game API result:", joinResult);
+
+      // Step 3: Set game state
+      setGameId(gameId);
+      setRole('player');
+      setLocalPlayerName(playerName);
+      gameState.setPlayerInfoStage('joining');
+      
+      setStatus("Connecting to game...");
+      
+      // Step 4: Connect to WebSocket (will happen in effect below)
+      
+    } catch (error) {
+      console.error("Failed to join game:", error);
+      setStatus(`Error joining game: ${error.message}`);
+      gameState.setPlayerInfoStage('enterInfo');
+    }
+  }, [loginAsGuest, getCurrentToken, setGameId, setRole, setLocalPlayerName, setStatus, gameState]);
+
+  // Effect to connect WebSocket *after* authentication and state is set for joining
   useEffect(() => {
     // Only run this if the user is a player and has just submitted their info
-    if (role === 'player' && playerInfoStage === 'joining') {
+    if (role === 'player' && playerInfoStage === 'joining' && isAuthenticated && userType === 'guest') {
       console.log("[Player Join Effect] Role and playerInfoStage match, ensuring connection...");
       ensureConnected();
     }
-  }, [role, playerInfoStage, ensureConnected]); // Keep ensureConnected here
+  }, [role, playerInfoStage, isAuthenticated, userType, ensureConnected]);
 
   // Start the game (host only)
   const startGame = useCallback(() => {
@@ -283,6 +350,25 @@ const TriviaGame = () => {
     ensureConnected, role, gameState, gameId, clientId, players, setTieBreakerState
   ]);
   
+
+
+  // Show FrontPage when no active game or join flow is happening
+  if (!gameId && playerInfoStage === 'none') {
+    return (
+      <div className="trivia-game-container">
+        <FrontPage 
+          onHostLogin={handleHostLogin}
+          onHostGame={hostGame}
+          onPlayerJoin={handlePlayerJoin}
+          inputGameId={gameState.inputGameId}
+          setInputGameId={gameState.setInputGameId}
+          isAuthenticated={isAuthenticated}
+          userType={userType}
+        />
+      </div>
+    );
+  }
+
   // Render the appropriate view based on current game state
   let content;
   
@@ -300,6 +386,7 @@ const TriviaGame = () => {
         playerInfoStage={playerInfoStage}
         hostGame={hostGame}
         initiateJoinGame={initiateJoinGame}
+        completePlayerJoin={completePlayerJoin}
         startGame={startGame}
         setPlayerNameInput={gameState.setPlayerNameInput}
         playerPhoneInput={gameState.playerPhoneInput}
@@ -313,6 +400,8 @@ const TriviaGame = () => {
         setGameId={setGameId}
         setRole={setRole}
         setLocalPlayerName={setLocalPlayerName}
+        isAuthenticated={isAuthenticated}
+        userType={userType}
       />
     );
   } else if (gameStatus === 'playing') {
