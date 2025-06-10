@@ -1,7 +1,8 @@
 import React from 'react';
 
 /**
- * Game Results View - Shows the results screen at the end of the game
+ * Generic Game Results View - Shows the results screen at the end of the game
+ * Made generic to work with any game type while preserving existing trivia functionality
  */
 const GameResults = ({
   scores,
@@ -13,7 +14,8 @@ const GameResults = ({
   clientId,
   localPlayerName,
   resetGame,
-  hostGame
+  hostGame,
+  children
 }) => {
   console.log("[renderGameResults] Scores state:", scores);
   console.log("[renderGameResults] Players state:", players);
@@ -36,10 +38,8 @@ const GameResults = ({
       <div className="game-results tie-breaker-active">
         <h2>🎲 Tie Breaker!</h2>
         <p>The following players are tied for first place:</p>
-        {/* Apply highlighting based on animation state */} 
         <ul className="tie-player-list">
           {tiedPlayerNamesAndIds.map((player, index) => {
-            // --- LOG ADDED --- 
             const highlightClass = isAnimatingTie && index === highlightedPlayerIndex ? 'highlighted-tie-player' : '';
             console.log(`[Render Tie List] Player: ${player.name}, Index: ${index}, Highlight Index: ${highlightedPlayerIndex}, Class: '${highlightClass}'`);
             return (
@@ -53,15 +53,10 @@ const GameResults = ({
           })}
         </ul>
         {role === 'host' ? (
-          <>
-            {/* Message during/after animation */} 
-            <p>{isAnimatingTie ? "🎯 Selecting winner..." : "🏆 Winner selected!"}</p>
-            {/* Button removed, animation is automatic */}
-          </>
+          <p>{isAnimatingTie ? "🎯 Selecting winner..." : "🏆 Winner selected!"}</p>
         ) : (
           <p>⏳ Waiting for the host to select the winner...</p>
         )}
-        {/* Allow leaving even during animation */}
         <button onClick={resetGame} className="btn-secondary" disabled={isAnimatingTie}>
           {isAnimatingTie ? 'Please wait...' : '🏠 Back to Lobby'} 
         </button>
@@ -76,8 +71,10 @@ const GameResults = ({
       <div className="game-results">
         <h2>🎮 Game Finished!</h2>
         <p>No final scores were recorded.</p>
-        {role === 'host' && (
-          <button onClick={hostGame} className="btn-primary">🎯 Host New Game</button>
+        {role === 'host' && hostGame && (
+          <button onClick={hostGame} className="btn-primary">
+            🎯 Host New Game
+          </button>
         )}
         <button onClick={resetGame} className="btn-secondary">🏠 Back to Lobby</button>
       </div>
@@ -98,9 +95,7 @@ const GameResults = ({
 
   // Determine player's status based on the final winner
   const isFinalWinner = role === 'player' && clientId === finalWinnerId;
-  // Player is a loser if they are not the host AND not the final winner
   const isLoser = role === 'player' && clientId !== finalWinnerId;
-
 
   // --- Host View: Show the full scoreboard --- 
   if (role === 'host') {
@@ -136,7 +131,11 @@ const GameResults = ({
           })}
         </ol>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
-          <button onClick={hostGame} className="btn-primary">🎯 Host New Game</button>
+          {hostGame && (
+            <button onClick={hostGame} className="btn-primary">
+              🎯 Host New Game
+            </button>
+          )}
           <button onClick={resetGame} className="btn-secondary">🏠 Back to Lobby</button>
         </div>
       </div>
@@ -144,7 +143,7 @@ const GameResults = ({
   }
 
   // --- Player View: Winner --- 
-  if (isFinalWinner) { // Check against finalWinnerId
+  if (isFinalWinner) {
     return (
       <div className="game-results player-results winner-screen">
         <h2>🏆 VICTORY! 🏆</h2>
@@ -153,14 +152,16 @@ const GameResults = ({
           <p style={{ color: 'var(--accent-electric)', fontSize: '1.1rem' }}>🎯 You won the tie-breaker!</p>
         )}
         <p>🎉 Congratulations, {localPlayerName || 'you'} won!</p> 
-        <p style={{ fontSize: '1.3rem', color: 'var(--accent-neon)' }}>Your Score: <strong>{scores[clientId]}</strong></p> 
+        <p style={{ fontSize: '1.3rem', color: 'var(--accent-neon)' }}>
+          Your Score: <strong>{scores[clientId]}</strong> points
+        </p> 
         <button onClick={resetGame} className="btn-primary pulse-glow">🔄 Play Again?</button>
       </div>
     );
   }
 
   // --- Player View: Loser --- 
-  if (isLoser) { // Check against finalWinnerId
+  if (isLoser) {
     // Get final winner name 
     const winnerInfo = players.find(p => p.clientId === finalWinnerId);
     const winnerName = winnerInfo?.name || `Player ${finalWinnerId?.substring(0, 4)}`; 
@@ -176,8 +177,10 @@ const GameResults = ({
         {!(tieBreakerState.stage === 'resolved' && tieBreakerState.tiedPlayerIds.includes(clientId)) && (
           <p>💪 Better luck next time, {localPlayerName || 'player'}!</p>
         )}
-        <p style={{ color: 'var(--accent-electric)' }}>🏆 Winner: <strong>{winnerName}</strong> ({scores[finalWinnerId] || 0} points)</p>
-        <p>📊 Your Score: <strong>{scores[clientId] || 0}</strong></p> 
+        <p style={{ color: 'var(--accent-electric)' }}>
+          🏆 Winner: <strong>{winnerName}</strong> ({scores[finalWinnerId] || 0} points)
+        </p>
+        <p>📊 Your Score: <strong>{scores[clientId] || 0}</strong> points</p> 
         <button onClick={resetGame} className="btn-primary">🔄 Try Again?</button>
       </div>
     );
@@ -188,6 +191,7 @@ const GameResults = ({
     <div className="game-results">
       <h2>🎮 Game Finished!</h2>
       <p>📊 Calculating final results...</p> 
+      {children}
       <button onClick={resetGame} className="btn-secondary">🏠 Back to Lobby</button>
     </div>
   );

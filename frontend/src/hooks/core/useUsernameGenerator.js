@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getApiBaseUrl } from '../utils/api';
+import { getApiBaseUrl } from '../../utils/api';
 
 export const useUsernameGenerator = () => {
     const [isGenerating, setIsGenerating] = useState(false);

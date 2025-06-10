@@ -1,7 +1,7 @@
 import { LogoutButton } from '../LogoutButton';
 import Profile from '../features/Profile';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useHandleLogin } from '../../hooks/useHandleLogin';
+import { useHandleLogin } from '../../hooks/core/useHandleLogin';
 
 export const Dashboard = ({ children }) => {
     const { user } = useAuth0();

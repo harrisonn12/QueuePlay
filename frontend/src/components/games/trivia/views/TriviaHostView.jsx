@@ -1,10 +1,10 @@
 import React from 'react';
-import Timer from '../components/Timer';
+import Timer from '../../../core/Timer';
 
 /**
  * Host Game View - Shows the host's view during active gameplay
  */
-const HostGameView = ({
+const TriviaHostView = ({
   questions,
   currentQuestionIndex,
   timerKey,
@@ -102,4 +102,4 @@ const HostGameView = ({
   );
 };
 
-export default HostGameView; 
+export default TriviaHostView; 

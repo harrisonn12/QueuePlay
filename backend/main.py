@@ -382,19 +382,11 @@ async def get_guest_token(request: Request, guest_data: GuestTokenRequest):
 # === PROTECTED GAME ENDPOINTS ===
 
 @app.post("/createLobby", tags=["Game API"])
-async def createLobby(request: Request, request_data: CreateLobbyRequest) -> dict:
-    # TEMPORARILY DISABLED AUTH FOR TESTING
-    # current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
-    """Creates a new lobby and returns its ID. TEMPORARILY NO AUTH."""
-    user_id = "test-user"  # Hardcoded for testing
-    logging.info(f"User {user_id} creating lobby: hostId={request_data.hostId}, gameType={request_data.gameType}")
-    """
-    async def createLobby(request: Request, request_data: CreateLobbyRequest,
+async def createLobby(request: Request, request_data: CreateLobbyRequest,
                      current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
-        user_id = current_user["user_id"]
-    
-    
-    """
+    """Creates a new lobby and returns its ID. Requires authentication."""
+    user_id = current_user["user_id"]
+    logging.info(f"User {user_id} creating lobby: hostId={request_data.hostId}, gameType={request_data.gameType}")
  
     
     # Ensure lobbyService is initialized before calling
