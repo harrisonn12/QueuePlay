@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getWebSocketUrl, getStoredToken } from '../utils/api';
+import { getWebSocketUrl } from '../../utils/api/core.js';
+import { getStoredToken } from '../../utils/api/auth.js';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY = 1000; // Start with 1 second delay

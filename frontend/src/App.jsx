@@ -1,9 +1,7 @@
 import { Auth0Provider } from '@auth0/auth0-react';
 import { MainContainer } from './components/pages/MainContainer';
-// import { CheckoutForm } from './components/CheckoutForm';
-import TriviaGame from './components/games/trivia/TriviaGame';
-// import { Auth0Provider } from '@auth0/auth0-react';
-// import { MainContainer } from './components/containers/MainContainer';
+import GameFactory from './components/games/GameFactory';
+import { GAME_TYPES } from './utils/constants/gameTypes';
 
 export const App = () => {
     const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN;
@@ -19,7 +17,6 @@ export const App = () => {
         // >
         //     <MainContainer />
         // </Auth0Provider>
-            <TriviaGame />
-        // </>
+        <GameFactory gameType={GAME_TYPES.TRIVIA} />
     );
 };

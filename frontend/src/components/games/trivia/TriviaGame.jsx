@@ -2,53 +2,173 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import './TriviaGame.css';
 
 // Custom hooks
-import { useGameWebSocket } from '../../../hooks/useGameWebSocket';
-import { useGameState } from '../../../hooks/useGameState';
-import { useWebSocketMessageHandler } from '../../../hooks/useWebSocketMessageHandler';
-import { useTieBreakerAnimation } from '../../../hooks/useTieBreakerAnimation';
-import { useAuth } from '../../../hooks/useAuth';
+import { useGameWebSocket } from '../../../hooks/core/useGameWebSocket';
+import { useGameCore } from '../../../hooks/core/useGameCore';
+import { useGameMessageHandler } from '../../../hooks/core/useGameMessageHandler';
+import { useWebSocketMessageHandler } from '../../../hooks/games/trivia/useTriviaWebSocketMessageHandler';
+import { useTieBreakerAnimation } from '../../../hooks/games/trivia/useTieBreakerAnimation';
 
 // API functions
 import { joinGameWithAuth } from '../../../utils/api';
+import { getStoredToken } from '../../../utils/api/auth';
+import { getQuestions } from '../../../utils/api/trivia';
 
 // View components
-import FrontPage from './views/FrontPage';
-import GameLobby from './views/GameLobby';
-import PlayerGameView from './views/PlayerGameView';
-import HostGameView from './views/HostGameView';
-import GameResults from './views/GameResults';
-import LoadingSpinner from './components/LoadingSpinner';
+import FrontPage from '../../core/FrontPage';
+import GameLobby from '../../core/GameLobby.jsx';
+import TriviaPlayerView from './views/TriviaPlayerView';
+import TriviaHostView from './views/TriviaHostView';
+import GameResults from '../../core/GameResults.jsx';
+import LoadingSpinner from '../../core/LoadingSpinner';
 
 const TriviaGame = () => {
   // Game configuration
   const timePerQuestion = 10; // seconds per question
   
-  // Authentication hook
-  const { isAuthenticated, userType, getCurrentToken, login, loginAsGuest } = useAuth();
+  // Core game state hook (game-agnostic)
+  const gameCore = useGameCore('trivia');
   
-  // Use game state hook to manage all state
-  const gameState = useGameState();
-  
-  // Destructure what we need from gameState
+  // Destructure core state
   const {
-    gameStatus, role, gameId, clientId, tieBreakerState,
-    playerInfoStage, players, status, resetGame,
-    setStatus, setTieBreakerState, setGameId, setRole,
-    setQrCodeData, setQuestions,
-    createLobbyAPI, getQrCodeAPI, getQuestionsAPI,
-    localPlayerName, setLocalPlayerName,
-    isClientIdentified
-  } = gameState;
+    gameId, role, clientId, players, status, qrCodeData,
+    playerInfoStage, localPlayerName, isClientIdentified,
+    setStatus, setGameId, setRole, setLocalPlayerName,
+    inputGameId, setInputGameId, joinTargetGameId, setJoinTargetGameId,
+    playerNameInput, setPlayerNameInput, playerPhoneInput, setPlayerPhoneInput,
+    setPlayerInfoStage, resetGame, addPlayer, removePlayer,
+         isAuthenticated, userType, handleHostLogin, 
+     hostGame, initiateJoinGame, handlePlayerJoin, completePlayerJoin
+  } = gameCore;
+
+  // Trivia-specific state (questions, scores, game status)
+  const [gameStatus, setGameStatus] = useState("waiting");
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timerKey, setTimerKey] = useState(0);
+  const [scores, setScores] = useState({});
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [currentQuestionAnswers, setCurrentQuestionAnswers] = useState({});
+  const [tieBreakerState, setTieBreakerState] = useState({
+    stage: "none",
+    tiedPlayerIds: [],
+    ultimateWinnerId: null,
+  });
+
+  // Calculate scores based on answers (trivia-specific logic)
+  const calculateScores = useCallback(
+    (questionIndex, receivedAnswers) => {
+      if (questionIndex < 0 || questionIndex >= questions.length) {
+        console.error(`Invalid questionIndex ${questionIndex} for score calculation.`);
+        return {};
+      }
+
+      const currentQuestion = questions[questionIndex];
+      const correctAnswerIndex = currentQuestion.answerIndex;
+
+      // Calculate new points for this round
+      const roundScores = {};
+      for (const [playerId, submittedAnswerIndex] of Object.entries(receivedAnswers)) {
+        if (submittedAnswerIndex === correctAnswerIndex) {
+          roundScores[playerId] = (roundScores[playerId] || 0) + 1;
+        } else {
+          roundScores[playerId] = roundScores[playerId] || 0;
+        }
+      }
+
+      // Merge with existing scores
+      const updatedScores = { ...scores };
+
+      // Add all players to scores EXCEPT the host
+      players.forEach((player) => {
+        if (player.clientId === clientId && role === "host") {
+          return; // Skip host
+        }
+        if (updatedScores[player.clientId] === undefined) {
+          updatedScores[player.clientId] = 0;
+        }
+      });
+
+      // Then add points for correct answers
+      for (const [playerId, points] of Object.entries(roundScores)) {
+        if (playerId === clientId && role === "host") {
+          continue;
+        }
+        updatedScores[playerId] = (updatedScores[playerId] || 0) + points;
+      }
+
+      console.log(`Scores calculated for Q${questionIndex}:`, updatedScores);
+      return updatedScores;
+    },
+    [questions, scores, players, clientId, role],
+  );
+
+  // Advance to next question
+  const advanceToNextQuestion = useCallback(() => {
+    setCurrentQuestionIndex((prev) => prev + 1);
+    setHasAnswered(false);
+    setSelectedAnswer(null);
+    setCurrentQuestionAnswers({});
+    setTimerKey((prev) => prev + 1);
+  }, []);
+
+  // Check if there's a tie among top scorers
+  const checkForTie = useCallback((finalScores) => {
+    if (!finalScores || Object.keys(finalScores).length === 0) {
+      console.log("No scores or empty scores, skipping tie check.");
+      return false;
+    }
+
+    const sortedScores = Object.entries(finalScores).sort(
+      ([, scoreA], [, scoreB]) => scoreB - scoreA,
+    );
+
+    const topScore = sortedScores[0][1];
+    const tiedIds = sortedScores
+      .filter(([, score]) => score === topScore)
+      .map(([id]) => id);
+
+    if (tiedIds.length > 1) {
+      console.log("Tie detected! Tied IDs:", tiedIds);
+      setTieBreakerState({
+        stage: "breaking",
+        tiedPlayerIds: tiedIds,
+        ultimateWinnerId: null,
+      });
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  // Combine core and trivia state for message handlers
+  const combinedGameState = {
+    ...gameCore,
+    gameStatus, setGameStatus, questions, setQuestions,
+    currentQuestionIndex, setCurrentQuestionIndex, timerKey, setTimerKey,
+    scores, setScores, hasAnswered, setHasAnswered,
+    selectedAnswer, setSelectedAnswer, currentQuestionAnswers, setCurrentQuestionAnswers,
+    tieBreakerState, setTieBreakerState, checkForTie
+  };
+
+  // Core message handler (handles generic messages)
+  const handleCoreMessage = useGameMessageHandler(combinedGameState);
   
-  // Initialize message handler (no circular dependency anymore)
-  const handleWebSocketMessage = useWebSocketMessageHandler(gameState);
+  // Trivia-specific message handler  
+  const handleTriviaMessage = useWebSocketMessageHandler(combinedGameState);
   
-  // Get current JWT token for WebSocket authentication
-  const currentToken = getCurrentToken();
+  // Combined message handler (try core first, then trivia-specific)
+  const handleWebSocketMessage = useCallback((data) => {
+    const handledByCore = handleCoreMessage(data);
+    if (!handledByCore) {
+      handleTriviaMessage(data);
+    }
+  }, [handleCoreMessage, handleTriviaMessage]);
   
   // Initialize WebSocket connection management with JWT authentication
+  // Let the hook get the token dynamically when needed
   const { status: webSocketStatus, ensureConnected } = useGameWebSocket(
-    gameId, clientId, role, handleWebSocketMessage, currentToken
+    gameId, clientId, role, handleWebSocketMessage, null
   );
   
   // Update local status based on hook status
@@ -96,18 +216,37 @@ const TriviaGame = () => {
   // Ref to track if announcePlayer has been sent for this session/identification
   const announcedPlayerRef = useRef(false);
 
+  // Effect to ensure WebSocket connection when player joins or host creates game
+  useEffect(() => {
+    // For hosts: trigger connection after game is created and we have gameId
+    // For players: trigger connection after joining (when playerInfoStage is 'joining' or 'joined')
+    if (gameId && role && clientId) {
+      if (role === 'host' || (role === 'player' && (playerInfoStage === 'joining' || playerInfoStage === 'joined'))) {
+        console.log("[Connection Effect] Triggering WebSocket connection for", role);
+        const socket = ensureConnected();
+        if (!socket) {
+          console.log("[Connection Effect] WebSocket connection not ready yet, will retry automatically");
+        }
+      }
+    }
+  }, [gameId, role, clientId, playerInfoStage, ensureConnected]);
+
   // Effect to announce player presence AFTER successful identification
   useEffect(() => {
     if (isClientIdentified && role === 'player' && !announcedPlayerRef.current) {
       console.log("[Announce Effect] Client identified as player. Announcing presence...");
+      console.log("[Announce Effect] Current clientId:", clientId);
+      console.log("[Announce Effect] Current playerName:", localPlayerName);
       const socket = ensureConnected(); // Get the socket instance
       if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
+        const announceMessage = {
           action: "announcePlayer",
           gameId: gameId,
           clientId: clientId,
           playerName: localPlayerName || `Player ${clientId.substring(0,4)}`
-        }));
+        };
+        console.log("[Announce Effect] Sending announcePlayer message:", announceMessage);
+        socket.send(JSON.stringify(announceMessage));
         announcedPlayerRef.current = true; // Mark as announced for this identification cycle
       } else {
         console.error("[Announce Effect] Cannot announce player: WebSocket not ready or available.", { readyState: socket?.readyState });
@@ -121,180 +260,78 @@ const TriviaGame = () => {
     }
   }, [isClientIdentified, role, gameId, clientId, localPlayerName, ensureConnected]);
 
-  // --- Action Functions --- 
-  // Handle host login from front page
-  const handleHostLogin = useCallback(async (email, password) => {
-    const result = await login(email, password);
-    if (result && result.success) {
-      setStatus("Welcome! You can now create games.");
-    }
-    return result;
-  }, [login, setStatus]);
-
-  // Handle player join from front page
-  const handlePlayerJoin = useCallback((gameId) => {
-    gameState.setInputGameId(gameId);
-    gameState.setJoinTargetGameId(gameId);
-    gameState.setPlayerInfoStage('enterInfo');
-    setStatus("Please enter your details to join.");
-  }, [gameState, setStatus]);
-
-  const hostGame = useCallback(async () => {
-    // Check authentication first - if not authenticated, show error
-    if (!isAuthenticated || userType !== 'host') {
-      setStatus("Authentication required. Please log in to host a game.");
-      return;
-    }
-
-    resetGame();
-    setStatus("Creating lobby...");
+  // Load questions for the host
+  const loadQuestions = useCallback(async () => {
+    if (role !== 'host' || !gameId) return;
     
     try {
-      const newGameId = await createLobbyAPI(clientId, "trivia");
-      setGameId(newGameId);
-      setRole('host');
-      console.log(`Lobby created with ID: ${newGameId}. Role set to host. Client ID: ${clientId}`);
-
-      // Optionally fetch QR code and questions now
-      setStatus("Fetching lobby details...");
-      try {
-        const [qrData, questionsData] = await Promise.all([
-          getQrCodeAPI(newGameId),
-          getQuestionsAPI(newGameId)
-        ]);
-        setQrCodeData(qrData);
-        setQuestions(questionsData);
-        console.log("QR Code and Questions fetched successfully.");
-      } catch (error) {
-        console.error("Error fetching QR/Questions:", error);
-        setStatus("Lobby created, but failed to fetch details. Connecting...");
-      }
-
-      // Now that gameId, clientId, and role are set, ensure connection.
-      setStatus("Connecting to WebSocket...");
-      ensureConnected();
-
+      setStatus('Loading questions...');
+      const token = getStoredToken();
+      const questionsData = await getQuestions(gameId, token);
+      console.log('Questions loaded:', questionsData);
+      setQuestions(questionsData);
+      setStatus('Questions loaded successfully');
     } catch (error) {
-      console.error("Failed to host game:", error);
-      setStatus(`Error creating lobby: ${error.message}. Please try again.`);
-      resetGame();
+      console.error('Failed to load questions:', error);
+      setStatus('Failed to load questions');
     }
-  }, [
-    resetGame, 
-    setStatus, 
-    isAuthenticated,
-    userType,
-    getQrCodeAPI, 
-    getQuestionsAPI,
-    setGameId, 
-    setRole, 
-    setQrCodeData, 
-    setQuestions, 
-    ensureConnected,
-    clientId,
-    createLobbyAPI
-  ]);
-  
-  // Initiate joining a game - shows the join form
-  const initiateJoinGame = useCallback(() => {
-    if (!gameState.inputGameId) {
-      setStatus("Error: Please enter a Game ID.");
-      return;
-    }
-    gameState.setJoinTargetGameId(gameState.inputGameId);
-    gameState.setPlayerInfoStage('enterInfo');
-    setStatus("Please enter your details to join.");
-  }, [gameState, setStatus]);
+  }, [role, gameId, setStatus]);
 
-  // Complete player join process with authentication
-  const completePlayerJoin = useCallback(async (gameId, playerName, phoneNumber = null) => {
-    try {
-      setStatus("Authenticating player...");
-      
-      // Step 1: Get guest token
-      const authResult = await loginAsGuest(gameId, playerName, phoneNumber);
-      if (!authResult.success) {
-        setStatus(`Authentication failed: ${authResult.error}`);
+  // Effect to load questions when host is identified
+  useEffect(() => {
+    if (isClientIdentified && role === 'host' && questions.length === 0) {
+      console.log('[Load Questions Effect] Host identified, loading questions...');
+      loadQuestions();
+    }
+  }, [isClientIdentified, role, questions.length, loadQuestions]);
+
+  // --- Action Functions ---
+
+      // Start the game (host only)
+    const startGame = useCallback(() => {
+      // Ensure we have questions before starting
+      if (!questions || questions.length === 0) {
+        console.error("Cannot start game: Questions not loaded.");
+        setStatus("Error: Questions failed to load. Cannot start.");
         return;
       }
 
-      // Step 2: Join the game via API
-      setStatus("Joining game...");
-      const token = getCurrentToken();
-      const joinResult = await joinGameWithAuth(gameId, playerName, phoneNumber, token);
-      console.log("Join game API result:", joinResult);
-
-      // Step 3: Set game state
-      setGameId(gameId);
-      setRole('player');
-      setLocalPlayerName(playerName);
-      gameState.setPlayerInfoStage('joining');
-      
-      setStatus("Connecting to game...");
-      
-      // Step 4: Connect to WebSocket (will happen in effect below)
-      
-    } catch (error) {
-      console.error("Failed to join game:", error);
-      setStatus(`Error joining game: ${error.message}`);
-      gameState.setPlayerInfoStage('enterInfo');
-    }
-  }, [loginAsGuest, getCurrentToken, setGameId, setRole, setLocalPlayerName, setStatus, gameState]);
-
-  // Effect to connect WebSocket *after* authentication and state is set for joining
-  useEffect(() => {
-    // Only run this if the user is a player and has just submitted their info
-    if (role === 'player' && playerInfoStage === 'joining' && isAuthenticated && userType === 'guest') {
-      console.log("[Player Join Effect] Role and playerInfoStage match, ensuring connection...");
-      ensureConnected();
-    }
-  }, [role, playerInfoStage, isAuthenticated, userType, ensureConnected]);
-
-  // Start the game (host only)
-  const startGame = useCallback(() => {
-    // Ensure we have questions before starting
-    if (!gameState.questions || gameState.questions.length === 0) {
-      console.error("Cannot start game: Questions not loaded.");
-      setStatus("Error: Questions failed to load. Cannot start.");
-      return;
-    }
-
-    const currentSocket = ensureConnected();
-    if (currentSocket) {
-      console.log("Host sending startGame including questions and players...");
-      currentSocket.send(JSON.stringify({
-        action: "startGame",
-        gameId: gameId,
-        clientId: clientId, // Sender ID (host)
-        questions: gameState.questions, // Include the questions
-        players: gameState.players // Include the current player list
-      }));
-    } else {
-      console.error("Cannot start game: WebSocket not ready.");
-    }
-  }, [ensureConnected, gameId, clientId, gameState.questions, gameState.players, setStatus]); // Add questions, players, setStatus to dependencies
+      const currentSocket = ensureConnected();
+      if (currentSocket) {
+        console.log("Host sending startGame including questions and players...");
+        currentSocket.send(JSON.stringify({
+          action: "startGame",
+          gameId: gameId,
+          clientId: clientId, // Sender ID (host)
+          questions: questions, // Include the questions
+          players: players // Include the current player list
+        }));
+      } else {
+        console.error("Cannot start game: WebSocket not ready.");
+      }
+    }, [ensureConnected, gameId, clientId, questions, players, setStatus]); // Add questions, players, setStatus to dependencies
 
   // Submit answer (player only)
-  const submitAnswer = useCallback((answerIndex) => {
-    const currentSocket = ensureConnected();
-    if (currentSocket && role === 'player' && !gameState.hasAnswered) {
-      currentSocket.send(JSON.stringify({
-        action: "submitAnswer",
-        gameId: gameId,
-        clientId: clientId,
-        answerIndex: answerIndex,
-        questionIndex: gameState.currentQuestionIndex
-      }));
-      gameState.setHasAnswered(true);
-      gameState.setSelectedAnswer(answerIndex);
-    } else if (!currentSocket) {
-      console.error("Cannot submit answer: WebSocket not ready.");
-    } else if (role !== 'player') {
-      console.warn("submitAnswer called by non-player role");
-    } else if (gameState.hasAnswered) {
-      console.warn("submitAnswer called but player has already answered.");
-    }
-  }, [ensureConnected, role, gameState, gameId, clientId]);
+      const submitAnswer = useCallback((answerIndex) => {
+      const currentSocket = ensureConnected();
+      if (currentSocket && role === 'player' && !hasAnswered) {
+        currentSocket.send(JSON.stringify({
+          action: "submitAnswer",
+          gameId: gameId,
+          clientId: clientId,
+          answerIndex: answerIndex,
+          questionIndex: currentQuestionIndex
+        }));
+        setHasAnswered(true);
+        setSelectedAnswer(answerIndex);
+      } else if (!currentSocket) {
+        console.error("Cannot submit answer: WebSocket not ready.");
+      } else if (role !== 'player') {
+        console.warn("submitAnswer called by non-player role");
+      } else if (hasAnswered) {
+        console.warn("submitAnswer called but player has already answered.");
+      }
+    }, [ensureConnected, role, hasAnswered, gameId, clientId, currentQuestionIndex]);
   
   // Handle timer completion (host only)
   const handleTimerComplete = useCallback(() => {
@@ -303,24 +340,24 @@ const TriviaGame = () => {
       return { shouldRepeat: false };
     }
     
-    const questionScores = gameState.calculateScores(
-      gameState.currentQuestionIndex, 
-      gameState.currentQuestionAnswers
-    );
-    gameState.setScores(questionScores);
+          const questionScores = calculateScores(
+        currentQuestionIndex, 
+        currentQuestionAnswers
+      );
+      setScores(questionScores);
     
     // Send question result
     const resultPayload = { 
       action: "questionResult", 
       gameId, 
       clientId, 
-      questionIndex: gameState.currentQuestionIndex,
+              questionIndex: currentQuestionIndex,
       scores: questionScores,
       players: players
     };
     currentSocket.send(JSON.stringify(resultPayload));
     
-    const isLastQuestion = gameState.currentQuestionIndex >= gameState.questions.length - 1;
+          const isLastQuestion = currentQuestionIndex >= questions.length - 1;
     if (isLastQuestion) {
       const finishPayload = { 
         action: "gameFinished", 
@@ -330,9 +367,9 @@ const TriviaGame = () => {
         players: players
       };
       currentSocket.send(JSON.stringify(finishPayload));
-      gameState.setGameStatus('finished');
-    } else {
-      const nextIndex = gameState.currentQuestionIndex + 1;
+              setGameStatus('finished');
+      } else {
+        const nextIndex = currentQuestionIndex + 1;
       const nextQPayload = { 
         action: "nextQuestion", 
         gameId, 
@@ -340,15 +377,16 @@ const TriviaGame = () => {
         questionIndex: nextIndex 
       };
       currentSocket.send(JSON.stringify(nextQPayload));
-      gameState.advanceToNextQuestion();
+              advanceToNextQuestion();
     }
     
     // Reset tie-breaker state
     setTieBreakerState({ stage: 'none', tiedPlayerIds: [], ultimateWinnerId: null }); 
     return { shouldRepeat: false };
-  }, [
-    ensureConnected, role, gameState, gameId, clientId, players, setTieBreakerState
-  ]);
+      }, [
+      ensureConnected, role, calculateScores, currentQuestionIndex, currentQuestionAnswers, 
+      setScores, gameId, clientId, players, setTieBreakerState, questions, setGameStatus, advanceToNextQuestion
+    ]);
   
 
 
@@ -360,8 +398,8 @@ const TriviaGame = () => {
           onHostLogin={handleHostLogin}
           onHostGame={hostGame}
           onPlayerJoin={handlePlayerJoin}
-          inputGameId={gameState.inputGameId}
-          setInputGameId={gameState.setInputGameId}
+                      inputGameId={inputGameId}
+            setInputGameId={setInputGameId}
           isAuthenticated={isAuthenticated}
           userType={userType}
         />
@@ -372,30 +410,32 @@ const TriviaGame = () => {
   // Render the appropriate view based on current game state
   let content;
   
-  if (gameStatus === 'loading' || playerInfoStage === 'joining') {
-    content = <LoadingSpinner message={playerInfoStage === 'joining' ? 'Joining game...' : 'Loading game...'} />;
-  } else if (gameStatus === 'waiting' || playerInfoStage === 'enterInfo') {
+  if (gameStatus === 'loading') {
+    content = <LoadingSpinner message='Loading game...' />;
+  } else if (playerInfoStage === 'joining') {
+    content = <LoadingSpinner message='Joining game...' />;
+  } else if (gameStatus === 'waiting' || playerInfoStage === 'enterInfo' || playerInfoStage === 'joined') {
     content = (
       <GameLobby 
         gameId={gameId}
         role={role}
         players={players}
-        qrCodeData={gameState.qrCodeData}
-        inputGameId={gameState.inputGameId}
-        setInputGameId={gameState.setInputGameId}
+        qrCodeData={qrCodeData}
+        inputGameId={inputGameId}
+        setInputGameId={setInputGameId}
         playerInfoStage={playerInfoStage}
         hostGame={hostGame}
         initiateJoinGame={initiateJoinGame}
         completePlayerJoin={completePlayerJoin}
         startGame={startGame}
-        setPlayerNameInput={gameState.setPlayerNameInput}
-        playerPhoneInput={gameState.playerPhoneInput}
-        setPlayerPhoneInput={gameState.setPlayerPhoneInput}
-        joinTargetGameId={gameState.joinTargetGameId}
-        localPlayerName={gameState.localPlayerName}
+        setPlayerNameInput={setPlayerNameInput}
+        playerPhoneInput={playerPhoneInput}
+        setPlayerPhoneInput={setPlayerPhoneInput}
+        joinTargetGameId={joinTargetGameId}
+        localPlayerName={localPlayerName}
         clientId={clientId}
-        setPlayerInfoStage={gameState.setPlayerInfoStage}
-        setJoinTargetGameId={gameState.setJoinTargetGameId}
+        setPlayerInfoStage={setPlayerInfoStage}
+        setJoinTargetGameId={setJoinTargetGameId}
         setStatus={setStatus}
         setGameId={setGameId}
         setRole={setRole}
@@ -407,42 +447,43 @@ const TriviaGame = () => {
   } else if (gameStatus === 'playing') {
     content = role === 'host' 
       ? (
-        <HostGameView 
-          questions={gameState.questions}
-          currentQuestionIndex={gameState.currentQuestionIndex}
-          timerKey={gameState.timerKey}
+        <TriviaHostView 
+          questions={questions}
+          currentQuestionIndex={currentQuestionIndex}
+          timerKey={timerKey}
           timePerQuestion={timePerQuestion}
           handleTimerComplete={handleTimerComplete}
-          scores={gameState.scores}
+          scores={scores}
           players={players}
         />
       ) 
       : (
-        <PlayerGameView 
-          questions={gameState.questions}
-          currentQuestionIndex={gameState.currentQuestionIndex}
-          timerKey={gameState.timerKey}
+        <TriviaPlayerView 
+          questions={questions}
+          currentQuestionIndex={currentQuestionIndex}
+          timerKey={timerKey}
           timePerQuestion={timePerQuestion}
           submitAnswer={submitAnswer}
-          hasAnswered={gameState.hasAnswered}
-          selectedAnswer={gameState.selectedAnswer}
-          localPlayerName={gameState.localPlayerName}
+          hasAnswered={hasAnswered}
+          selectedAnswer={selectedAnswer}
+          localPlayerName={localPlayerName}
           clientId={clientId}
         />
       );
   } else if (gameStatus === 'finished') {
     content = (
       <GameResults 
-        scores={gameState.scores}
+        scores={scores}
         players={players}
         tieBreakerState={tieBreakerState}
         isAnimatingTie={tieBreakerAnimation.isAnimating}
         highlightedPlayerIndex={tieBreakerAnimation.highlightedIndex}
         role={role}
         clientId={clientId}
-        localPlayerName={gameState.localPlayerName}
+        localPlayerName={localPlayerName}
         resetGame={resetGame}
         hostGame={hostGame}
+        gameName="Trivia"
       />
     );
   }

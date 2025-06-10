@@ -300,6 +300,85 @@
   text-align: center;
 }
 
+/* Player Lobby Styles */
+.player-lobby {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.player-lobby h2 {
+  color: var(--accent-neon);
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 15px var(--accent-neon);
+}
+
+.player-lobby .game-id {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.player-lobby .game-id strong {
+  color: var(--accent-electric);
+  font-weight: 700;
+}
+
+.player-info {
+  background: var(--card-bg-light);
+  border: 1px solid var(--accent-electric);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin: 1rem 0;
+}
+
+.player-info h3 {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.waiting-players {
+  background: var(--card-bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.waiting-players h3 {
+  color: var(--accent-electric);
+  margin-bottom: 1rem;
+}
+
+.waiting-players ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.waiting-players li {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waiting-area {
+  margin-top: 2rem;
+}
+
 .player-name-display {
   background: var(--card-bg);
   border: 1px solid var(--accent-electric);

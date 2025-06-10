@@ -1,9 +1,11 @@
 import React from 'react';
-import QRCodeDisplay from '../components/QRCodeDisplay';
-import LoadingSpinner from '../components/LoadingSpinner';
-import {useUsernameGenerator} from '../../../../hooks/useUsernameGenerator';
+import QRCodeDisplay from './QRCodeDisplay.jsx';
+import LoadingSpinner from './LoadingSpinner.jsx';
+import {useUsernameGenerator} from '../../hooks/core/useUsernameGenerator.js';
+
 /**
- * Game Lobby View - Displays host/player lobby UI before game start
+ * Generic Game Lobby View - Displays host/player lobby UI before game start
+ * Made generic to work with any game type while preserving existing trivia functionality
  */
 const GameLobby = ({
   gameId,
@@ -28,7 +30,8 @@ const GameLobby = ({
   setStatus,
   setGameId,
   setRole,
-  setLocalPlayerName
+  setLocalPlayerName,
+  children
 }) => {
   const { generateUsername, isGenerating, error } = useUsernameGenerator();
 
@@ -62,7 +65,7 @@ const GameLobby = ({
     localStorage.setItem(`phoneNumber_${joinTargetGameId}`, playerPhoneInput);
     localStorage.setItem(`playerName_${joinTargetGameId}`, generatedUsername);
     
-    // Call the actual join function - this was missing!
+    // Call the actual join function
     await completePlayerJoin(joinTargetGameId, generatedUsername, playerPhoneInput);
   };
   
@@ -150,12 +153,12 @@ const GameLobby = ({
     );
   }
 
-  // Existing lobby rendering logic
+  // Main lobby view
   return (
     <div className={`game-lobby fade-in ${role === 'host' ? 'host-lobby-container' : ''}`}>
-      <h1>🎮 QueuePlay Trivia 🎮</h1>
+      <h1>🎮 QueuePlay Game 🎮</h1>
 
-      {!gameId && playerInfoStage === 'none' ? ( // Only show if not joined AND not entering info
+      {!gameId && playerInfoStage === 'none' ? (
         <>
           <div>
             <h2>🎯 Host a Game</h2>
@@ -198,74 +201,50 @@ const GameLobby = ({
               
               <button 
                 onClick={startGame}
-                disabled={players.length <= 1} // Disable if only host is present
-                className={players.length > 1 ? 'pulse-glow' : ''}
+                disabled={players.length === 0}
+                className="btn-primary"
               >
-                🚀 Start Game ({players.length} player{players.length !== 1 ? 's' : ''})
+                🚀 Start Game
               </button>
-            </div>
-          </div>
-        </div>
-      ) : role === 'player' && playerInfoStage === 'joined' ? ( // Player waiting screen
-        <div className="game-card fade-in" style={{ maxWidth: '400px', margin: '0 auto' }}>
-          <h2 className="text-gradient" style={{ fontSize: '1.8rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-            🎮 Ready to Play!
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ 
-              background: 'var(--card-bg-light)', 
-              padding: '1rem', 
-              borderRadius: '12px',
-              border: '1px solid var(--accent-electric)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 0.5rem 0' }}>Game ID:</p>
-              <p style={{ 
-                fontFamily: 'monospace', 
-                fontSize: '1.2rem', 
-                fontWeight: '700', 
-                color: 'var(--accent-electric)',
-                margin: 0
-              }}>
-                {gameId}
-              </p>
-            </div>
-            <div style={{ 
-              background: 'rgba(0, 255, 136, 0.1)', 
-              padding: '1rem', 
-              borderRadius: '12px',
-              border: '1px solid var(--accent-neon)'
-            }}>
-              <p style={{ color: 'var(--accent-neon)', fontSize: '0.9rem', margin: '0 0 0.5rem 0' }}>Your Username:</p>
-              <p style={{ 
-                fontSize: '1.3rem', 
-                fontWeight: '700', 
-                color: 'var(--accent-neon)',
-                margin: 0
-              }}>
-                {localPlayerName || `Player ${clientId?.substring(0,4)}`}
-              </p>
-            </div>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              color: 'var(--text-secondary)',
-              justifyContent: 'center'
-            }}>
-              <div className="pulse-glow" style={{ 
-                width: '8px', 
-                height: '8px', 
-                background: 'var(--accent-electric)', 
-                borderRadius: '50%' 
-              }}></div>
-              <p style={{ fontSize: '0.95rem', margin: 0 }}>Waiting for host to start the game...</p>
+              
+              {players.length === 0 && (
+                <p>Waiting for players to join...</p>
+              )}
             </div>
           </div>
         </div>
       ) : (
-        // Fallback or initial loading state before role/gameId is set
-        <LoadingSpinner message="Loading lobby..." />
+        <div className="player-lobby">
+          <h2>🎮 Joined Game!</h2>
+          <p className="game-id">Game ID: <strong>{gameId}</strong></p>
+          
+          {localPlayerName && (
+            <div className="player-info">
+              <h3>🎮 Playing as: <span className="neon-text">{localPlayerName}</span></h3>
+            </div>
+          )}
+          
+          {players.length > 0 && (
+            <div className="waiting-players">
+              <h3>🎮 Players ({players.length})</h3>
+              <ul>
+                {players.map((player, index) => (
+                  <li key={player.clientId} style={{ animationDelay: `${index * 0.1}s` }} className="fade-in">
+                    {player.name || `Player ${player.clientId.substring(0,4)}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <div className="waiting-area">
+            <LoadingSpinner message="Waiting for host to start the game..." size="medium" />
+          </div>
+        </div>
       )}
+
+      {/* Custom children content for game-specific additions */}
+      {children}
     </div>
   );
 };

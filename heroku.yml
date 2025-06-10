@@ -1,15 +1,18 @@
 build:
   docker:
     web: frontend/Dockerfile
-    backend: backend/Dockerfile
-    multiplayer: ./Dockerfile.multiplayer
+    api: backend/Dockerfile
+    worker: ./Dockerfile.multiplayer
 run:
-  web: npm start
-  backend:
+  web:
     command:
-      - python main.py
-    image: backend
-  multiplayer:
+      - npm start
+    image: web
+  api:
+    command:
+      - python main.py --env prod
+    image: api
+  worker:
     command:
       - python backend/MultiplayerServer.py
-    image: multiplayer
+    image: worker

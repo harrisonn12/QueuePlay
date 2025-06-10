@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import LoginScreen from '../../../LoginScreen';
+import LoginScreen from '../LoginScreen';
 import './FrontPage.css';
 
 const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInputGameId, isAuthenticated, userType }) => {
@@ -45,9 +45,9 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
   return (
     <div className="front-page">
       <div className="front-page-header">
-        <h1 className="front-page-title">🎮 QueuePlay Trivia</h1>
+        <h1 className="front-page-title">🎮 QueuePlay Game</h1>
         <p className="front-page-subtitle">
-          Multiplayer trivia games with real-time interaction
+          Multiplayer games with real-time interaction
         </p>
         {/* Temporary logout button for testing */}
         {isAuthenticated && (
@@ -91,7 +91,7 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
           ) : (
             <>
               <p className="section-description">
-                Login to create and manage trivia games
+                Login to create and manage games
               </p>
               <button 
                 onClick={handleLoginClick}

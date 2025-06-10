@@ -1,10 +1,10 @@
 import React from 'react';
-import Timer from '../components/Timer';
+import Timer from '../../../core/Timer';
 
 /**
  * Player Game View - Shows the player's view during active gameplay
  */
-const PlayerGameView = ({
+const TriviaPlayerView = ({
   questions,
   currentQuestionIndex,
   timerKey,
@@ -60,4 +60,4 @@ const PlayerGameView = ({
   );
 };
 
-export default PlayerGameView; 
+export default TriviaPlayerView; 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getApiBaseUrl, getWebSocketUrl, getStoredToken, storeToken, clearStoredToken, getGuestToken, storeGuestInfo, getGuestUserId } from '../utils/api';
+import { getApiBaseUrl, getWebSocketUrl, getStoredToken, storeToken, clearStoredToken, getGuestToken, storeGuestInfo, getGuestUserId } from '../../utils/api';
 
 /**
  * Authentication hook for QueuePlay JWT management

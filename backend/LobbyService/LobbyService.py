@@ -49,8 +49,8 @@ class LobbyService:
                     "createdAt": created_at
                 })
                 pipe.expire(lobby_key, LOBBY_TTL)
-                pipe.sadd(players_key, host_id)
-                pipe.expire(players_key, LOBBY_TTL)
+                # Don't add host to players list - host is separate from players
+                # Players set will be created when first player joins
                 # Map client to this game
                 pipe.set(client_game_key, game_id, ex=CLIENT_GAME_TTL)
                 results = await pipe.execute()

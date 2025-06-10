@@ -51,7 +51,17 @@ export const apiRequest = async (endpoint, options = {}) => {
         const response = await fetch(url, finalOptions);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Try to get error details from response body
+            let errorDetails = '';
+            try {
+                const errorBody = await response.text();
+                console.error(`API Error Response Body for ${endpoint}:`, errorBody);
+                errorDetails = ` - ${errorBody}`;
+            } catch (e) {
+                // If we can't parse the error body, just ignore
+            }
+            
+            throw new Error(`HTTP error! status: ${response.status}${errorDetails}`);
         }
         
         return await response.json();
@@ -100,18 +110,28 @@ export const authenticatedApiRequest = async (endpoint, options = {}, token = nu
 // Helper function to get guest token for players
 export const getGuestToken = async (gameId, playerName = null, phoneNumber = null) => {
     try {
+        const requestBody = {
+            game_id: gameId,
+            player_name: playerName,
+            phone_number: phoneNumber
+        };
+        
+        console.log('Getting guest token with request body:', requestBody);
+        
         const response = await apiRequest('/auth/guest-token', {
             method: 'POST',
-            body: JSON.stringify({
-                game_id: gameId,
-                player_name: playerName,
-                phone_number: phoneNumber
-            })
+            body: JSON.stringify(requestBody)
         });
         
         return response;
     } catch (error) {
         console.error('Failed to get guest token:', error);
+        
+        // Try to get more error details if available
+        if (error.response) {
+            console.error('Guest token error response:', error.response);
+        }
+        
         throw error;
     }
 };
