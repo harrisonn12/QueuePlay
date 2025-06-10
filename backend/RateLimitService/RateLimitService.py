@@ -21,9 +21,9 @@ class RateLimitService:
         
         # Rate limit configurations
         self.limits = {
-            "api_requests": {"count": 10, "window": 60},  # 5 per minute
+            "api_requests": {"count": 5, "window": 60},  # 5 per minute
             "question_generation": {"count": 50, "window": 86400},  # 50 per day
-            "token_generation": {"count": 150, "window": 500},  # TEMPORARILY INCREASED: 100 per 5 minutes for development
+            "token_generation": {"count": 100, "window": 300},  # TEMPORARILY INCREASED: 100 per 5 minutes for development
             "login_attempts": {"count": 5, "window": 60},  # 5 per minute
         }
     

@@ -4,11 +4,8 @@ build:
     api: backend/Dockerfile
     worker: ./Dockerfile.multiplayer
 run:
-  web:
-    command:
-      - npm start
-    image: web
-  api:
+  web: npm start
+  backend:
     command:
       - python main.py --env prod
     image: api
