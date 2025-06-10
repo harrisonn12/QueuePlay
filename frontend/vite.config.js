@@ -21,4 +21,13 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    host: '0.0.0.0',
+    port: process.env.PORT || 5173,
+    allowedHosts: [
+      'queue-play-34edc7c1b26f.herokuapp.com',
+      'localhost',
+      '127.0.0.1'
+    ]
+  }
 });
