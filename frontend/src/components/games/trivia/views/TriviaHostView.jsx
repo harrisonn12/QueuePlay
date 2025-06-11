@@ -5,6 +5,7 @@ import MarqueeComponent from '../../../core/MarqueeComponent';
  * Host Game View - Shows the host's view during active gameplay
  */
 const TriviaHostView = ({
+  gameId,
   questions,
   currentQuestionIndex,
   timerKey,
@@ -47,7 +48,7 @@ const TriviaHostView = ({
 
   return (
     <div className="host-game-view">
-      <MarqueeComponent />
+      <MarqueeComponent gameId={gameId} />
       <h2>Question {currentQuestionIndex + 1} of {questions.length}</h2>
       
       <div className="host-game-content">

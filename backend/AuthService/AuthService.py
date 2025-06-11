@@ -98,24 +98,33 @@ class AuthService:
         used on every protected API call to verify JWT token is valid.
         """
         try:
+            # Decode and verify JWT signature
             payload = jwt.decode(token, self.jwt_secret, algorithms=["HS256"])
+            user_id = payload.get("user_id", "unknown")
+            token_type = payload.get("type", "access_token")
             
-            # Verify session is still active
+            logger.info(f"🔐 JWT VALIDATION: Token decoded successfully for user {user_id} (type: {token_type})")
+            
+            # Verify session is still active (for non-guest tokens)
             session_id = payload.get("session_id")
             if session_id:
                 session_key = f"session:{session_id}"
                 session_data = await self.redis.get(session_key)
                 if not session_data or not session_data.get("active"):
-                    logger.warning(f"Token references inactive session: {session_id}")
+                    logger.warning(f"❌ JWT INVALID: Token references inactive session: {session_id}")
                     return None
+                logger.info(f"✅ JWT SESSION: Session {session_id} is active for user {user_id}")
+            else:
+                logger.info(f"✅ JWT GUEST: Guest token validated for user {user_id}")
             
+            logger.info(f"✅ JWT SUCCESS: Token validation complete for user {user_id}")
             return payload
             
         except jwt.ExpiredSignatureError:
-            logger.info("JWT token expired")
+            logger.warning("❌ JWT EXPIRED: Token has expired")
             return None
         except jwt.InvalidTokenError as e:
-            logger.warning(f"Invalid JWT token: {e}")
+            logger.warning(f"❌ JWT INVALID: Invalid token format or signature: {e}")
             return None
     
     async def invalidate_session(self, session_id: str) -> bool:

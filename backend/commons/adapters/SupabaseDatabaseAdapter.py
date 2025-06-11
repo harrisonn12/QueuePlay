@@ -20,7 +20,7 @@ class SupabaseDatabaseAdapter:
 
     def getTable(self, table):
         response = (
-            self.supabase.table(table)
+            self.supabaseClient.table(table)
             .select("*")
             .execute()
         )
@@ -28,7 +28,7 @@ class SupabaseDatabaseAdapter:
         return response
     
     def insertData(self, table, data):
-        response = self.supabase.table(table).insert(data).execute()
+        response = self.supabaseClient.table(table).insert(data).execute()
         return response
     
     def queryTable(self, table, filters=None, columns="*"):
@@ -40,7 +40,7 @@ class SupabaseDatabaseAdapter:
         :param columns: The columns to select, defaults to all columns ("*").
         :return: The query response.
         """
-        query = self.supabase.table(table).select(columns)
+        query = self.supabaseClient.table(table).select(columns)
         
         if filters:
             for field, value in filters.items():
@@ -51,7 +51,7 @@ class SupabaseDatabaseAdapter:
     
     def updateTable(self, table, fieldFilter, valueFilter, data):
         response = (
-            self.supabase.table(table)
+            self.supabaseClient.table(table)
             .update(data)
             .eq(fieldFilter, valueFilter)
             .execute()
@@ -61,7 +61,7 @@ class SupabaseDatabaseAdapter:
 
     def deleteData(self, table, field, value):
         response = (
-            self.supabase.table(table)
+            self.supabaseClient.table(table)
             .delete()
             .eq(field, value)
             .execute()

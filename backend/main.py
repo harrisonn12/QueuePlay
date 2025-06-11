@@ -16,6 +16,9 @@ from commons.adapters.RedisAdapter import RedisAdapter
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
 from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.CouponIdGenerator import CouponIdGenerator
+from CouponService.src.databases.CouponsDatabase import CouponsDatabase
+from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
+from CouponService.CouponService import CouponService
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from UsernameService.UsernameService import UsernameService
 from AuthService.AuthService import AuthService
@@ -536,13 +539,27 @@ def createPaymentMethod(
 def deletePaymentMethod(paymentMethodId):
     pass # Placeholder
 
-@app.post("/getCoupons")
-def getCoupons(getCouponRequest: GetCouponRequest):
-    pass # Placeholder - was: return couponService.getCoupons(getCouponRequest.storeId, getCouponRequest.gamerId)
+@app.post("/createCoupon")
+def createCoupon(createCouponRequest: CreateCouponRequest):
+    return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
 
-@app.post("/destroyCoupon")
-def destroyCoupon(destroyCouponRequest: DestroyCouponRequest):
-    pass # Placeholder - was: return couponService.destroyCoupon(destroyCouponRequest.couponId)
+@app.post("/assignCoupon", tags=["Game API"])
+async def assignCoupon(request: Request, assignCouponRequest: AssignCouponRequest,
+                      current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Assign a coupon to a winner. Requires JWT authentication."""
+    return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
+
+@app.post("/getCoupons", tags=["Game API"])
+async def getCoupons(request: Request, getCouponRequest: GetCouponRequest,
+                    current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Get coupons for a gamer. Requires JWT authentication."""
+    return couponService.getCoupons(getCouponRequest.storeId, getCouponRequest.gamerId)
+
+@app.post("/destroyCoupon", tags=["Game API"])
+async def destroyCoupon(request: Request, destroyCouponRequest: DestroyCouponRequest,
+                       current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Destroy a coupon. Requires JWT authentication."""
+    return couponService.destroyCoupon(destroyCouponRequest.couponId)
 
 @app.post("/getExpiringCoupons")
 def getGamersWithExpiringCoupons():
@@ -766,10 +783,10 @@ if __name__ == '__main__':
     availableOffersAdapter = AvailableOffersAdapter()
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
-    # supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
-    # couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
-    # gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
-    # couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
+    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
+    gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
 
     # gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
     # paymentService = PaymentService()

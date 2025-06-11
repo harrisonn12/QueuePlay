@@ -9,7 +9,6 @@ import { useWebSocketMessageHandler } from '../../../hooks/games/trivia/useTrivi
 import { useTieBreakerAnimation } from '../../../hooks/games/trivia/useTieBreakerAnimation';
 
 // API functions
-import { joinGameWithAuth } from '../../../utils/api';
 import { getStoredToken } from '../../../utils/api/auth';
 import { getQuestions } from '../../../utils/api/trivia';
 
@@ -34,8 +33,8 @@ const TriviaGame = () => {
     playerInfoStage, localPlayerName, isClientIdentified,
     setStatus, setGameId, setRole, setLocalPlayerName,
     inputGameId, setInputGameId, joinTargetGameId, setJoinTargetGameId,
-    playerNameInput, setPlayerNameInput, playerPhoneInput, setPlayerPhoneInput,
-    setPlayerInfoStage, resetGame, addPlayer, removePlayer,
+    setPlayerNameInput, playerPhoneInput, setPlayerPhoneInput,
+    setPlayerInfoStage, resetGame,
          isAuthenticated, userType, handleHostLogin, 
      hostGame, initiateJoinGame, handlePlayerJoin, completePlayerJoin
   } = gameCore;
@@ -448,6 +447,7 @@ const TriviaGame = () => {
     content = role === 'host' 
       ? (
         <TriviaHostView 
+          gameId={gameId}
           questions={questions}
           currentQuestionIndex={currentQuestionIndex}
           timerKey={timerKey}
