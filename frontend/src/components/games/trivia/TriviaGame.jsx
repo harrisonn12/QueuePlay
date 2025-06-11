@@ -491,8 +491,6 @@ const TriviaGame = () => {
   // Main component render
   return (
     <div className="trivia-game-container">
-      {/* Status display could be a small component at the top */}
-      {status && <div className="status-message">{status}</div>}
       {content}
     </div>
   );

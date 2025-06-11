@@ -9,7 +9,11 @@ class QuestionTopic(Enum):
     MUSIC = "Music"
     SPORTS = "Sports"
     ART = "Art"
-    
+    SCIENCE = "Science"
+    GEOGRAPHY = "Geography"
+    MOVIES = "Movies"
+    LITERATURE = "Literature"
+    TECHNOLOGY = "Technology"
 
 
     @classmethod

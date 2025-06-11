@@ -9,23 +9,7 @@
   position: relative;
 }
 
-/* Status Message */
-.status-message {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--card-bg);
-  border: 1px solid var(--accent-neon);
-  color: var(--text-primary);
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-weight: 500;
-  box-shadow: var(--shadow-glow);
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  animation: slideDown 0.3s ease-out;
-}
+
 
 @keyframes slideDown {
   from {
