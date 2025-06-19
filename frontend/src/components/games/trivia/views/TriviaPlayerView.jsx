@@ -4,19 +4,42 @@ import Timer from '../../../core/Timer';
 /**
  * Player Game View - Shows the player's view during active gameplay
  */
-const TriviaPlayerView = ({
-  questions,
-  currentQuestionIndex,
-  timerKey,
-  timePerQuestion,
-  submitAnswer,
-  hasAnswered,
-  selectedAnswer,
-  localPlayerName,
-  clientId
-}) => {
-  if (!questions.length || currentQuestionIndex >= questions.length) {
-    return <p>Waiting for question...</p>;
+const TriviaPlayerView = (combinedState) => {
+  const {
+    // Core state
+    localPlayerName, clientId,
+    // Trivia state
+    questions, currentQuestionIndex, timerKey, timePerQuestion,
+    hasAnswered, selectedAnswer, setHasAnswered, setSelectedAnswer,
+    // Actions
+    sendGameMessage
+  } = combinedState;
+
+
+
+  // Submit answer (player only)
+  const submitAnswer = (answerIndex) => {
+    if (hasAnswered) return;
+    
+    sendGameMessage('submitAnswer', {
+      answerIndex: answerIndex,
+      questionIndex: currentQuestionIndex
+    });
+    
+    setHasAnswered(true);
+    setSelectedAnswer(answerIndex);
+  };
+  // For players, show the game interface if we're in playing phase
+  // Questions will be populated via WebSocket messages from the host
+  if (!questions || !questions.length || currentQuestionIndex >= questions.length) {
+    return (
+      <div className="player-game-view">
+        <p className="player-name-display">
+          Playing as: {localPlayerName || `Player ${clientId?.substring(0,4)}`}
+        </p>
+        <p>Loading next question...</p>
+      </div>
+    );
   }
   
   const currentQuestion = questions[currentQuestionIndex];

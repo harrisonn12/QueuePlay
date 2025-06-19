@@ -21,7 +21,8 @@ class RateLimitService:
         
         # Rate limit configurations
         self.limits = {
-            "api_requests": {"count": 10, "window": 60},  # 5 per minute
+            "api_requests": {"count": 50, "window": 60},  # 50 per minute for general API calls
+            "word_validation": {"count": 200, "window": 60},  # Higher limit for word validation (games need more)
             "question_generation": {"count": 50, "window": 86400},  # 50 per day
             "token_generation": {"count": 100, "window": 300},  # TEMPORARILY INCREASED: 100 per 5 minutes for development
             "login_attempts": {"count": 5, "window": 60},  # 5 per minute
@@ -103,6 +104,10 @@ class RateLimitService:
     async def check_login_attempt_limit(self, ip_address: str) -> Tuple[bool, Dict[str, int]]:
         """Check login attempt rate limit for an IP address."""
         return await self.check_rate_limit("login_attempts", ip_address)
+    
+    async def check_word_validation_limit(self, user_id: str) -> Tuple[bool, Dict[str, int]]:
+        """Check word validation rate limit for a user (higher limit for games)."""
+        return await self.check_rate_limit("word_validation", user_id)
     
     async def get_user_usage_stats(self, user_id: str) -> Dict[str, Dict[str, int]]:
         """

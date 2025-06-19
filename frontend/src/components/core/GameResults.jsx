@@ -7,7 +7,7 @@ import React from 'react';
 const GameResults = ({
   scores,
   players,
-  tieBreakerState,
+  tieBreakerState = { stage: 'none' },
   isAnimatingTie,
   highlightedPlayerIndex,
   role,
@@ -23,7 +23,7 @@ const GameResults = ({
 
   // --- Tie Breaker UI --- 
   // Show this before regular results if a tie is being broken
-  if (tieBreakerState.stage === 'breaking') {
+  if (tieBreakerState?.stage === 'breaking') {
     // Find names of tied players
     const tiedPlayerNamesAndIds = tieBreakerState.tiedPlayerIds
       .map(id => {
@@ -82,7 +82,7 @@ const GameResults = ({
   }
 
   // Determine the winner ID (either the outright winner or the one chosen in tie-breaker)
-  const finalWinnerId = tieBreakerState.stage === 'resolved' 
+  const finalWinnerId = tieBreakerState?.stage === 'resolved' 
     ? tieBreakerState.ultimateWinnerId 
     : (Object.entries(scores).sort(([, scoreA], [, scoreB]) => scoreB - scoreA)[0]?.[0] || null);
 
@@ -100,14 +100,14 @@ const GameResults = ({
   // --- Host View: Show the full scoreboard --- 
   if (role === 'host') {
     // Highlight the ultimate winner if tie was resolved
-    const ultimateWinnerName = tieBreakerState.stage === 'resolved' 
+    const ultimateWinnerName = tieBreakerState?.stage === 'resolved' 
       ? (players.find(p => p.clientId === finalWinnerId)?.name || `Player ${finalWinnerId?.substring(0,4)}`)
       : null;
 
     return (
       <div className="game-results host-results">
         <h2>🎮 Game Finished!</h2>
-        {tieBreakerState.stage === 'resolved' && (
+        {tieBreakerState?.stage === 'resolved' && (
           <p className="tie-resolved-message" style={{ color: 'var(--accent-neon)', fontSize: '1.2rem', fontWeight: '600' }}>
             🎯 Tie resolved! Winner: <strong>{ultimateWinnerName}</strong>
           </p>
@@ -117,7 +117,7 @@ const GameResults = ({
           {sortedInitialScores.map(([playerId, score], index) => {
             const playerInfo = players.find(p => p.clientId === playerId);
             const playerName = playerInfo?.name || `Player ${playerId.substring(0, 4)}`;
-            const isTheChosenWinner = tieBreakerState.stage === 'resolved' && playerId === finalWinnerId;
+            const isTheChosenWinner = tieBreakerState?.stage === 'resolved' && playerId === finalWinnerId;
 
             return (
               <li key={playerId} className={`${index === 0 ? 'leader' : ''} ${isTheChosenWinner ? 'ultimate-winner' : ''}`}>
@@ -148,7 +148,7 @@ const GameResults = ({
       <div className="game-results player-results winner-screen">
         <h2>🏆 VICTORY! 🏆</h2>
         {/* Add message if they won tie-breaker */} 
-        {tieBreakerState.stage === 'resolved' && tieBreakerState.tiedPlayerIds.includes(clientId) && (
+        {tieBreakerState?.stage === 'resolved' && tieBreakerState?.tiedPlayerIds?.includes(clientId) && (
           <p style={{ color: 'var(--accent-electric)', fontSize: '1.1rem' }}>🎯 You won the tie-breaker!</p>
         )}
         <p>🎉 Congratulations, {localPlayerName || 'you'} won!</p> 
@@ -170,11 +170,11 @@ const GameResults = ({
       <div className="game-results player-results loser-screen">
         <h2>🎮 Game Over</h2>
         {/* Add specific message if they lost a tie-breaker */}
-        {tieBreakerState.stage === 'resolved' && tieBreakerState.tiedPlayerIds.includes(clientId) && (
+        {tieBreakerState?.stage === 'resolved' && tieBreakerState?.tiedPlayerIds?.includes(clientId) && (
           <p>🎲 You were in the tie-breaker, but {winnerName} was chosen as the winner.</p>
         )}
         {/* Standard loser message */} 
-        {!(tieBreakerState.stage === 'resolved' && tieBreakerState.tiedPlayerIds.includes(clientId)) && (
+        {!(tieBreakerState?.stage === 'resolved' && tieBreakerState?.tiedPlayerIds?.includes(clientId)) && (
           <p>💪 Better luck next time, {localPlayerName || 'player'}!</p>
         )}
         <p style={{ color: 'var(--accent-electric)' }}>

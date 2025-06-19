@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { createLobby, getQrCode, joinGameWithAuth } from "../../utils/api/game.js";
+import { createLobby, getQrCode, joinGameWithAuth, getLobbyInfo } from "../../utils/api/game.js";
 import { getStoredToken } from "../../utils/api/auth.js";
 import { useAuth } from "./useAuth.js";
 
@@ -11,11 +11,15 @@ import { useAuth } from "./useAuth.js";
  * @param {string} gameType - The type of game being played (e.g., 'trivia')
  * @returns {Object} Core game state and methods
  */
-export const useGameCore = (gameType = 'trivia') => {
-  // Core game identifiers and role
+export const useGameCore = (gameType = 'trivia', onGameTypeChange = null) => {
+  // Core game identifiers and role 
+  // ONLY persist for hosts to survive component remounts
+  // Players should always start fresh
   const [gameId, setGameId] = useState("");
-  const [role, setRole] = useState(""); // 'host' or 'player'
+  const [role, setRole] = useState("");
   const [clientId, setClientId] = useState(() => {
+    // Always generate a fresh clientId for each component instance
+    // This ensures new browser tabs/windows get unique identities
     const newClientId = uuidv4();
     console.log("Generated new clientId for this session:", newClientId);
     return newClientId;
@@ -36,6 +40,7 @@ export const useGameCore = (gameType = 'trivia') => {
   const [playerNameInput, setPlayerNameInput] = useState("");
   const [playerPhoneInput, setPlayerPhoneInput] = useState("");
   const [inputGameId, setInputGameId] = useState("");
+  const [pendingGameType, setPendingGameType] = useState(null); // Store game type during join flow
 
   // Authentication integration
   const { 
@@ -47,6 +52,22 @@ export const useGameCore = (gameType = 'trivia') => {
 
   // Ref to track player announcement
   const announcedPlayerRef = useRef(false);
+
+  // Simple setters - no automatic persistence
+  const setGameIdWithPersistence = useCallback((newGameId) => {
+    setGameId(newGameId);
+  }, []);
+
+  const setRoleWithPersistence = useCallback((newRole) => {
+    setRole(newRole);
+  }, []);
+
+  // Note: clientId is not persisted - each browser instance gets a unique ID
+
+  // Fresh start on every page load - no persistent game state
+  useEffect(() => {
+    console.log("useGameCore initialized - fresh start (no persistent state)");
+  }, []); // Run once on mount
 
   // Reset core game state
   const resetGame = useCallback(() => {
@@ -64,12 +85,17 @@ export const useGameCore = (gameType = 'trivia') => {
     setPlayerNameInput("");
     setPlayerPhoneInput("");
     setLocalPlayerName("");
+    setPendingGameType(null);
     
     // Reset refs
     announcedPlayerRef.current = false;
 
+    // No persistent state to clear - clientId is not persisted
+
     console.log("Core game state reset");
   }, []);
+
+  // No persistent state - fresh start on every page load
 
   // Add a player to the players list
   const addPlayer = useCallback((playerId, playerName) => {
@@ -130,11 +156,20 @@ export const useGameCore = (gameType = 'trivia') => {
   }, []);
 
   // Host game functionality
-  const hostGame = useCallback(async (onGameCreatedOrEvent = null) => {
-    // Handle the case where this is called as an onClick handler and receives an event
-    const onGameCreated = (onGameCreatedOrEvent && typeof onGameCreatedOrEvent === 'function') 
-      ? onGameCreatedOrEvent 
-      : null;
+  const hostGame = useCallback(async (gameTypeOrCallback = null) => {
+    // Handle different parameter types:
+    // - string: game type to use
+    // - function: callback for when game is created
+    // - null/undefined: use default game type
+    let actualGameType = gameType;
+    let onGameCreated = null;
+    
+    if (typeof gameTypeOrCallback === 'string') {
+      actualGameType = gameTypeOrCallback;
+    } else if (typeof gameTypeOrCallback === 'function') {
+      onGameCreated = gameTypeOrCallback;
+    }
+    
     // Check authentication first
     if (!isAuthenticated || userType !== 'host') {
       setStatus("Authentication required. Please log in to host a game.");
@@ -145,9 +180,12 @@ export const useGameCore = (gameType = 'trivia') => {
     setStatus("Creating lobby...");
     
     try {
-      const newGameId = await createLobbyAPI(clientId, gameType);
-      setGameId(newGameId);
-      setRole('host');
+      const newGameId = await createLobbyAPI(clientId, actualGameType);
+      setGameIdWithPersistence(newGameId);
+      setRoleWithPersistence('host');
+      
+      // Host state managed in memory only - fresh start on page refresh
+      
       console.log(`Lobby created with ID: ${newGameId}. Role set to host. Client ID: ${clientId}`);
 
       // Fetch QR code
@@ -179,8 +217,8 @@ export const useGameCore = (gameType = 'trivia') => {
     setStatus, 
     isAuthenticated,
     userType,
-    setGameId, 
-    setRole, 
+    setGameIdWithPersistence, 
+    setRoleWithPersistence, 
     setQrCodeData, 
     clientId,
     gameType,
@@ -198,22 +236,69 @@ export const useGameCore = (gameType = 'trivia') => {
   }, [login, setStatus]);
 
   // Initiate player join - shows join form
-  const initiateJoinGame = useCallback(() => {
+  const initiateJoinGame = useCallback(async () => {
     if (!inputGameId) {
       setStatus("Error: Please enter a Game ID.");
       return;
     }
-    setJoinTargetGameId(inputGameId);
-    setPlayerInfoStage('enterInfo');
-    setStatus("Please enter your details to join.");
+    
+    try {
+      setStatus("Checking game...");
+      
+      // First, get lobby info to determine game type
+      const lobbyInfo = await getLobbyInfo(inputGameId);
+      if (!lobbyInfo.success) {
+        setStatus("Game not found. Please check the Game ID.");
+        return;
+      }
+      
+      // Store game type locally but DON'T change app game type yet
+      // This prevents component remounting during join flow
+      if (lobbyInfo.gameType) {
+        console.log(`Storing game type ${lobbyInfo.gameType} for after join`);
+        setPendingGameType(lobbyInfo.gameType);
+      }
+      
+      // Now set up the join flow
+      setJoinTargetGameId(inputGameId);
+      setPlayerInfoStage('enterInfo');
+      setStatus("Please enter your details to join.");
+      
+    } catch (error) {
+      console.error("Failed to get lobby info:", error);
+      setStatus("Failed to check game. Please try again.");
+    }
   }, [inputGameId, setStatus]);
 
   // Handle player join from front page (sets up join flow)
-  const handlePlayerJoin = useCallback((gameId) => {
-    setInputGameId(gameId);
-    setJoinTargetGameId(gameId);
-    setPlayerInfoStage('enterInfo');
-    setStatus("Please enter your details to join.");
+  const handlePlayerJoin = useCallback(async (gameId) => {
+    try {
+      setStatus("Checking game...");
+      
+      // First, get lobby info to determine game type
+      const lobbyInfo = await getLobbyInfo(gameId);
+      if (!lobbyInfo.success) {
+        setStatus("Game not found. Please check the Game ID.");
+        return;
+      }
+      
+      // Store game type locally but DON'T change app game type yet
+      // This prevents component remounting during join flow
+      if (lobbyInfo.gameType) {
+        console.log(`Storing game type ${lobbyInfo.gameType} for after join`);
+        setPendingGameType(lobbyInfo.gameType);
+      }
+      
+      // Now set up the join flow
+      setInputGameId(gameId);
+      setJoinTargetGameId(gameId);
+      setPlayerInfoStage('enterInfo');
+      setStatus("Please enter your details to join.");
+      
+    } catch (error) {
+      console.error("Failed to get lobby info:", error);
+      setStatus("Failed to check game. Please try again.");
+    }
   }, [setStatus]);
 
   // Complete player join process with authentication
@@ -234,11 +319,21 @@ export const useGameCore = (gameType = 'trivia') => {
       const joinResult = await joinGameWithAuth(gameId, playerName, phoneNumber, token);
       console.log("Join game API result:", joinResult);
 
-      // Step 3: Set game state
-      setGameId(gameId);
-      setRole('player');
+      // Step 3: Set game state and persist it to survive component switch
+      setGameIdWithPersistence(gameId);
+      setRoleWithPersistence('player');
       setLocalPlayerName(playerName);
       setPlayerInfoStage('joining');
+      
+      // Player state managed in memory only - fresh start on page refresh
+      
+      // Step 4: Now change game type to switch to correct component
+      // This happens AFTER all state is set and persisted to prevent data loss
+      if (pendingGameType && onGameTypeChange) {
+        console.log(`Switching to ${pendingGameType} game component after successful join`);
+        onGameTypeChange(pendingGameType);
+        setPendingGameType(null); // Clear pending game type
+      }
       
       setStatus("Connecting to game...");
       
@@ -250,7 +345,7 @@ export const useGameCore = (gameType = 'trivia') => {
       setPlayerInfoStage('enterInfo');
       return { success: false, error: error.message };
     }
-  }, [setGameId, setRole, setLocalPlayerName, setStatus]);
+  }, [setGameIdWithPersistence, setRoleWithPersistence, setLocalPlayerName, setStatus, onGameTypeChange, pendingGameType]);
 
   // Start game (host only) - sends startGame message
   const startGame = useCallback((ensureConnected, gameSpecificData = {}) => {
@@ -302,12 +397,14 @@ export const useGameCore = (gameType = 'trivia') => {
     resetGame();
   }, [gameId, clientId, role, resetGame]);
 
+
+
   return {
     // Core state
     gameId,
-    setGameId,
+    setGameId: setGameIdWithPersistence,
     role,
-    setRole,
+    setRole: setRoleWithPersistence,
     clientId,
     setClientId,
     
@@ -338,6 +435,8 @@ export const useGameCore = (gameType = 'trivia') => {
     setPlayerPhoneInput,
     inputGameId,
     setInputGameId,
+    pendingGameType,
+    setPendingGameType,
     
     // Authentication
     isAuthenticated,

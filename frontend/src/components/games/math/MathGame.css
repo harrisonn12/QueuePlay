@@ -1,0 +1,490 @@
+/* Math Game Specific Styles */
+
+/* Problem Display */
+.problem-display {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.math-problem {
+  position: relative;
+}
+
+.problem-text {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 0;
+  font-family: 'Arial', monospace;
+}
+
+.math-problem-display .problem-text {
+  font-size: 2.5rem;
+  color: #333;
+  margin: 1rem 0;
+}
+
+/* Player Responses Grid */
+.player-responses {
+  margin: 2rem 0;
+}
+
+.responses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.player-response {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.player-response.answered {
+  background: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.player-response.waiting {
+  background: #fff3cd;
+  border-color: #ffeaa7;
+}
+
+.player-name {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.response-status .answer.correct {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.response-status .answer.incorrect {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.response-status .waiting {
+  color: #ffc107;
+  font-style: italic;
+}
+
+/* Game Settings */
+.game-settings {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.setting-item {
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Current Scores */
+.current-scores, .updated-scores {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.score-item .rank {
+  font-weight: bold;
+  color: #007bff;
+  min-width: 3rem;
+}
+
+.score-item .player-name {
+  flex: 1;
+  text-align: left;
+  margin-left: 1rem;
+}
+
+.score-item .score {
+  font-weight: bold;
+  color: #28a745;
+}
+
+/* Round Results */
+.round-results {
+  margin: 2rem 0;
+}
+
+.problem-result {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 15px;
+  color: white;
+}
+
+.correct-answer {
+  font-size: 2.5rem;
+  margin: 1rem 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.result-item {
+  padding: 1rem;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.result-item.correct {
+  background: #d4edda;
+  border: 2px solid #28a745;
+}
+
+.result-item.incorrect {
+  background: #f8d7da;
+  border: 2px solid #dc3545;
+}
+
+.result-item .player-name {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.result-item .player-answer {
+  font-size: 1.2rem;
+  margin: 0.5rem 0;
+}
+
+.result-item .response-time {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+/* Player View Styles */
+.answer-section {
+  margin: 2rem 0;
+}
+
+.answer-input {
+  margin-bottom: 1.5rem;
+}
+
+.answer-field {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.5rem;
+  text-align: center;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.answer-field:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Number Pad */
+.number-pad {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.number-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.number-btn {
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border: 2px solid #ddd;  
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 60px;
+}
+
+.number-btn:hover {
+  background: #f8f9fa;
+  border-color: #007bff;
+}
+
+.number-btn:active {
+  transform: scale(0.95);
+}
+
+.number-btn.special {
+  background: #e9ecef;
+  color: #495057;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.action-buttons button {
+  flex: 1;
+  padding: 1rem;
+  font-size: 1.1rem;
+}
+
+/* Submitted State */
+.submitted-state {
+  text-align: center;
+  padding: 2rem;
+  background: #d4edda;
+  border-radius: 15px;
+  border: 2px solid #28a745;
+}
+
+.submitted-answer h3 {
+  color: #155724;
+  margin-bottom: 1rem;
+}
+
+.success-message {
+  color: #28a745;
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin: 1rem 0;
+}
+
+/* Final Results */
+.final-leaderboard {
+  margin: 2rem 0;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-item.rank-1 {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  border: 2px solid #ffd700;
+}
+
+.leaderboard-item.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+  border: 2px solid #c0c0c0;
+}
+
+.leaderboard-item.rank-3 {
+  background: linear-gradient(135deg, #cd7f32, #deb887);
+  border: 2px solid #cd7f32;
+}
+
+.leaderboard-item:not(.rank-1):not(.rank-2):not(.rank-3) {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+}
+
+.leaderboard-item .rank {
+  font-size: 1.5rem;
+  font-weight: bold;
+  min-width: 4rem;
+}
+
+.leaderboard-item .player-name {
+  flex: 1;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: left;
+  margin-left: 1rem;
+}
+
+.leaderboard-item .final-score {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #007bff;
+}
+
+/* Winner Announcement */
+.winner-announcement {
+  text-align: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  border-radius: 20px;
+  margin: 2rem 0;
+  box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+}
+
+.winner-announcement h2 {
+  font-size: 2.5rem;
+  color: #333;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1rem;
+}
+
+.winner-announcement h3 {
+  font-size: 1.8rem;
+  color: #666;
+}
+
+/* Transitions */
+.transition-screen {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.transition-screen h2 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+/* Game Stats */
+.game-stats {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.game-stats h4 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.game-stats p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+/* Current Score Display */
+.current-score {
+  text-align: center;
+  padding: 1rem;
+  background: #e3f2fd;
+  border-radius: 10px;
+  margin-top: 1rem;
+  border: 2px solid #2196f3;
+}
+
+.current-score p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1976d2;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .problem-text {
+    font-size: 2.5rem;
+  }
+  
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .responses-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .leaderboard-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  .leaderboard-item .player-name {
+    margin-left: 0;
+    text-align: center;
+  }
+}
+
+/* Animations */
+@keyframes correctAnswer {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.answer.correct {
+  animation: correctAnswer 0.5s ease-in-out;
+}
+
+@keyframes incorrectAnswer {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
+}
+
+.answer.incorrect {
+  animation: incorrectAnswer 0.5s ease-in-out;
+} 

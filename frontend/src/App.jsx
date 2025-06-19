@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { MainContainer } from './components/pages/MainContainer';
 import GameFactory from './components/games/GameFactory';
-import { GAME_TYPES } from './utils/constants/gameTypes';
 
 export const App = () => {
-    const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN;
-    const auth0ClientID = import.meta.env.VITE_AUTH0_CLIENT_ID;
+    const _auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN;
+    const _auth0ClientID = import.meta.env.VITE_AUTH0_CLIENT_ID;
+    
+    // State to track current game type - determined by host or joining player
+    const [currentGameType, setCurrentGameType] = useState(null);
+    
+    // Fresh start on every page load - no persistent game state
 
     return (
         // <Auth0Provider
@@ -17,6 +22,10 @@ export const App = () => {
         // >
         //     <MainContainer />
         // </Auth0Provider>
-        <GameFactory gameType={GAME_TYPES.TRIVIA} />
+        <GameFactory 
+            key="game-factory" // Prevent unnecessary remounting
+            gameType={currentGameType} 
+            onGameTypeChange={setCurrentGameType}
+        />
     );
 };

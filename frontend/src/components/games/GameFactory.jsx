@@ -1,60 +1,46 @@
-import React, { lazy, Suspense } from 'react';
-import { GAME_TYPES, getGameMetadata } from '../../utils/constants/gameTypes.js';
-import LoadingSpinner from '../core/LoadingSpinner.jsx';
+import { gameRegistry } from '../../utils/gameRegistry.js';
+import { lazy, Suspense } from 'react';
+import LoadingSpinner from '../core/LoadingSpinner';
 
-// Lazy load game components for better performance
-const TriviaGame = lazy(() => import('./trivia/TriviaGame.jsx'));
+// Import BaseGame as the single persistent component
+const BaseGame = lazy(() => import('./core/BaseGame.jsx'));
 
-// Future games can be added here:
-// const WordGame = lazy(() => import('./wordgame/WordGame.jsx'));
-// const MathQuiz = lazy(() => import('./mathquiz/MathQuiz.jsx'));
+// Import game modules to trigger registration
+// This ensures all games are registered when the factory loads
+import './trivia/TriviaGame.jsx';
+import './category/CategoryGame.jsx';
+import './math/MathGame.jsx';
 
 /**
- * Game factory component that routes to the appropriate game based on game type
- * @param {Object} props
- * @param {string} [props.gameType='trivia'] - Type of game to render
- * @param {Object} [props.gameProps={}] - Props to pass to the game component
+ * GameFactory - Single persistent authentication and game routing layer
+ * 
+ * ARCHITECTURE PRINCIPLE: 
+ * - BaseGame handles ALL authentication and core infrastructure
+ * - Games self-register with the gameRegistry
+ * - NO double authentication flows
+ * - NO component remounting during game type changes
+ * - NO manual game registration needed
  */
-const GameFactory = ({ gameType = GAME_TYPES.TRIVIA, gameProps = {} }) => {
-  // Game component mapping
-  const gameComponents = {
-    [GAME_TYPES.TRIVIA]: TriviaGame,
-    // Future games:
-    // [GAME_TYPES.WORD_GAME]: WordGame,
-    // [GAME_TYPES.MATH_QUIZ]: MathQuiz,
-  };
-
-  // Get the game component
-  const GameComponent = gameComponents[gameType];
-
-  // Handle unknown game type
-  if (!GameComponent) {
-    console.error(`Unknown game type: ${gameType}`);
-    return (
-      <div className="game-error">
-        <h2>Game Not Found</h2>
-        <p>The requested game type "{gameType}" is not available.</p>
-        <p>Available games: {Object.values(GAME_TYPES).join(', ')}</p>
-      </div>
-    );
-  }
-
-  // Get game metadata for additional props
-  const gameMetadata = getGameMetadata(gameType);
+const GameFactory = ({ gameType, onGameTypeChange, gameProps = {} }) => {
+  // Get all available games from the registry
+  const availableGames = gameRegistry.getGameComponents();
 
   return (
-    <div className="game-factory" data-game-type={gameType}>
-      <Suspense 
-        fallback={
-          <LoadingSpinner 
-            message={`Loading ${gameMetadata?.name || 'game'}...`} 
-            size="large" 
-          />
-        }
-      >
-        <GameComponent 
-          gameType={gameType}
-          gameMetadata={gameMetadata}
+    <div className="game-factory" data-game-type={gameType || 'none'}>
+      <Suspense fallback={<LoadingSpinner message="Loading game..." />}>
+        {/* 
+          SINGLE PERSISTENT COMPONENT ARCHITECTURE:
+          - BaseGame stays mounted throughout entire session
+          - Handles authentication once
+          - Dynamically renders games from registry
+          - No remounting = no state loss = no double auth
+          - Fully modular - games register themselves
+        */}
+        <BaseGame 
+          currentGameType={gameType} // Pass current game type
+          onGameTypeChange={onGameTypeChange}
+          availableGames={availableGames} // Pass all registered games
+          gameRegistry={gameRegistry} // Pass registry for phase checks
           {...gameProps}
         />
       </Suspense>

@@ -1,4 +1,4 @@
-import { authenticatedApiRequest } from './core.js';
+import { authenticatedApiRequest, apiRequest } from './core.js';
 
 // Helper function to join game with authentication
 export const joinGameWithAuth = async (gameId, playerName, phoneNumber = null, token) => {
@@ -76,6 +76,20 @@ export const createLobby = async (clientId, gameType, token, hostId = null) => {
         return response.gameId;
     } catch (error) {
         console.error('Failed to create lobby:', error);
+        throw error;
+    }
+};
+
+// Get lobby information (game type, host, etc.) - public endpoint
+export const getLobbyInfo = async (gameId) => {
+    try {
+        const response = await apiRequest(`/getLobbyInfo?gameId=${gameId}`, {
+            method: 'GET'
+        });
+        
+        return response;
+    } catch (error) {
+        console.error('Failed to get lobby info:', error);
         throw error;
     }
 };

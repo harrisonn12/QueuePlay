@@ -23,6 +23,7 @@ from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
 from UsernameService.UsernameService import UsernameService
 from AuthService.AuthService import AuthService
 from RateLimitService.RateLimitService import RateLimitService
+from WordValidationService.WordValidationService import WordValidationService
 from middleware.auth_middleware import create_auth_dependencies
 from pydantic import BaseModel
 import logging
@@ -63,6 +64,16 @@ try:
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
     usernameService = UsernameService(chatGptAdapter)
+    wordValidationService = WordValidationService(chatGptAdapter)
+    
+    # Initialize coupon service components
+    availableOffersAdapter = AvailableOffersAdapter()
+    offerSelectionProcessor = OfferSelectionProcessor()
+    couponIdGenerator = CouponIdGenerator()
+    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
+    gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
+    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
     
     # Initialize new security services
     auth_service = AuthService(redis_adapter, JWT_SECRET)
@@ -71,7 +82,7 @@ try:
     # Create auth dependencies
     auth_deps = create_auth_dependencies(auth_service, rate_limit_service)
     
-    logging.info("Initialized all services including security services.")
+    logging.info("Initialized all services including security and coupon services.")
 except Exception as e:
     logging.error(f"Error initializing services: {e}", exc_info=True)
     # We'll continue even with errors, as the FastAPI app can start and show appropriate error messages
@@ -140,6 +151,13 @@ class PlayerActionRequest(BaseModel):
     game_id: str
     action: str
     data: dict = None
+
+class ValidateWordRequest(BaseModel):
+    word: str
+    category: str
+
+class ValidateWordsRequest(BaseModel):
+    word_category_pairs: list  # List of {"word": str, "category": str}
 
 app = FastAPI(openapi_tags=tags_metadata)
 # app.include_router(PaymentServiceRouter.router)
@@ -405,6 +423,33 @@ async def createLobby(request: Request, request_data: CreateLobbyRequest,
         logging.error(f"Failed to create lobby in LobbyService. Details: {lobby_details}")
         return {"error": "Failed to create lobby"}
 
+@app.get("/getLobbyInfo", tags=["Game API"])
+async def getLobbyInfo(gameId: str) -> dict:
+    """Get basic lobby information (game type, host, etc.). Public endpoint for players to check before joining."""
+    try:
+        lobby_info = await lobbyService.get_lobby_info(gameId)
+        if not lobby_info:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Game not found"
+            )
+        
+        return {
+            "success": True,
+            "gameId": gameId,
+            "gameType": lobby_info.get("gameType"),
+            "hostId": lobby_info.get("hostId"),
+            "exists": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting lobby info for {gameId}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get lobby information"
+        )
+
 @app.get("/getLobbyQRCode", tags=["Game API"])
 def getLobbyQRCode(request: Request, gameId: str,
                    current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
@@ -510,6 +555,158 @@ async def get_user_stats(current_user: dict = Depends(auth_deps["get_current_use
     stats = await rate_limit_service.get_user_usage_stats(user_id)
     return {"user_id": user_id, "usage_stats": stats}
 
+# === WORD VALIDATION ENDPOINTS ===
+
+@app.post("/validate-word", tags=["Game API"])
+async def validate_word(request: Request, validation_data: ValidateWordRequest,
+                       current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+    """
+    Validate if a word belongs to a category using ConceptNet + AI fallback.
+    
+    This endpoint is used by the Category Game to validate player answers.
+    """
+    try:
+        client_ip = auth_deps["middleware"].get_client_ip(request)
+        
+        # Rate limiting for word validation (higher limit for games)
+        is_allowed, limit_info = await rate_limit_service.check_word_validation_limit(
+            current_user["user_id"]
+        )
+        if not is_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded for word validation",
+                headers={
+                    "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
+                    "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
+                    "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
+                }
+            )
+        
+        # Validate the word
+        logging.info(f"Validating word: '{validation_data.word}' in category: '{validation_data.category}'")
+        try:
+            is_valid, source, explanation = wordValidationService.validate_word(
+                validation_data.word, 
+                validation_data.category
+            )
+            logging.info(f"Validation result: {is_valid} from {source}")
+        except Exception as e:
+            logging.error(f"WordValidationService.validate_word failed: {e}", exc_info=True)
+            raise
+        
+        logging.info(f"Word validation: '{validation_data.word}' in '{validation_data.category}' = {is_valid} (source: {source})")
+        
+        return {
+            "word": validation_data.word,
+            "category": validation_data.category,
+            "is_valid": is_valid,
+            "confidence_source": source,
+            "explanation": explanation,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logging.error(f"Word validation failed: {e}", exc_info=True)
+        logging.error(f"WordValidationService object: {wordValidationService}")
+        logging.error(f"WordValidationService type: {type(wordValidationService)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Word validation service temporarily unavailable: {str(e)}"
+        )
+
+@app.post("/validate-words-batch", tags=["Game API"])
+async def validate_words_batch(request: Request, validation_data: ValidateWordsRequest,
+                              current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+    """
+    Validate multiple word-category pairs in a single request.
+    
+    This endpoint is used for batch validation of multiple player answers.
+    """
+    try:
+        client_ip = auth_deps["middleware"].get_client_ip(request)
+        
+        # Rate limiting for batch validation (using word validation limit)
+        is_allowed, limit_info = await rate_limit_service.check_word_validation_limit(
+            current_user["user_id"]
+        )
+        if not is_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded for batch word validation",
+                headers={
+                    "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
+                    "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
+                    "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
+                }
+            )
+        
+        # Limit batch size to prevent abuse
+        if len(validation_data.word_category_pairs) > 20:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Batch size limited to 20 word-category pairs"
+            )
+        
+        # Convert to tuples for the service
+        word_category_pairs = [
+            (pair["word"], pair["category"]) 
+            for pair in validation_data.word_category_pairs
+        ]
+        
+        # Validate all pairs
+        results = wordValidationService.validate_batch(word_category_pairs)
+        
+        # Format response
+        validation_results = []
+        for i, (word, category) in enumerate(word_category_pairs):
+            is_valid, source, explanation = results[i]
+            validation_results.append({
+                "word": word,
+                "category": category,
+                "is_valid": is_valid,
+                "confidence_source": source,
+                "explanation": explanation
+            })
+        
+        logging.info(f"Batch validation completed: {len(validation_results)} word-category pairs")
+        
+        return {
+            "results": validation_results,
+            "total_validated": len(validation_results),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Batch word validation failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Batch word validation service temporarily unavailable"
+        )
+
+@app.get("/word-validation-stats", tags=["Game API"])
+async def get_word_validation_stats(request: Request,
+                                   current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+    """
+    Get word validation service statistics (for monitoring).
+    """
+    try:
+        stats = wordValidationService.get_cache_stats()
+        return {
+            "cache_stats": stats,
+            "service_status": "operational",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logging.error(f"Failed to get word validation stats: {e}")
+        return {
+            "cache_stats": {"error": "unavailable"},
+            "service_status": "degraded",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
 # Keep payment routes commented out
 @app.post("/createNewUser", tags=["Payment Service"])
 def createNewUser(name: str, email: str):
@@ -539,9 +736,20 @@ def createPaymentMethod(
 def deletePaymentMethod(paymentMethodId):
     pass # Placeholder
 
-@app.post("/createCoupon")
-def createCoupon(createCouponRequest: CreateCouponRequest):
-    return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
+@app.post("/createCoupon", tags=["Game API"])
+async def createCoupon(request: Request, createCouponRequest: CreateCouponRequest,
+                      current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Create a coupon for a game. Requires JWT authentication."""
+    try:
+        return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
+    except Exception as e:
+        logging.error(f"Error creating coupon: {e}")
+        # Return a fallback response instead of failing completely
+        return {
+            "success": False,
+            "error": "Coupon service temporarily unavailable",
+            "value": "Special Offer Available!"
+        }
 
 @app.post("/assignCoupon", tags=["Game API"])
 async def assignCoupon(request: Request, assignCouponRequest: AssignCouponRequest,
@@ -603,7 +811,7 @@ async def join_game(request: Request, join_data: JoinGameRequest,
     
     # Add player to lobby
     try:
-        await lobbyService.add_player_to_lobby(
+        result = await lobbyService.add_player_to_lobby(
             game_id=game_id,
             player_id=user_id,
             player_name=join_data.player_name,
@@ -616,11 +824,20 @@ async def join_game(request: Request, join_data: JoinGameRequest,
             detail="Failed to join game"
         )
     
+    # Get lobby info to return game type to the player
+    try:
+        lobby_info = await lobbyService.get_lobby_info(game_id)
+        game_type = lobby_info.get("gameType") if lobby_info else None
+    except Exception as e:
+        logging.error(f"Error getting lobby info for game type: {e}")
+        game_type = None
+    
     return {
         "success": True,
         "message": "Successfully joined game",
         "game_id": game_id,
-        "player_id": user_id
+        "player_id": user_id,
+        "game_type": game_type
     }
 
 @app.post("/submitAnswer", tags=["Game API"])
@@ -733,63 +950,15 @@ if __name__ == '__main__':
     parser.add_argument('--env', type=str, choices=['dev', 'prod'], default='dev', help='Select the environment: dev or prod')
     args = parser.parse_args()
 
-    appConfig = AppConfig()
-
+    # Services are already initialized at the top of the file
+    # Only handle environment-specific configuration here
+    
     if args.env == 'prod':
-        appConfig.stage = Stage.PROD
-        origins = [
-            "queue-play-34edc7c1b26f.herokuapp.com/",  # Update with your production site
-        ]
-
+        # Update appConfig for production if needed
+        logging.info("Running in production mode")
     else:
-        appConfig.stage = Stage.DEVO
-        origins = [
-                    "http://localhost:5173",
-                    "http://localhost:5174", 
-                    "http://localhost:5175",
-                    "http://localhost:5176",
-                    "http://127.0.0.1:5173",
-                    "http://127.0.0.1:5174",
-                    "http://127.0.0.1:5175", 
-                    "http://127.0.0.1:5176",
-                    "http://localhost",
-                    "http://localhost:8080",
-                    "http://127.0.0.1:8080",
-                ]
+        logging.info("Running in development mode")
 
-    # CORS is handled by manual middleware above
-    # app.add_middleware(
-    #     CORSMiddleware,
-    #     allow_origins=origins,
-    #     allow_credentials=True,
-    #     allow_methods=["*"],
-    #     allow_headers=["*"],
-    # )
-
-    load_dotenv()
-
-    qrCodeGenerator = QRCodeGenerator(appConfig)
-
-    # Initialize Redis Adapter
-    redis_adapter = RedisAdapter(appConfig)
-
-    # Inject dependencies into LobbyService
-    lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter)
-
-    chatGptAdapter = ChatGptAdapter()
-    questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
-    questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
-
-    availableOffersAdapter = AvailableOffersAdapter()
-    offerSelectionProcessor = OfferSelectionProcessor()
-    couponIdGenerator = CouponIdGenerator()
-    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
-    couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
-    gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
-
-    # gamerManagementService = GamerManagementService(gamersDatabase, couponsDatabase)
-    # paymentService = PaymentService()
-    # stripeAdapter = StripeAdapter()
-
+    # All services already initialized at module level
+    # Just start the server
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,40 +1,82 @@
 import React from 'react';
 import Timer from '../../../core/Timer';
-import MarqueeComponent from '../../../core/MarqueeComponent';
+
 /**
  * Host Game View - Shows the host's view during active gameplay
  */
-const TriviaHostView = ({
-  gameId,
-  questions,
-  currentQuestionIndex,
-  timerKey,
-  timePerQuestion,
-  handleTimerComplete,
-  scores,
-  players
-}) => {
-  // Debugging logs
-  console.log("Rendering Host View - Index:", currentQuestionIndex);
-  console.log("Rendering Host View - Questions Array:", questions);
+const TriviaHostView = (combinedState) => {
+  const {
+    // Core state
+    gameId, players,
+    // Trivia state
+    questions, currentQuestionIndex, timerKey, timePerQuestion, scores,
+    // Actions
+    sendGameMessage, ensureConnected,
+    // Helper functions
+    calculateScores, advanceToNextQuestion, setScores, setGamePhase
+  } = combinedState;
 
+  // Handle timer completion (host only)
+  const handleTimerComplete = () => {
+    console.log(`[TriviaHost] Timer completed for question ${currentQuestionIndex}`);
+    console.log(`[TriviaHost] Current questions array length: ${questions.length}`);
+    console.log(`[TriviaHost] Current timerKey: ${timerKey}`);
+    
+    const currentSocket = ensureConnected();
+    if (!currentSocket) { 
+      console.log(`[TriviaHost] WebSocket not available, cannot proceed`);
+      return { shouldRepeat: false };
+    }
+    
+    const questionScores = calculateScores(
+      currentQuestionIndex, 
+      combinedState.currentQuestionAnswers,
+      players,
+      combinedState.clientId,
+      combinedState.role
+    );
+    setScores(questionScores);
+  
+    // Send question result
+    sendGameMessage('questionResult', {
+      questionIndex: currentQuestionIndex,
+      scores: questionScores,
+      players: players
+    });
+    
+    const isLastQuestion = currentQuestionIndex >= questions.length - 1;
+    if (isLastQuestion) {
+      console.log(`[TriviaHost] Game finished, sending gameFinished message`);
+      sendGameMessage('gameFinished', {
+        finalScores: questionScores,
+        players: players
+      });
+      setGamePhase('finished');
+    } else {
+      const nextIndex = currentQuestionIndex + 1;
+      console.log(`[TriviaHost] Advancing to question ${nextIndex}, sending nextQuestion message`);
+      sendGameMessage('nextQuestion', {
+        questionIndex: nextIndex 
+      });
+      console.log(`[TriviaHost] Calling advanceToNextQuestion() - current index: ${currentQuestionIndex}`);
+      advanceToNextQuestion();
+    }
+    
+    console.log(`[TriviaHost] Timer completion handler finished`);
+    return { shouldRepeat: false };
+  };
   // Make sure both questions array is loaded and currentQuestionIndex is valid
   if (!questions.length) {
-    console.log("Host View: questions not loaded yet");
     return <p>Loading questions...</p>;
   }
   
   // Ensure we have a valid question index
   if (currentQuestionIndex === undefined || currentQuestionIndex === null || 
       currentQuestionIndex < 0 || currentQuestionIndex >= questions.length) {
-    console.log("Host View: invalid question index:", currentQuestionIndex);
     return <p>Loading question...</p>;
   }
   
   const currentQuestion = questions[currentQuestionIndex];
-  
-  // Debugging log for currentQuestion
-  console.log("Rendering Host View - Current Question Object:", currentQuestion);
 
   // Check if the specific question object is valid before accessing properties
   if (!currentQuestion || typeof currentQuestion.question === 'undefined') {
@@ -46,9 +88,10 @@ const TriviaHostView = ({
   const sortedCurrentScores = Object.entries(scores)
     .sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
 
+  console.log(`[TriviaHostView] Rendering question ${currentQuestionIndex + 1}, timerKey: ${timerKey}`);
+  
   return (
     <div className="host-game-view">
-      <MarqueeComponent gameId={gameId} />
       <h2>Question {currentQuestionIndex + 1} of {questions.length}</h2>
       
       <div className="host-game-content">
@@ -56,7 +99,7 @@ const TriviaHostView = ({
           {/* Timer display for host */}
           <div className="timer-container">
             <Timer 
-              key={timerKey} 
+              key={`timer-${currentQuestionIndex}-${timerKey}`} 
               seconds={timePerQuestion} 
               onTimerEnd={handleTimerComplete} 
             />

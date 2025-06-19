@@ -19,6 +19,7 @@ const GameLobby = ({
   initiateJoinGame,
   completePlayerJoin,
   startGame,
+  isStartingGame = false,
   setPlayerNameInput,
   playerPhoneInput,
   setPlayerPhoneInput,
@@ -201,10 +202,10 @@ const GameLobby = ({
               
               <button 
                 onClick={startGame}
-                disabled={players.length === 0}
+                disabled={players.length === 0 || isStartingGame}
                 className="btn-primary"
               >
-                🚀 Start Game
+                {isStartingGame ? '⏳ Starting Game...' : '🚀 Start Game'}
               </button>
               
               {players.length === 0 && (

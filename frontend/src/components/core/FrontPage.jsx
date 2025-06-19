@@ -34,6 +34,8 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
     onPlayerJoin(inputGameId.trim());
   };
 
+
+
   if (showLoginScreen) {
     return (
       <div className="front-page">

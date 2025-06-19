@@ -116,7 +116,39 @@ export const useGameMessageHandler = (gameState) => {
         return true; // Message handled
       }
 
-
+      // --- Game Lifecycle Cases ---
+      case "startGame":
+      {
+        console.log("Handling core action: startGame");
+        console.log("DEBUG - startGame data:", data);
+        
+        // Store game data for game components to use
+        if (gameState.setGameData) {
+          console.log("Storing game data from startGame message");
+          gameState.setGameData(data);
+        }
+        
+        // For players, this message signals that the game has started
+        // The host already set their game phase when they clicked start
+        if (role === 'player') {
+          console.log("Player received startGame message, updating game phase");
+          console.log("DEBUG - current gamePhase:", gameState.gamePhase);
+          console.log("DEBUG - setGamePhase function available:", !!gameState.setGamePhase);
+          // This will trigger BaseGame to render the specific game component
+          if (gameState.setGamePhase) {
+            console.log("Calling setGamePhase('playing')");
+            gameState.setGamePhase('playing');
+            // Add a timeout to check if the state actually updated
+            setTimeout(() => {
+              console.log("DEBUG - gamePhase after setState:", gameState.gamePhase);
+            }, 100);
+          } else {
+            console.error("setGamePhase function not found in gameState!");
+          }
+        }
+        // Let the game-specific handler also process this message
+        return false; // Allow game-specific handler to also process
+      }
 
       // --- Tie Resolution (Generic for any scoring game) ---
       case "resolveTie":

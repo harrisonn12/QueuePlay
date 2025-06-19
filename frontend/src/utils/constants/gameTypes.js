@@ -1,6 +1,7 @@
 // Available game types configuration
 export const GAME_TYPES = {
   TRIVIA: 'trivia',
+  CATEGORY: 'category',
   // Future games can be added here:
   // WORD_GAME: 'wordgame',
   // MATH_QUIZ: 'mathquiz',
@@ -16,6 +17,17 @@ export const GAME_METADATA = {
     defaultSettings: {
       timePerQuestion: 10,
       questionsPerGame: 10,
+    },
+  },
+  [GAME_TYPES.CATEGORY]: {
+    name: 'Category Word Game',
+    description: 'Race to name words in each category!',
+    maxPlayers: 8,
+    minPlayers: 2,
+    defaultSettings: {
+      roundTime: 10,
+      totalRounds: 5,
+      categoryPool: 'all',
     },
   },
   // Future games metadata:
