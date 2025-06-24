@@ -2,8 +2,8 @@
   "name": "queueplay-root",
   "version": "1.0.0",
   "scripts": {
-    "heroku-postbuild": "npm --prefix frontend install",
-    "start": "npm --prefix frontend start"
+    "heroku-postbuild": "npm install serve",
+    "start": "npx serve frontend/dist -s -l $PORT"
   },
   "engines": {
     "node": ">=16.0.0"
