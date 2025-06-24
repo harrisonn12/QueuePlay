@@ -1,9 +1,9 @@
 {
-  "name": "queueplay-frontend-deploy",
+  "name": "queueplay-root",
   "version": "1.0.0",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
-    "start": "cd frontend && npm start"
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "start": "npm --prefix frontend start"
   },
   "engines": {
     "node": ">=16.0.0"
