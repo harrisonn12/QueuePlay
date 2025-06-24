@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useGameCore } from '../../core/useGameCore';
+import { getApiBaseUrl } from '../../utils/api/core';
 
 /**
  * Hook for validating words using the backend API with ConceptNet + AI fallback
@@ -54,7 +55,9 @@ export const useWordValidationAPI = () => {
       const token = localStorage.getItem('jwt_token');
       console.log(`[WordValidationAPI] Using JWT token: ${token ? 'present' : 'missing'}`);
       
-      const response = await fetch('http://localhost:8000/validate-word', {
+      const apiBaseUrl = getApiBaseUrl();
+      console.log(`[WordValidationAPI] Using API base URL: ${apiBaseUrl}`);
+      const response = await fetch(`${apiBaseUrl}/validate-word`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +167,9 @@ export const useWordValidationAPI = () => {
       const token = localStorage.getItem('jwt_token');
       console.log(`[WordValidationAPI] Using JWT token: ${token ? 'present' : 'missing'}`);
       
-      const response = await fetch('http://localhost:8000/validate-words-batch', {
+      const apiBaseUrl = getApiBaseUrl();
+      console.log(`[WordValidationAPI] Using API base URL for batch: ${apiBaseUrl}`);
+      const response = await fetch(`${apiBaseUrl}/validate-words-batch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
