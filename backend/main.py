@@ -962,4 +962,10 @@ if __name__ == '__main__':
     # All services already initialized at module level
     # Just start the server
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    
+    if args.env == 'prod':
+        # For production, use string import to avoid the warning
+        uvicorn.run("main:app", host="0.0.0.0", port=port)
+    else:
+        # For development, direct app reference is fine
+        uvicorn.run(app, host="0.0.0.0", port=port)
