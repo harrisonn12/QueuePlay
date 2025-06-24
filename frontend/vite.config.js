@@ -26,6 +26,8 @@ export default defineConfig({
     port: process.env.PORT || 5173,
     allowedHosts: [
       'queue-play-34edc7c1b26f.herokuapp.com',
+      'queue-play-backend-49545a31800d.herokuapp.com',
+      'queue-play-multiplayer-server-9ddcf88d473d.herokuapp.com',
       'localhost',
       '127.0.0.1'
     ]
