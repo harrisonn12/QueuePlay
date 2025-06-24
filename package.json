@@ -2,7 +2,7 @@
   "name": "queueplay-root",
   "version": "1.0.0",
   "scripts": {
-    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "heroku-postbuild": "npm --prefix frontend install",
     "start": "npm --prefix frontend start"
   },
   "engines": {
