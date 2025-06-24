@@ -2,7 +2,7 @@
 export const getApiBaseUrl = () => {
     // Production: Use environment variable for backend service URL
     if (import.meta.env.PROD) {
-      return import.meta.env.VITE_API_URL || 'https://queue-play-34edc7c1b26f.herokuapp.com';
+      return import.meta.env.VITE_API_URL || 'https://queue-play-backend-49545a31800d.herokuapp.com';
     } 
     
     // Development: Check if we're running locally or in Docker
@@ -19,7 +19,7 @@ export const getApiBaseUrl = () => {
 export const getWebSocketUrl = () => {
     // Production: Use environment variable for WebSocket service URL
     if (import.meta.env.PROD) {
-      return import.meta.env.VITE_WS_URL || 'wss://queue-play-34edc7c1b26f.herokuapp.com';
+      return import.meta.env.VITE_WS_URL || 'wss://queue-play-multiplayer-server-9ddcf88d473d.herokuapp.com';
     } 
     
     // Development: Check if we're running locally or in Docker

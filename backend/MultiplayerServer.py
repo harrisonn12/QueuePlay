@@ -87,7 +87,8 @@ async def main(args):
 
     # STEP 1) Get config from arguments, environment variables, or use defaults
     host = args.host if args.host else os.environ.get("WS_HOST", "0.0.0.0")  # Bind to all interfaces
-    port = args.port if args.port else int(os.environ.get("WS_PORT", "6789"))
+    # Use Heroku's PORT environment variable first, then WS_PORT, then default
+    port = args.port if args.port else int(os.environ.get("PORT", os.environ.get("WS_PORT", "6789")))
     server_id = os.environ.get("SERVER_ID", f"server-{port}")
     stage_str = os.environ.get("STAGE", "DEVO")
     stage = Stage[stage_str] if stage_str in Stage.__members__ else Stage.DEVO
