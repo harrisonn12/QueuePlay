@@ -1,1 +1,1 @@
-web: python backend/MultiplayerServer.py 
+web: python backend/main.py --env prod 

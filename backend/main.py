@@ -13,6 +13,7 @@ from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGene
 from PaymentService.PaymentService import PaymentService # Keep commented for now
 from commons.adapters.StripeAdapter import StripeAdapter # Keep commented for now
 from commons.adapters.RedisAdapter import RedisAdapter
+from configuration.RedisConfig import RedisConfig
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
 from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.CouponIdGenerator import CouponIdGenerator
@@ -58,7 +59,8 @@ if not JWT_SECRET:
 # Initialize all services
 try:
     qrCodeGenerator = QRCodeGenerator(appConfig)
-    redis_adapter = RedisAdapter(app_config=appConfig)
+    redis_config = RedisConfig(stage=stage)
+    redis_adapter = RedisAdapter(redis_config=redis_config)
     lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter)
     chatGptAdapter = ChatGptAdapter()
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
@@ -249,7 +251,7 @@ async def login(request: Request, login_data: LoginRequest, response: Response):
         value=session_id,
         httponly=True, #js can't access it
         secure=(appConfig.stage == Stage.PROD), #HTTPS only in prod
-        samesite="lax", #CSRF protection
+        samesite="none" if appConfig.stage == Stage.PROD else "lax", #Allow cross-site in prod, lax in dev
         max_age=24 * 3600  # 24 hours
     )
     
