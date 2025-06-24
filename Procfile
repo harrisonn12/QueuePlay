@@ -1,1 +1,1 @@
-web: python main.py --env prod 
+web: python backend/main.py --env prod 
