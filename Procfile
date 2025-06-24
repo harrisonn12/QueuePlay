@@ -1,1 +1,1 @@
-web: python backend/main.py --env prod 
+web: npm start 
