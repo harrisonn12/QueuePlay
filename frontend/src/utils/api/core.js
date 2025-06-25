@@ -1,16 +1,21 @@
 // Centralized API configuration
 export const getApiBaseUrl = () => {
+    console.log(`[getApiBaseUrl] Environment: PROD=${import.meta.env.PROD}, VITE_API_URL=${import.meta.env.VITE_API_URL}`);
     // Production: Use environment variable for backend service URL
     if (import.meta.env.PROD) {
-      return import.meta.env.VITE_API_URL || 'https://queue-play-backend-49545a31800d.herokuapp.com';
+      const url = import.meta.env.VITE_API_URL || 'https://queue-play-backend-49545a31800d.herokuapp.com';
+      console.log(`[getApiBaseUrl] Using production URL: ${url}`);
+      return url;
     } 
     
     // Development: Check if we're running locally or in Docker
     if (window.location.port === '5173' || window.location.port === '5175') {
       // Local development: Direct connection to backend
+      console.log(`[getApiBaseUrl] Using localhost for development`);
       return 'http://localhost:8000';
     } else {
       // Docker development: Use Vite proxy
+      console.log(`[getApiBaseUrl] Using proxy for Docker development`);
       return '/api';
     }
 };
@@ -65,6 +70,7 @@ export const apiRequest = async (endpoint, options = {}) => {
 export const authenticatedApiRequest = async (endpoint, options = {}, token = null) => {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}${endpoint}`;
+    console.log(`[authenticatedApiRequest] Making request to: ${url}`);
     
     const defaultOptions = {
         headers: {
