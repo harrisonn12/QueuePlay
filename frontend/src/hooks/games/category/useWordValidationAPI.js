@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useGameCore } from '../../core/useGameCore';
-import { getApiBaseUrl } from '../../utils/api/core';
+import { getApiBaseUrl } from '../../../utils/api/core';
 
 /**
  * Hook for validating words using the backend API with ConceptNet + AI fallback
