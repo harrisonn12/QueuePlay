@@ -490,7 +490,7 @@ async def getQuestions(request: Request, gameId: str, count: int = 10,
         return {"error": "Server configuration error"}
 
     try:
-        logging.info(f"Requesting questions for gameId: {gameId}, count: {count}")
+        logging.info(f"🎯 [HEROKU-BACKEND] Requesting questions for gameId: {gameId}, count: {count}")
 
         # Add extensive error handling around questionService call
         try:
@@ -586,7 +586,7 @@ async def validate_word(request: Request, validation_data: ValidateWordRequest,
             )
         
         # Validate the word
-        logging.info(f"Validating word: '{validation_data.word}' in category: '{validation_data.category}'")
+        logging.info(f"🔍 [HEROKU-BACKEND] Validating word: '{validation_data.word}' in category: '{validation_data.category}'")
         try:
             is_valid, source, explanation = wordValidationService.validate_word(
                 validation_data.word, 
@@ -671,7 +671,7 @@ async def validate_words_batch(request: Request, validation_data: ValidateWordsR
                 "explanation": explanation
             })
         
-        logging.info(f"Batch validation completed: {len(validation_results)} word-category pairs")
+        logging.info(f"🔍 [HEROKU-BACKEND] Batch validation completed: {len(validation_results)} word-category pairs")
         
         return {
             "results": validation_results,
