@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameCore } from '../../../hooks/core/useGameCore';
 import { useGameWebSocket } from '../../../hooks/core/useGameWebSocket';
 import { useGameMessageHandler } from '../../../hooks/core/useGameMessageHandler';
+import { getApiBaseUrl } from '../../../utils/api/core';
 
 // Shared components (provided by framework)
 import FrontPage from '../../core/FrontPage';
@@ -163,7 +164,9 @@ const BaseGame = ({
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
           
-          const response = await fetch(`http://localhost:8000/getQuestions?gameId=${gameCore.gameId}`, {
+          const apiBaseUrl = getApiBaseUrl();
+          console.log(`[BaseGame] Using API base URL for questions: ${apiBaseUrl}`);
+          const response = await fetch(`${apiBaseUrl}/getQuestions?gameId=${gameCore.gameId}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
