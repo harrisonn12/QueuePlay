@@ -37,9 +37,9 @@ const GameTypeSelector = ({ onGameTypeSelect, onBack }) => {
   return (
     <div className="game-type-selector">
       <div className="selector-header">
-        <h2>Choose Game Type</h2>
+        <h2>Select Community Activity</h2>
         <button className="btn-back" onClick={onBack}>
-          ← Back
+          ← Back to Home
         </button>
       </div>
       
@@ -49,10 +49,10 @@ const GameTypeSelector = ({ onGameTypeSelect, onBack }) => {
           className="btn-random-game"
           onClick={handleRandomSelection}
         >
-          🎲 Surprise Me! (Random Game)
+          Surprise Us! (Random Activity)
         </button>
         <p className="random-description">
-          Let the system pick a random game for you. All games have equal chance.
+          Let us pick a fun activity for your community. Perfect for spontaneous gatherings!
         </p>
       </div>
       
@@ -76,25 +76,11 @@ const GameTypeSelector = ({ onGameTypeSelect, onBack }) => {
                 <p className="game-description">
                   {metadata.description}
                 </p>
-                
-                {metadata.defaultSettings && Object.keys(metadata.defaultSettings).length > 0 && (
-                  <div className="game-settings-preview">
-                    <h4>Default Settings:</h4>
-                    <ul>
-                      {Object.entries(metadata.defaultSettings).map(([key, value]) => (
-                        <li key={key}>
-                          <span className="setting-name">{key}:</span>
-                          <span className="setting-value">{value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
               
               <div className="game-card-footer">
                 <button className="btn-select">
-                  Select Game
+                  Start This Activity
                 </button>
               </div>
             </div>

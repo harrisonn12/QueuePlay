@@ -87,7 +87,7 @@ const CategoryPlayerView = ({
       case 'results':
         return 'Round Results';
       default:
-        return 'Category Game';
+        return '';
     }
   };
 
@@ -225,7 +225,6 @@ const CategoryPlayerView = ({
         {!['category-reveal', 'input', 'scoring', 'results', 'playing'].includes(gamePhase) && (
           <div className="waiting-section">
             <div className="waiting-message">
-              <h3>Category Game</h3>
               <p>Phase: {gamePhase}</p>
               <p>Waiting for game to continue...</p>
             </div>

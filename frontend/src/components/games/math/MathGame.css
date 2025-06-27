@@ -1,13 +1,84 @@
 /* Math Game Specific Styles */
 
+/* Viewport-constrained layout to prevent scrolling */
+.host-game-view {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--warm-white) 0%, var(--cream) 50%, var(--soft-beige) 100%);
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 0 15px;
+  flex-shrink: 0;
+  height: 80px;
+  box-sizing: border-box;
+  z-index: 10;
+  position: relative;
+}
+
+.game-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 15px;
+}
+
+.problem-display {
+  flex-shrink: 0;
+  padding: 15px;
+  margin: 0;
+}
+
+.player-responses {
+  flex-shrink: 0;
+  max-height: 30vh;
+  overflow-y: auto;
+  margin: 0;
+  background: var(--paper-white);
+  border-radius: 16px;
+  padding: 1rem;
+  border: 2px solid var(--light-coffee);
+}
+
+.player-responses h3 {
+  color: var(--coffee-bean);
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+}
+
+.current-scores {
+  flex-shrink: 0;
+  max-height: 35vh;
+  min-height: 0;
+  margin: 0;
+  padding: 10px;
+  background: var(--paper-white);
+  border-radius: 16px;
+  border: 2px solid var(--light-coffee);
+}
+
 /* Problem Display */
 .problem-display {
   text-align: center;
   margin: 2rem 0;
   padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #764ba2;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(118, 75, 162, 0.3);
 }
 
 .math-problem {
@@ -42,42 +113,43 @@
 }
 
 .player-response {
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
+  background: var(--paper-white);
+  border: 2px solid var(--light-coffee);
+  border-radius: 16px;
   padding: 1rem;
   text-align: center;
   transition: all 0.3s ease;
 }
 
 .player-response.answered {
-  background: #d4edda;
-  border-color: #c3e6cb;
+  background: var(--cream);
+  border-color: var(--sage-green);
 }
 
 .player-response.waiting {
-  background: #fff3cd;
-  border-color: #ffeaa7;
+  background: var(--soft-beige);
+  border-color: var(--terracotta);
 }
 
 .player-name {
   font-weight: bold;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--coffee-bean);
+  font-family: 'Inter', sans-serif;
 }
 
 .response-status .answer.correct {
-  color: #28a745;
+  color: var(--success-green);
   font-weight: bold;
 }
 
 .response-status .answer.incorrect {
-  color: #dc3545;
+  color: var(--error-rust);
   font-weight: bold;
 }
 
 .response-status .waiting {
-  color: #ffc107;
+  color: var(--terracotta);
   font-style: italic;
 }
 
@@ -105,32 +177,43 @@
 
 /* Current Scores */
 .current-scores, .updated-scores {
-  background: #fff;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin: 2rem 0;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: var(--paper-white);
+  border-radius: 16px;
+  padding: 1rem;
+  margin: 0;
+  box-shadow: 0 4px 12px rgba(58, 53, 48, 0.1);
+}
+
+.current-scores h3, .updated-scores h3 {
+  color: var(--coffee-bean);
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
 }
 
 .scores-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
+  max-height: 25vh;
+  overflow-y: auto;
 }
 
 .score-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #007bff;
+  padding: 0.5rem 0.75rem;
+  background: var(--cream);
+  border-radius: 12px;
+  border-left: 4px solid var(--sage-green);
+  transition: all 0.3s ease;
 }
 
 .score-item .rank {
   font-weight: bold;
-  color: #007bff;
+  color: var(--coffee-bean);
   min-width: 3rem;
 }
 

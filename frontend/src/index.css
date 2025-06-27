@@ -2,25 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom CSS Variables for Gaming Theme */
+/* Custom CSS Variables for Community Café Theme */
 :root {
-  --primary-dark: #0a0f1c;
-  --primary-blue: #1a237e;
-  --primary-purple: #4527a0;
-  --accent-neon: #00ff88;
-  --accent-electric: #00d4ff;
-  --accent-pink: #ff0080;
-  --text-primary: #ffffff;
-  --text-secondary: #b3b3b3;
-  --card-bg: #1e293b;
-  --card-bg-light: #334155;
-  --border-color: #475569;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --shadow-glow: 0 0 20px rgba(0, 255, 136, 0.3);
-  --gradient-primary: linear-gradient(135deg, #1a237e 0%, #4527a0 100%);
-  --gradient-accent: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+  /* Warm Neutrals */
+  --cream: #F7F3E9;
+  --warm-white: #FEFCF7;
+  --soft-beige: #E8DCC0;
+  --light-coffee: #D4C4A8;
+  
+  /* Coffee Shop Browns */
+  --coffee-bean: #6F4E37;
+  --espresso: #4A332A;
+  --mocha: #8B4513;
+  --cafe-au-lait: #A67C5A;
+  
+  /* Accent Colors */
+  --sage-green: #9CAF88;
+  --terracotta: #D2691E;
+  --soft-coral: #F2A07B;
+  --warm-gray: #8E8680;
+  
+  /* Supporting Colors */
+  --paper-white: #F9F7F1;
+  --charcoal: #3A3530;
+  --success-green: #7FB069;
+  --warning-amber: #DAA520;
+  --error-rust: #B85450;
+  
+  /* Legacy mappings for compatibility */
+  --primary-dark: var(--charcoal);
+  --primary-blue: var(--coffee-bean);
+  --primary-purple: var(--espresso);
+  --accent-neon: var(--sage-green);
+  --accent-electric: var(--terracotta);
+  --accent-pink: var(--soft-coral);
+  --text-primary: var(--charcoal);
+  --text-secondary: var(--warm-gray);
+  --card-bg: var(--paper-white);
+  --card-bg-light: var(--cream);
+  --border-color: var(--light-coffee);
+  --success: var(--success-green);
+  --warning: var(--warning-amber);
+  --error: var(--error-rust);
+  --shadow-glow: 0 0 20px rgba(159, 175, 136, 0.3);
+  --gradient-primary: linear-gradient(135deg, var(--cream) 0%, var(--soft-beige) 100%);
+  --gradient-accent: linear-gradient(135deg, var(--sage-green) 0%, var(--terracotta) 100%);
 }
 
 /* Base styles */
@@ -32,14 +58,27 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  background: var(--primary-dark);
-  color: var(--text-primary);
+  background: var(--warm-white);
+  color: var(--charcoal);
   min-height: 100vh;
+}
+
+/* Typography hierarchy for Community Café theme */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  color: var(--coffee-bean);
+  font-weight: 600;
+}
+
+.accent-text {
+  font-family: 'Caveat', cursive;
+  color: var(--sage-green);
+  font-weight: 500;
 }
 
 #root {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0f1c 0%, #1a237e 50%, #4527a0 100%);
+  background: linear-gradient(135deg, var(--warm-white) 0%, var(--cream) 50%, var(--soft-beige) 100%);
   background-attachment: fixed;
 }
 
@@ -61,32 +100,33 @@ body {
   background: var(--accent-neon);
 }
 
-/* Custom button styles */
+/* Custom button styles - Community Café Theme */
 .btn-primary {
-  background: var(--gradient-primary);
+  background: var(--coffee-bean);
   border: 2px solid transparent;
-  color: var(--text-primary);
+  color: var(--warm-white);
   padding: 12px 24px;
-  border-radius: 12px;
+  border-radius: 16px;
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(26, 35, 126, 0.4);
+  box-shadow: 0 4px 15px rgba(111, 78, 55, 0.25);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-glow);
-  border-color: var(--accent-neon);
+  background: var(--espresso);
+  box-shadow: 0 6px 20px rgba(111, 78, 55, 0.35);
+  border-color: var(--sage-green);
 }
 
 .btn-secondary {
   background: transparent;
-  border: 2px solid var(--border-color);
-  color: var(--text-secondary);
+  border: 2px solid var(--light-coffee);
+  color: var(--coffee-bean);
   padding: 12px 24px;
-  border-radius: 12px;
+  border-radius: 16px;
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
@@ -94,25 +134,46 @@ body {
 }
 
 .btn-secondary:hover {
-  border-color: var(--accent-electric);
-  color: var(--accent-electric);
+  border-color: var(--sage-green);
+  color: var(--sage-green);
+  background: rgba(156, 175, 136, 0.05);
   transform: translateY(-1px);
 }
 
-/* Card styles */
+/* Card styles - Paper-like Community Aesthetic */
 .game-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
+  background: var(--paper-white);
+  border: 1px solid var(--light-coffee);
+  border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(58, 53, 48, 0.08);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  position: relative;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(135deg, var(--cream), var(--warm-white));
+  border-radius: 20px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .game-card:hover {
-  border-color: var(--accent-neon);
-  box-shadow: 0 12px 48px rgba(0, 255, 136, 0.2);
+  border-color: var(--sage-green);
+  box-shadow: 0 12px 48px rgba(156, 175, 136, 0.15);
+  transform: translateY(-2px);
+}
+
+.game-card:hover::before {
+  opacity: 1;
 }
 
 /* Animation classes */

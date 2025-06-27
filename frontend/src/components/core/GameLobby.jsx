@@ -157,16 +157,16 @@ const GameLobby = ({
   // Main lobby view
   return (
     <div className={`game-lobby fade-in ${role === 'host' ? 'host-lobby-container' : ''}`}>
-      <h1>🎮 QueuePlay Game 🎮</h1>
+      <h1>QueuePlay</h1>
 
       {!gameId && playerInfoStage === 'none' ? (
         <>
           <div>
-            <h2>🎯 Host a Game</h2>
+            <h2>Host a Game</h2>
             <button onClick={hostGame}>Create New Game</button>
           </div>
           <div>
-            <h2>🚀 Join a Game</h2>
+            <h2>Join a Game</h2>
             <input 
               type="text" 
               placeholder="Enter Game ID" 
@@ -191,7 +191,7 @@ const GameLobby = ({
             </div>
             
             <div className="players-section">
-              <h3>🎮 Players ({players.length})</h3>
+              <h3>Players ({players.length})</h3>
               <ul>
                 {players.map((player, index) => (
                   <li key={player.clientId} style={{ animationDelay: `${index * 0.1}s` }} className="fade-in">
@@ -205,7 +205,7 @@ const GameLobby = ({
                 disabled={players.length === 0 || isStartingGame}
                 className="btn-primary"
               >
-                {isStartingGame ? '⏳ Starting Game...' : '🚀 Start Game'}
+                {isStartingGame ? 'Starting Game...' : 'Start Game'}
               </button>
               
               {players.length === 0 && (
@@ -216,18 +216,18 @@ const GameLobby = ({
         </div>
       ) : (
         <div className="player-lobby">
-          <h2>🎮 Joined Game!</h2>
+          <h2>Joined Game!</h2>
           <p className="game-id">Game ID: <strong>{gameId}</strong></p>
           
           {localPlayerName && (
             <div className="player-info">
-              <h3>🎮 Playing as: <span className="neon-text">{localPlayerName}</span></h3>
+              <h3>Playing as: <span className="neon-text">{localPlayerName}</span></h3>
             </div>
           )}
           
           {players.length > 0 && (
             <div className="waiting-players">
-              <h3>🎮 Players ({players.length})</h3>
+              <h3>Players ({players.length})</h3>
               <ul>
                 {players.map((player, index) => (
                   <li key={player.clientId} style={{ animationDelay: `${index * 0.1}s` }} className="fade-in">

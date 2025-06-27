@@ -7,9 +7,9 @@ const CategoryHostView = ({
   // Player data
   players, playerAnswers, playerScores, roundResults,
   // Actions
-  forceNextRound, sendGameMessage, handleTimerEnd,
+  sendGameMessage, handleTimerEnd,
   // Core state
-  gameId, clientId,
+  clientId,
   // Timer reference for speed calculations
   roundStartTimeRef,
 }) => {
@@ -58,7 +58,12 @@ const CategoryHostView = ({
 
   // Broadcast phase changes to players
   useEffect(() => {
-    broadcastGameState(gamePhase);
+    if (gamePhase === 'finished') {
+      // Don't broadcast 'finished' phase - the endGame function handles gameFinished message
+      console.log('[CategoryHostView] Game finished - not broadcasting phase change (endGame handles this)');
+    } else {
+      broadcastGameState(gamePhase);
+    }
   }, [gamePhase, broadcastGameState]);
 
   // Get phase display text
@@ -97,7 +102,6 @@ const CategoryHostView = ({
     <div className={`category-host-view ${getPhaseClass()}`}>
       {/* Header */}
       <div className="game-header">
-        <h1>Category Word Game</h1>
         <div className="game-info">
           <span className="round-indicator">Round {currentRound} of {totalRounds}</span>
           <span className="phase-indicator">{getPhaseDisplayText()}</span>
@@ -138,7 +142,7 @@ const CategoryHostView = ({
 
         {/* Player Answers Section */}
         <div className="players-section">
-          <h3>Player Progress ({Object.keys(playerAnswers).length}/{players.length - 1})</h3>
+          <h3>Player Progress</h3>
           <div className="players-grid">
             {players
               .filter(player => player.clientId !== clientId) // Exclude host
@@ -156,9 +160,9 @@ const CategoryHostView = ({
                     <div className="player-status">
                       {gamePhase === 'input' && (
                         hasSubmitted ? (
-                          <span className="status-done">✓ Submitted</span>
+                          <span className="status-done">Submitted</span>
                         ) : (
-                          <span className="status-waiting">⏳ Typing...</span>
+                          <span className="status-waiting">Typing...</span>
                         )
                       )}
                       {(gamePhase === 'results' || gamePhase === 'scoring') && hasSubmitted && (
@@ -168,7 +172,7 @@ const CategoryHostView = ({
                             <span className={`answer-status ${
                               roundResults.playerResults[player.clientId].isValid ? 'valid' : 'invalid'
                             }`}>
-                              {roundResults.playerResults[player.clientId].isValid ? '✓' : '✗'}
+                              {roundResults.playerResults[player.clientId].isValid ? 'Valid' : 'Invalid'}
                             </span>
                           )}
                         </div>
@@ -189,7 +193,7 @@ const CategoryHostView = ({
             {/* Valid Answers */}
             {roundResults.validAnswers.length > 0 && (
               <div className="valid-answers">
-                <h4>✅ Valid Answers</h4>
+                <h4>Valid Answers</h4>
                 <div className="answers-list">
                   {roundResults.validAnswers.map(answer => (
                     <span key={answer} className="answer-badge valid">{answer}</span>
@@ -201,7 +205,7 @@ const CategoryHostView = ({
             {/* Duplicates */}
             {roundResults.duplicates.length > 0 && (
               <div className="duplicate-answers">
-                <h4>🔄 Duplicate Answers (1 point each)</h4>
+                <h4>Duplicate Answers (1 point each)</h4>
                 <div className="answers-list">
                   {roundResults.duplicates.map(answer => (
                     <span key={answer} className="answer-badge duplicate">{answer}</span>
@@ -212,7 +216,7 @@ const CategoryHostView = ({
             
             {/* Round Scores with Speed Ranking */}
             <div className="round-scores">
-              <h4>Points This Round (Ranked by Speed & Score)</h4>
+              <h4>Points This Round </h4>
               <div className="scores-list">
                 {Object.entries(roundResults.playerResults || {})
                   .filter(([playerId, result]) => result.isValid) // Only show valid answers
@@ -235,16 +239,15 @@ const CategoryHostView = ({
                       >
                         <div className="player-info">
                           <span className="player-name">
-                            {index === 0 && '🏆 '}
                             {player?.name || 'Unknown'}
                           </span>
-                          <span className="submission-time">⚡ {timeUsed}s</span>
+                          <span className="submission-time">{timeUsed}s</span>
                         </div>
                         <div className="score-info">
                           <span className="answer-preview">"{result.answer}"</span>
                           <span className={`score-points ${result.score > 3 ? 'bonus-score' : 'good-score'}`}>
                             +{result.score} pts
-                            {result.score > 3 && <span className="bonus-indicator">🚀</span>}
+                            {result.score > 3 && <span className="bonus-indicator"></span>}
                           </span>
                         </div>
                       </div>
@@ -257,7 +260,7 @@ const CategoryHostView = ({
                 .filter(([playerId, result]) => !result.isValid)
                 .length > 0 && (
                 <div className="invalid-answers">
-                  <h5>❌ Invalid Answers</h5>
+                  <h5>Invalid Answers</h5>
                   <div className="invalid-list">
                     {Object.entries(roundResults.playerResults || {})
                       .filter(([playerId, result]) => !result.isValid)
@@ -277,26 +280,7 @@ const CategoryHostView = ({
           </div>
         )}
 
-        {/* Host Controls */}
-        <div className="host-controls">
-          {(gamePhase === 'input' || gamePhase === 'category-reveal') && (
-            <button 
-              className="btn-primary control-btn"
-              onClick={forceNextRound}
-            >
-              Skip to Results
-            </button>
-          )}
-          
-          {gamePhase === 'results' && (
-            <button 
-              className="btn-primary control-btn"
-              onClick={forceNextRound}
-            >
-              {currentRound < totalRounds ? 'Next Round' : 'End Game'}
-            </button>
-          )}
-        </div>
+
       </div>
     </div>
   );

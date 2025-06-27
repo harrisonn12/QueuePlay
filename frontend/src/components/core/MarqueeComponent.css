@@ -4,6 +4,8 @@
     border: 1px solid #e9ecef;
     border-radius: 8px;
     overflow: hidden;
+    z-index: 1;
+    position: relative;
 }
 
 .marquee-text {

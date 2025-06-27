@@ -277,8 +277,23 @@ export const useCategoryGameState = () => {
     }
   }, [validateWordsBatch, getValidationStats]);
 
+  // Store sendGameMessage and setBaseGamePhase for use in useEffect calls
+  const sendGameMessageRef = useRef(null);
+  const setBaseGamePhaseRef = useRef(null);
+
   // End game
-  const endGame = useCallback((sendGameMessage) => {
+  const endGame = useCallback((sendGameMessage, setBaseGamePhase) => {
+    // If parameters are provided, store them for future use
+    if (sendGameMessage) {
+      sendGameMessageRef.current = sendGameMessage;
+    }
+    if (setBaseGamePhase) {
+      setBaseGamePhaseRef.current = setBaseGamePhase;
+    }
+    
+    // Use either provided parameters or stored refs
+    const messageSender = sendGameMessage || sendGameMessageRef.current;
+    const phaseSetter = setBaseGamePhase || setBaseGamePhaseRef.current;
     console.log('[CategoryGame] Game ended, calculating final results...');
     
     // Calculate final results
@@ -303,15 +318,29 @@ export const useCategoryGameState = () => {
     setGameResults(finalResults);
     setGamePhase('finished');
     
+    // Also set the BaseGame phase to 'finished' so it shows GameResults
+    if (phaseSetter) {
+      console.log('[CategoryGame] Setting BaseGame phase to finished');
+      phaseSetter('finished');
+    } else {
+      console.error('[CategoryGame] setBaseGamePhase is not available!');
+    }
+    
     // Send game finished message to all players
-    if (sendGameMessage) {
+    console.log('[CategoryGame] Checking sendGameMessage availability:', !!messageSender);
+    if (messageSender) {
       console.log('[CategoryGame] Sending gameFinished message to all players');
-      sendGameMessage('gameFinished', {
+      console.log('[CategoryGame] Final scores being sent:', playerScores);
+      console.log('[CategoryGame] Final results being sent:', finalResults);
+      messageSender('gameFinished', {
         finalResults: finalResults,
         finalScores: playerScores,
         winner: finalResults.winner,
         gameStats: finalResults.gameStats
       });
+      console.log('[CategoryGame] gameFinished message sent successfully');
+    } else {
+      console.error('[CategoryGame] sendGameMessage is not available! Cannot send gameFinished message');
     }
     
     return finalResults;
@@ -408,7 +437,7 @@ export const useCategoryGameState = () => {
           startNewRound();
         } else {
           console.log('[CategoryGame] All rounds completed, ending game');
-          endGame(); // Note: sendGameMessage will be passed from the component
+          endGame(); // Note: sendGameMessage and setBaseGamePhase will be passed from the component
         }
       }, gameSettings.resultsDisplayTime * 1000);
       
@@ -453,7 +482,7 @@ export const useCategoryGameState = () => {
       setCurrentRound(prev => prev + 1);
       startNewRound();
     } else if (gamePhase === 'results' && currentRound >= totalRounds) {
-      endGame(); // Note: sendGameMessage will be passed from the component
+      endGame(); // Note: sendGameMessage and setBaseGamePhase will be passed from the component
     }
   }, [gamePhase, currentRound, totalRounds, endRound, startNewRound, endGame]);
 
@@ -488,6 +517,13 @@ export const useCategoryGameState = () => {
     };
   }, []);
 
+  // Function to set the refs from component
+  const setEndGameDependencies = useCallback((sendGameMessage, setBaseGamePhase) => {
+    console.log('[CategoryGame] Setting endGame dependencies:', !!sendGameMessage, !!setBaseGamePhase);
+    sendGameMessageRef.current = sendGameMessage;
+    setBaseGamePhaseRef.current = setBaseGamePhase;
+  }, []);
+
   return {
     // Game state
     gamePhase,
@@ -513,6 +549,7 @@ export const useCategoryGameState = () => {
     resetGame,
     handleTimerEnd,
     endGame,
+    setEndGameDependencies,
     
     // State setters (for message handler)
     setGamePhase,

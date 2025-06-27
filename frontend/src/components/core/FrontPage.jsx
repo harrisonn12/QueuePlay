@@ -47,10 +47,8 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
   return (
     <div className="front-page">
       <div className="front-page-header">
-        <h1 className="front-page-title">🎮 QueuePlay Game</h1>
-        <p className="front-page-subtitle">
-          Multiplayer games with real-time interaction
-        </p>
+        <h1 className="front-page-title">QueuePlay</h1>
+        
         {/* Temporary logout button for testing */}
         {isAuthenticated && (
           <button 
@@ -77,29 +75,29 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
       <div className="front-page-content">
         {/* Host Section */}
         <div className="front-page-section host-section">
-          <h2 className="section-title">🎯 Host a Game</h2>
+          <h2 className="section-title">Host Games</h2>
           {isAuthenticated && userType === 'host' ? (
             <>
               <p className="section-description">
-                Welcome back! You're logged in and ready to create games.
+                Welcome back! Ready to create memorable experiences for your community.
               </p>
               <button 
                 onClick={onHostGame}
-                className="front-page-button host-button"
+                className="front-page-button host-button btn-primary"
               >
-                Create New Game
+                Start Community Activity
               </button>
             </>
           ) : (
             <>
               <p className="section-description">
-                Login to create and manage games
+                Create engaging activities that bring your customers together
               </p>
               <button 
                 onClick={handleLoginClick}
-                className="front-page-button host-button"
+                className="front-page-button host-button btn-primary"
               >
-                Login as Host
+                Get Started as Host
               </button>
             </>
           )}
@@ -107,15 +105,15 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
 
         {/* Join Section */}
         <div className="front-page-section join-section">
-          <h2 className="section-title">🚀 Join a Game</h2>
+          <h2 className="section-title">Join the Fun</h2>
           <p className="section-description">
-            Enter a game ID to join as a player (no login required)
+            Enter the activity code to connect with your local community
           </p>
           
           <div className="join-game-form">
             <input 
               type="text" 
-              placeholder="Enter Game ID" 
+              placeholder="Enter Activity Code" 
               value={inputGameId}
               onChange={(e) => setInputGameId(e.target.value)}
               className="game-id-input"
@@ -123,15 +121,15 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
             />
             <button 
               onClick={handleJoinGame}
-              className="front-page-button join-button"
+              className="front-page-button join-button btn-secondary"
             >
-              Join Game
+              Join Activity
             </button>
           </div>
           
           {error && (
             <div className="error-message">
-              {error}
+              Please enter a valid activity code to join
             </div>
           )}
         </div>

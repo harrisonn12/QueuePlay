@@ -36,7 +36,7 @@ const GameResults = ({
 
     return (
       <div className="game-results tie-breaker-active">
-        <h2>🎲 Tie Breaker!</h2>
+        <h2>Tie Breaker</h2>
         <p>The following players are tied for first place:</p>
         <ul className="tie-player-list">
           {tiedPlayerNamesAndIds.map((player, index) => {
@@ -53,13 +53,10 @@ const GameResults = ({
           })}
         </ul>
         {role === 'host' ? (
-          <p>{isAnimatingTie ? "🎯 Selecting winner..." : "🏆 Winner selected!"}</p>
+          <p>{isAnimatingTie ? "Selecting winner..." : "Winner selected"}</p>
         ) : (
-          <p>⏳ Waiting for the host to select the winner...</p>
+          <p>Waiting for the host to select the winner...</p>
         )}
-        <button onClick={resetGame} className="btn-secondary" disabled={isAnimatingTie}>
-          {isAnimatingTie ? 'Please wait...' : '🏠 Back to Lobby'} 
-        </button>
       </div>
     );
   }
@@ -69,14 +66,8 @@ const GameResults = ({
     // Simplified view if no scores (e.g., game ended early)
     return (
       <div className="game-results">
-        <h2>🎮 Game Finished!</h2>
+        <h2>Activity Complete</h2>
         <p>No final scores were recorded.</p>
-        {role === 'host' && hostGame && (
-          <button onClick={hostGame} className="btn-primary">
-            🎯 Host New Game
-          </button>
-        )}
-        <button onClick={resetGame} className="btn-secondary">🏠 Back to Lobby</button>
       </div>
     );
   }
@@ -106,13 +97,13 @@ const GameResults = ({
 
     return (
       <div className="game-results host-results">
-        <h2>🎮 Game Finished!</h2>
+        <h2>Activity Complete</h2>
         {tieBreakerState?.stage === 'resolved' && (
           <p className="tie-resolved-message" style={{ color: 'var(--accent-neon)', fontSize: '1.2rem', fontWeight: '600' }}>
-            🎯 Tie resolved! Winner: <strong>{ultimateWinnerName}</strong>
+            Tie resolved! Winner: <strong>{ultimateWinnerName}</strong>
           </p>
         )}
-        <h3>📊 Final Scores:</h3>
+        <h3>Final Scores:</h3>
         <ol className="score-list final-scores">
           {sortedInitialScores.map(([playerId, score], index) => {
             const playerInfo = players.find(p => p.clientId === playerId);
@@ -123,21 +114,12 @@ const GameResults = ({
               <li key={playerId} className={`${index === 0 ? 'leader' : ''} ${isTheChosenWinner ? 'ultimate-winner' : ''}`}>
                 <span className="rank">{index + 1}.</span> 
                 <span className="name">{playerName}</span>: 
-                <strong className="score">{score}</strong> points
-                {/* Show trophy only if index 0 AND no initial tie OR if they are the chosen winner after a tie */}
-                {(index === 0 && !initialTie) || isTheChosenWinner ? ' 🏆' : ''} 
+                <strong className="score">{score}</strong> points 
               </li>
             );
           })}
         </ol>
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
-          {hostGame && (
-            <button onClick={hostGame} className="btn-primary">
-              🎯 Host New Game
-            </button>
-          )}
-          <button onClick={resetGame} className="btn-secondary">🏠 Back to Lobby</button>
-        </div>
+
       </div>
     );
   }
@@ -146,16 +128,15 @@ const GameResults = ({
   if (isFinalWinner) {
     return (
       <div className="game-results player-results winner-screen">
-        <h2>🏆 VICTORY! 🏆</h2>
+        <h2>VICTORY!</h2>
         {/* Add message if they won tie-breaker */} 
         {tieBreakerState?.stage === 'resolved' && tieBreakerState?.tiedPlayerIds?.includes(clientId) && (
-          <p style={{ color: 'var(--accent-electric)', fontSize: '1.1rem' }}>🎯 You won the tie-breaker!</p>
+          <p style={{ color: 'var(--accent-electric)', fontSize: '1.1rem' }}>You won the tie-breaker!</p>
         )}
-        <p>🎉 Congratulations, {localPlayerName || 'you'} won!</p> 
+        <p>Congratulations, {localPlayerName || 'you'} won!</p> 
         <p style={{ fontSize: '1.3rem', color: 'var(--accent-neon)' }}>
           Your Score: <strong>{scores[clientId]}</strong> points
         </p> 
-        <button onClick={resetGame} className="btn-primary pulse-glow">🔄 Play Again?</button>
       </div>
     );
   }
@@ -168,20 +149,19 @@ const GameResults = ({
 
     return (
       <div className="game-results player-results loser-screen">
-        <h2>🎮 Game Over</h2>
+        <h2>Great Job!</h2>
         {/* Add specific message if they lost a tie-breaker */}
         {tieBreakerState?.stage === 'resolved' && tieBreakerState?.tiedPlayerIds?.includes(clientId) && (
-          <p>🎲 You were in the tie-breaker, but {winnerName} was chosen as the winner.</p>
+          <p>You were in the tie-breaker, but {winnerName} was chosen as the winner.</p>
         )}
         {/* Standard loser message */} 
         {!(tieBreakerState?.stage === 'resolved' && tieBreakerState?.tiedPlayerIds?.includes(clientId)) && (
-          <p>💪 Better luck next time, {localPlayerName || 'player'}!</p>
+          <p>Better luck next time, {localPlayerName || 'player'}!</p>
         )}
         <p style={{ color: 'var(--accent-electric)' }}>
-          🏆 Winner: <strong>{winnerName}</strong> ({scores[finalWinnerId] || 0} points)
+          Winner: <strong>{winnerName}</strong> ({scores[finalWinnerId] || 0} points)
         </p>
-        <p>📊 Your Score: <strong>{scores[clientId] || 0}</strong> points</p> 
-        <button onClick={resetGame} className="btn-primary">🔄 Try Again?</button>
+        <p>Your Score: <strong>{scores[clientId] || 0}</strong> points</p> 
       </div>
     );
   }
@@ -189,10 +169,9 @@ const GameResults = ({
   // Fallback (shouldn't generally be reached by host or player after game end)
   return (
     <div className="game-results">
-      <h2>🎮 Game Finished!</h2>
-      <p>📊 Calculating final results...</p> 
+      <h2>Activity Complete</h2>
+      <p>Calculating final results...</p> 
       {children}
-      <button onClick={resetGame} className="btn-secondary">🏠 Back to Lobby</button>
     </div>
   );
 };

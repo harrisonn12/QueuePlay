@@ -38,10 +38,10 @@ const CategoryGame = ({
   
   // ===== GAME CONTROL WRAPPERS =====
   
-  // Wrap endGame to include sendGameMessage
+  // Wrap endGame to include sendGameMessage and BaseGame setGamePhase
   const wrappedEndGame = useCallback(() => {
-    return categoryState.endGame(sendGameMessage);
-  }, [categoryState.endGame, sendGameMessage]);
+    return categoryState.endGame(sendGameMessage, gameCore.setGamePhase);
+  }, [categoryState.endGame, sendGameMessage, gameCore.setGamePhase]);
   
   // Wrap forceNextRound to handle game end properly
   const wrappedForceNextRound = useCallback(() => {
@@ -68,6 +68,7 @@ const CategoryGame = ({
     sendGameMessage, // Ensure sendGameMessage is available
     // Preserve important BaseGame functions
     setGamePhase: gameCore.setGamePhase, // Keep BaseGame's setGamePhase for results screen
+    setGameData: gameCore.setGameData, // Keep BaseGame's setGameData for storing finalScores
   };
   
   // Debug logging for phase logic
@@ -105,6 +106,13 @@ const CategoryGame = ({
   }, [gameCore.role, gameCore.players, categoryState.gameSettings, categoryState.startGame, sendGameMessage]);
   
   // ===== ALL EFFECTS (MUST BE BEFORE ANY CONDITIONAL RETURNS) =====
+  
+  // Set up endGame dependencies
+  useEffect(() => {
+    if (categoryState.setEndGameDependencies) {
+      categoryState.setEndGameDependencies(sendGameMessage, gameCore.setGamePhase);
+    }
+  }, [categoryState.setEndGameDependencies, sendGameMessage, gameCore.setGamePhase]);
   
   // Register message handler - simplified approach
   useEffect(() => {

@@ -31,7 +31,6 @@ const QRCodeDisplay = ({ qrCodeData, alt = "Scan to join game", size = 200 }) =>
         />
       </div>
       <p className="qr-code-instructions">
-        <span className="scan-icon">📱</span>
         Scan this QR code to join the game
       </p>
     </div>

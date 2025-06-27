@@ -123,66 +123,59 @@ const MathHostView = ({
           </div>
         </div>
         
-        <div className="problem-display">
-          <div className="math-problem">
-            <h1 className="problem-text neon-text">
-              {currentProblem?.problem} = ?
-            </h1>
+        <div className="game-main-content">
+          <div className="problem-display">
+            <div className="math-problem">
+              <h1 className="problem-text neon-text">
+                {currentProblem?.problem} = ?
+              </h1>
+            </div>
           </div>
-        </div>
-        
-        <div className="player-responses">
-          <h3>Player Status</h3>
-          <div className="responses-grid">
-            {players.map(player => {
-              const response = playerAnswers[player.clientId];
-              return (
-                <div 
-                  key={player.clientId} 
-                  className={`player-response ${response ? 'answered' : 'waiting'}`}
-                >
-                  <div className="player-name">{player.name}</div>
-                  <div className="response-status">
-                    {response ? (
-                      <span className="answered">✓ Answered</span>
-                    ) : (
-                      <span className="waiting">Thinking...</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        
-        <div className="current-scores">
-          <h3>Current Scores</h3>
-          {Object.entries(scores).length > 0 ? (
-            <div className="scores-list">
-              {getLeaderboard().map((entry, index) => {
-                const player = players.find(p => p.clientId === entry.playerId);
-                const playerName = player?.name || `Player ${entry.playerId.substring(0, 4)}`;
-                
+          
+          <div className="player-responses">
+            <h3>Player Status</h3>
+            <div className="responses-grid">
+              {players.map(player => {
+                const response = playerAnswers[player.clientId];
                 return (
-                  <div key={entry.playerId} className="score-item">
-                    <span className="player-name">{playerName}</span>
-                    <span className="player-score">{entry.score} points</span>
+                  <div 
+                    key={player.clientId} 
+                    className={`player-response ${response ? 'answered' : 'waiting'}`}
+                  >
+                    <div className="player-name">{player.name}</div>
+                    <div className="response-status">
+                      {response ? (
+                        <span className="answered">✓ Answered</span>
+                      ) : (
+                        <span className="waiting">Thinking...</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <p>No scores yet</p>
-          )}
-        </div>
-        
-        <div className="host-controls">
-          <button 
-            className="btn-secondary" 
-            onClick={endCurrentProblem}
-          >
-            Skip Problem
-          </button>
+          </div>
+          
+          <div className="current-scores">
+            <h3>Current Scores</h3>
+            {Object.entries(scores).length > 0 ? (
+              <div className="scores-list">
+                {getLeaderboard().map((entry, index) => {
+                  const player = players.find(p => p.clientId === entry.playerId);
+                  const playerName = player?.name || `Player ${entry.playerId.substring(0, 4)}`;
+                  
+                  return (
+                    <div key={entry.playerId} className="score-item">
+                      <span className="player-name">{playerName}</span>
+                      <span className="player-score">{entry.score} points</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p>No scores yet</p>
+            )}
+          </div>
         </div>
       </div>
     );
