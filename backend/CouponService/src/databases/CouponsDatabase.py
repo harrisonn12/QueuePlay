@@ -48,4 +48,57 @@ class CouponsDatabase(DatabaseAdapter):
             return True
         except:
             return False
+
+    # Get expired coupons for manual cleanup or testing
+    def getExpiredCoupons(self):
+        """
+        Retrieve all expired coupons.
+        Note: This uses raw SQL due to date comparison complexity with string dates.
+        """
+        try:
+            # Execute raw SQL query for expired coupons
+            response = self.supabaseDatabase.supabaseClient.rpc(
+                'get_expired_coupons'
+            ).execute()
+            
+            if response.data:
+                return [Coupon.model_validate(coupon) for coupon in response.data]
+            return []
+        except Exception as e:
+            print(f"Error fetching expired coupons: {e}")
+            return []
+
+    # Manual cleanup method for testing or emergency use
+    def cleanupExpiredCoupons(self) -> int:
+        """
+        Manually trigger cleanup of expired coupons.
+        Returns number of deleted coupons.
+        """
+        try:
+            # Call the cleanup function
+            response = self.supabaseDatabase.supabaseClient.rpc(
+                'cleanup_expired_coupons'
+            ).execute()
+            
+            if response.data:
+                return response.data
+            return 0
+        except Exception as e:
+            print(f"Error during manual cleanup: {e}")
+            return 0
+
+    # Get cleanup statistics
+    def getCleanupStats(self):
+        """
+        Get coupon cleanup statistics from the log.
+        """
+        try:
+            response = self.supabaseDatabase.queryTable(
+                table="coupon_cleanup_stats",
+                columns="*"
+            )
+            return response.data if response.data else []
+        except Exception as e:
+            print(f"Error fetching cleanup stats: {e}")
+            return []
       
