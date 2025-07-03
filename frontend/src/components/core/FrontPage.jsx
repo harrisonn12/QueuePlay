@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import LoginScreen from '../LoginScreen';
+import StoreManagement from '../store/StoreManagement';
 import './FrontPage.css';
 
 const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInputGameId, isAuthenticated, userType }) => {
   const [showLoginScreen, setShowLoginScreen] = useState(false);
+  const [showStoreManagement, setShowStoreManagement] = useState(false);
   const [error, setError] = useState('');
 
   // Temporary logout function for testing
@@ -44,31 +46,67 @@ const FrontPage = ({ onHostLogin, onHostGame, onPlayerJoin, inputGameId, setInpu
     );
   }
 
+  if (showStoreManagement) {
+    return (
+      <div className="front-page">
+        <div className="store-management-header" style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
+          <button 
+            onClick={() => setShowStoreManagement(false)}
+            style={{
+              padding: '8px 16px',
+              background: '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back to Main
+          </button>
+        </div>
+        <StoreManagement storeId={1} />
+      </div>
+    );
+  }
+
   return (
     <div className="front-page">
       <div className="front-page-header">
         <h1 className="front-page-title">QueuePlay</h1>
         
-        {/* Temporary logout button for testing */}
+        {/* Control buttons for authenticated users */}
         {isAuthenticated && (
-          <button 
-            onClick={handleLogout}
-            className="logout-test-button"
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              padding: '8px 16px',
-              background: '#ff4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Logout (Test)
-          </button>
+          <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setShowStoreManagement(true)}
+              style={{
+                padding: '8px 16px',
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Manage Offers
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="logout-test-button"
+              style={{
+                padding: '8px 16px',
+                background: '#ff4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Logout
+            </button>
+          </div>
         )}
       </div>
 

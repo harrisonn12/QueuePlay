@@ -5,7 +5,7 @@ from commons.models.PaymentMethodRequest import PaymentMethodRequest
 class PaymentService:
     clientsDbName = 'clients'
     membershipDbName = 'membership'
-    offersDbName = 'offers'
+    offersDbName = 'couponOffers'
 
     def __init__(self):
         self.stripeAdapter = StripeAdapter()

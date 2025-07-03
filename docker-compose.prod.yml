@@ -4,29 +4,38 @@ services:
   web:
     build:
       context: ./frontend
-    command: npm run dev
-    working_dir: /app
+      dockerfile: Dockerfile.prod
     ports:
-      - "5173:5173"
+      - "80:80"
     depends_on:
       - backend
       - multiplayer
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
 
   backend:
     build:
       context: ./backend
     env_file:
-      - .env
-    command: python main.py
+      - .env.prod
+    command: python main.py --env prod
     working_dir: /app
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - STAGE=prod
+      - DATABASE_URL=${DATABASE_URL}
       - REDIS_HOST=redis
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - JWT_SECRET=${JWT_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_USERNAME=${SUPABASE_USERNAME}
+      - SUPABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       - redis
+    restart: unless-stopped
 
   multiplayer:
     build:
@@ -40,14 +49,22 @@ services:
       - REDIS_HOST=redis
     depends_on:
       - redis
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - redis_data:/data
+    restart: unless-stopped
 
 volumes:
   redis_data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge

@@ -3,7 +3,7 @@ from commons.adapters.ChatGptAdapter import ChatGptAdapter
 from configuration.AppConfig import AppConfig
 from configuration.AppConfig import Stage
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, Request, HTTPException, status
+from fastapi import FastAPI, Depends, Request, HTTPException, status, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from LobbyService.LobbyService import LobbyService
@@ -18,6 +18,8 @@ from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAda
 from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.CouponIdGenerator import CouponIdGenerator
 from CouponService.src.databases.CouponsDatabase import CouponsDatabase
+from CouponService.src.databases.OffersDatabase import OffersDatabase
+from CouponService.OfferManagementService import OfferManagementService
 from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
 from CouponService.CouponService import CouponService
 from commons.adapters.SupabaseDatabaseAdapter import SupabaseDatabaseAdapter
@@ -69,13 +71,15 @@ try:
     wordValidationService = WordValidationService(chatGptAdapter)
     
     # Initialize coupon service components
-    availableOffersAdapter = AvailableOffersAdapter()
+    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
+    offersDatabase = OffersDatabase(supabaseDatabaseAdapter)
+    availableOffersAdapter = AvailableOffersAdapter(offersDatabase)
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
-    supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
     couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
     gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
     couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
+    offerManagementService = OfferManagementService(offersDatabase)
     
     # Initialize new security services
     auth_service = AuthService(redis_adapter, JWT_SECRET)
@@ -160,6 +164,27 @@ class ValidateWordRequest(BaseModel):
 
 class ValidateWordsRequest(BaseModel):
     word_category_pairs: list  # List of {"word": str, "category": str}
+
+class CreateOfferRequest(BaseModel):
+    storeId: int
+    offerType: str  # BOGO, DISCOUNT, FREE
+    value: str
+    count: int
+    productId: int
+    expirationDate: str
+
+class UpdateOfferRequest(BaseModel):
+    offerId: int
+    storeId: int
+    offerType: str
+    value: str
+    count: int
+    productId: int
+    expirationDate: str
+
+class DeleteOfferRequest(BaseModel):
+    offerId: int
+    storeId: int
 
 app = FastAPI(openapi_tags=tags_metadata)
 # app.include_router(PaymentServiceRouter.router)
@@ -770,6 +795,111 @@ async def destroyCoupon(request: Request, destroyCouponRequest: DestroyCouponReq
                        current_user: dict = Depends(auth_deps["get_current_user"])):
     """Destroy a coupon. Requires JWT authentication."""
     return couponService.destroyCoupon(destroyCouponRequest.couponId)
+
+# === OFFER MANAGEMENT ENDPOINTS ===
+
+@app.post("/createOffer", tags=["Game API"])
+async def createOffer(request: Request, createOfferRequest: CreateOfferRequest,
+                     current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Create a new offer for a store. Requires JWT authentication."""
+    try:
+        offer = offerManagementService.createOffer(
+            storeId=createOfferRequest.storeId,
+            offerType=createOfferRequest.offerType,
+            value=createOfferRequest.value,
+            count=createOfferRequest.count,
+            productId=createOfferRequest.productId,
+            expirationDate=createOfferRequest.expirationDate
+        )
+        return {"success": True, "offer": offer.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error creating offer: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create offer")
+
+@app.get("/getStoreOffers/{storeId}", tags=["Game API"])
+async def getStoreOffers(request: Request, storeId: int,
+                        current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Get all offers for a store. Requires JWT authentication."""
+    try:
+        offers = offerManagementService.getStoreOffers(storeId)
+        return {"success": True, "offers": [offer.model_dump() for offer in offers]}
+    except Exception as e:
+        logging.error(f"Error fetching store offers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch offers")
+
+@app.put("/updateOffer", tags=["Game API"])
+async def updateOffer(request: Request, updateOfferRequest: UpdateOfferRequest,
+                     current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Update an existing offer. Requires JWT authentication."""
+    try:
+        offer = offerManagementService.updateOffer(
+            offerId=updateOfferRequest.offerId,
+            storeId=updateOfferRequest.storeId,
+            offerType=updateOfferRequest.offerType,
+            value=updateOfferRequest.value,
+            count=updateOfferRequest.count,
+            productId=updateOfferRequest.productId,
+            expirationDate=updateOfferRequest.expirationDate
+        )
+        return {"success": True, "offer": offer.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error updating offer: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update offer")
+
+# @app.delete("/deleteOffer", tags=["Game API"])
+# async def deleteOffer(request: Request, deleteOfferRequest: DeleteOfferRequest,
+#                      current_user: dict = Depends(auth_deps["get_current_user"])):
+#     """Delete an offer (soft delete). Requires JWT authentication."""
+#     try:
+#         success = offerManagementService.deleteOffer(
+#             offerId=deleteOfferRequest.offerId,
+#             storeId=deleteOfferRequest.storeId
+#         )
+#         return {"success": success}
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+#     except Exception as e:
+#         logging.error(f"Error deleting offer: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to delete offer")
+
+@app.delete("/deleteOffer", tags=["Game API"])
+async def deleteOffer(request: Request, deleteOfferRequest: DeleteOfferRequest,
+                     current_user: dict = Depends(auth_deps["get_current_user"])):
+    print("DELETE /deleteOffer endpoint called")
+    try:
+        success = offerManagementService.deleteOffer(
+            offerId=deleteOfferRequest.offerId,
+            storeId=deleteOfferRequest.storeId
+        )
+        return {"success": success}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error deleting offer: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete offer")
+
+@app.post("/validateOfferData", tags=["Game API"])
+async def validateOfferData(request: Request, createOfferRequest: CreateOfferRequest,
+                           current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Validate offer data without creating. Requires JWT authentication."""
+    try:
+        validation_result = offerManagementService.validateOfferData(
+            offerType=createOfferRequest.offerType,
+            value=createOfferRequest.value,
+            count=createOfferRequest.count,
+            productId=createOfferRequest.productId,
+            expirationDate=createOfferRequest.expirationDate
+        )
+        return validation_result
+    except Exception as e:
+        logging.error(f"Error validating offer data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to validate offer data")
+
+# === END OFFER MANAGEMENT ENDPOINTS ===
 
 @app.post("/getExpiringCoupons")
 def getGamersWithExpiringCoupons():

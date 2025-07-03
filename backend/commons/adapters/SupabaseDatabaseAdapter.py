@@ -56,7 +56,7 @@ class SupabaseDatabaseAdapter:
             .eq(fieldFilter, valueFilter)
             .execute()
         )
-
+        
         return response
 
     def deleteData(self, table, field, value):
