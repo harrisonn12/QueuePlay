@@ -8,23 +8,36 @@ export const OfferType = {
   FREE: 'free',
 };
 
+const getDefaultExpiration = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(23, 59, 0, 0);
+  return tomorrow.toISOString().slice(0, 16);
+};
+
 const StoreManagement = ({ storeId = 1 }) => {
     const { token } = useAuth();
     const [offers, setOffers] = useState([]);
+    const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [editingOffer, setEditingOffer] = useState(null);
+    const [showAddProduct, setShowAddProduct] = useState(false);
+    const [showProductManager, setShowProductManager] = useState(false);
+    const [newProductName, setNewProductName] = useState('');
+    const [newProductDescription, setNewProductDescription] = useState('');
     const [formData, setFormData] = useState({
         offerType: 'discount',
         value: '',
         count: 1,
-        productId: 1,
+        productId: '',
         expirationDate: ''
     });
     const [validationErrors, setValidationErrors] = useState([]);
 
     useEffect(() => {
         fetchOffers();
+        fetchProducts();
     }, [storeId]);
 
     const fetchOffers = async () => {
@@ -50,11 +63,109 @@ const StoreManagement = ({ storeId = 1 }) => {
         }
     };
 
+    const fetchProducts = async () => {
+        try {
+            const response = await fetch(`/api/getStoreProducts/${storeId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setProducts(data.products || []);
+            } else {
+                console.error('Failed to fetch products');
+            }
+        } catch (error) {
+            console.error('Error fetching products:', error);
+        }
+    };
+
+    const handleAddProduct = async () => {
+        if (!newProductName.trim()) return;
+        
+        try {
+            const response = await fetch('/api/createProduct', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    storeId,
+                    name: newProductName,
+                    description: newProductDescription
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setProducts([...products, data.product]);
+                setNewProductName('');
+                setNewProductDescription('');
+                setShowAddProduct(false);
+                
+                // Auto-select the new product
+                setFormData(prev => ({
+                    ...prev,
+                    productId: data.product.id
+                }));
+            } else {
+                console.error('Failed to create product');
+                alert('Failed to create product');
+            }
+        } catch (error) {
+            console.error('Error adding product:', error);
+            alert('Failed to create product');
+        }
+    };
+
+    const handleDeactivateProduct = async (productId) => {
+        if (!confirm('Are you sure you want to deactivate this product? It will no longer be available for new offers.')) return;
+        
+        try {
+            const response = await fetch('/api/deactivateProduct', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    productId,
+                    storeId
+                })
+            });
+
+            if (response.ok) {
+                console.log('Product deactivated successfully');
+                await fetchProducts(); // Refresh the list
+                
+                // If the deactivated product was selected in the form, clear it
+                if (formData.productId === productId) {
+                    setFormData(prev => ({
+                        ...prev,
+                        productId: ''
+                    }));
+                }
+            } else {
+                console.error('Failed to deactivate product');
+                alert('Failed to deactivate product');
+            }
+        } catch (error) {
+            console.error('Error deactivating product:', error);
+            alert('Failed to deactivate product');
+        }
+    };
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         const updatedFormData = {
             ...formData,
-            [name]: name === 'count' || name === 'productId' ? parseInt(value) || 0 : value
+            [name]: name === 'count' ? parseInt(value) || 0 : 
+                    name === 'productId' ? (value === '' ? '' : parseInt(value)) :
+                    value
         };
         
         // Clear value field for bogo and free offers
@@ -135,13 +246,14 @@ const StoreManagement = ({ storeId = 1 }) => {
     };
 
     const handleEdit = (offer) => {
+        const formattedDate = new Date(offer.expirationDate).toISOString().slice(0, 16);
         setEditingOffer(offer);
         setFormData({
             offerType: offer.offerType,
             value: offer.value,
             count: offer.count,
             productId: offer.productId,
-            expirationDate: offer.expirationDate
+            expirationDate: formattedDate
         });
         setShowCreateForm(true);
         setValidationErrors([]);
@@ -184,7 +296,7 @@ const StoreManagement = ({ storeId = 1 }) => {
             offerType: 'discount',
             value: '',
             count: 1,
-            productId: 1,
+            productId: '',
             expirationDate: ''
         });
         setEditingOffer(null);
@@ -204,12 +316,22 @@ const StoreManagement = ({ storeId = 1 }) => {
         <div className="store-management">
             <div className="store-management-header">
                 <h2>Store Offer Management</h2>
-                <button 
-                    className="btn btn-primary"
-                    onClick={() => setShowCreateForm(true)}
-                >
-                    Create New Offer
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                        className="btn btn-secondary"
+                        onClick={() => setShowProductManager(true)}
+                    >
+                        Manage Products
+                    </button>
+                    <button 
+                        className="btn btn-primary"
+                        onClick={() => {
+                            setShowCreateForm(true);
+                        }}
+                    >
+                        Create New Offer
+                    </button>
+                </div>
             </div>
 
             {showCreateForm && (
@@ -275,16 +397,33 @@ const StoreManagement = ({ storeId = 1 }) => {
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="productId">Product ID</label>
-                                <input
-                                    type="number"
-                                    id="productId"
-                                    name="productId"
-                                    value={formData.productId}
-                                    onChange={handleInputChange}
-                                    min="1"
-                                    required
-                                />
+                                <label htmlFor="productId">Product</label>
+                                <div className="product-selection">
+                                    <select
+                                        id="productId"
+                                        name="productId"
+                                        value={formData.productId}
+                                        onChange={handleInputChange}
+                                        required
+                                    >
+                                        <option value="">Select a product</option>
+                                        {products
+                                            .sort((a, b) => a.name.localeCompare(b.name))
+                                            .map(product => (
+                                                <option key={product.id} value={product.id}>
+                                                    {product.name}{product.description ? ` - ${product.description}` : ''}
+                                                </option>
+                                            ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddProduct(true)}
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ marginLeft: '10px' }}
+                                    >
+                                        Add New Product
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="form-group">
@@ -308,6 +447,109 @@ const StoreManagement = ({ storeId = 1 }) => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {showAddProduct && (
+                <div className="offer-form-overlay">
+                    <div className="offer-form-container">
+                        <h3>Add New Product</h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleAddProduct(); }} className="offer-form">
+                            <div className="form-group">
+                                <label htmlFor="newProductName">Product Name</label>
+                                <input
+                                    type="text"
+                                    id="newProductName"
+                                    value={newProductName}
+                                    onChange={(e) => setNewProductName(e.target.value)}
+                                    placeholder="Enter product name"
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="newProductDescription">Description (Optional)</label>
+                                <textarea
+                                    id="newProductDescription"
+                                    value={newProductDescription}
+                                    onChange={(e) => setNewProductDescription(e.target.value)}
+                                    placeholder="Enter product description"
+                                    rows="3"
+                                />
+                            </div>
+                            <div className="form-actions">
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        setShowAddProduct(false);
+                                        setNewProductName('');
+                                        setNewProductDescription('');
+                                    }}
+                                    className="btn btn-secondary"
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn btn-primary">
+                                    Add Product
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Product Manager Modal */}
+            {showProductManager && (
+                <div className="offer-form-overlay">
+                    <div className="offer-form-container">
+                        <h3>Manage Products</h3>
+                        <div className="products-list">
+                            {products.length === 0 ? (
+                                <p>No products found.</p>
+                            ) : (
+                                <div className="products-grid">
+                                    {products
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map(product => (
+                                            <div key={product.id} className="product-card">
+                                                <div className="product-header">
+                                                    <h4>{product.name}</h4>
+                                                    <button
+                                                        onClick={() => handleDeactivateProduct(product.id)}
+                                                        className="btn-icon delete"
+                                                        title="Deactivate product"
+                                                    >
+                                                        🚫
+                                                    </button>
+                                                </div>
+                                                {product.description && (
+                                                    <p className="product-description">{product.description}</p>
+                                                )}
+                                                <p className="product-id">Product ID: {product.id}</p>
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+                        <div className="form-actions">
+                            <button 
+                                type="button" 
+                                onClick={() => setShowProductManager(false)}
+                                className="btn btn-secondary"
+                            >
+                                Close
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={() => {
+                                    setShowProductManager(false);
+                                    setShowAddProduct(true);
+                                }}
+                                className="btn btn-primary"
+                            >
+                                Add New Product
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -342,16 +584,23 @@ const StoreManagement = ({ storeId = 1 }) => {
                                     </div>
                                 </div>
                                 <div className="offer-content">
-                                    <h4>{offer.value}</h4>
-                                    <p><strong>Product ID:</strong> {offer.productId}</p>
-                                    <p><strong>Weight:</strong> {offer.count}</p>
-                                    <p><strong>Expires:</strong> {formatDate(offer.expirationDate)}</p>
-                                    {offer.createdAt && (
-                                        <p className="created-date">
-                                            Created: {formatDate(offer.createdAt)}
-                                        </p>
-                                    )}
-                                </div>
+                            <h4>{offer.value}</h4>
+                            <p>
+                                <strong>Product:</strong>{' '}
+                                {(() => {
+                                const product = products.find(p => p.id === offer.productId);
+                                return product ? (product.description || product.name) : 'Unknown product';
+                                })()}
+                            </p>
+                            <p><strong>Weight:</strong> {offer.count}</p>
+                            <p><strong>Expires:</strong> {formatDate(offer.expirationDate)}</p>
+                            {offer.createdAt && (
+                                <p className="created-date">
+                                Created: {formatDate(offer.createdAt)}
+                                </p>
+                            )}
+                            </div>
+
                             </div>
                         ))}
                     </div>

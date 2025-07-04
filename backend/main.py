@@ -19,6 +19,7 @@ from CouponService.src.OfferSelectionProcessor import OfferSelectionProcessor
 from CouponService.src.CouponIdGenerator import CouponIdGenerator
 from CouponService.src.databases.CouponsDatabase import CouponsDatabase
 from CouponService.src.databases.OffersDatabase import OffersDatabase
+from CouponService.src.databases.ProductsDatabase import ProductsDatabase
 from CouponService.OfferManagementService import OfferManagementService
 from GamerManagementService.src.databases.GamersDatabase import GamersDatabase
 from CouponService.CouponService import CouponService
@@ -29,6 +30,7 @@ from RateLimitService.RateLimitService import RateLimitService
 from WordValidationService.WordValidationService import WordValidationService
 from middleware.auth_middleware import create_auth_dependencies
 from pydantic import BaseModel
+from typing import Optional
 import logging
 import os
 import uvicorn
@@ -73,6 +75,7 @@ try:
     # Initialize coupon service components
     supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
     offersDatabase = OffersDatabase(supabaseDatabaseAdapter)
+    productsDatabase = ProductsDatabase(supabaseDatabaseAdapter)
     availableOffersAdapter = AvailableOffersAdapter(offersDatabase)
     offerSelectionProcessor = OfferSelectionProcessor()
     couponIdGenerator = CouponIdGenerator()
@@ -184,6 +187,15 @@ class UpdateOfferRequest(BaseModel):
 
 class DeleteOfferRequest(BaseModel):
     offerId: int
+    storeId: int
+
+class CreateProductRequest(BaseModel):
+    storeId: int
+    name: str
+    description: Optional[str] = None
+
+class DeactivateProductRequest(BaseModel):
+    productId: int
     storeId: int
 
 app = FastAPI(openapi_tags=tags_metadata)
@@ -900,6 +912,50 @@ async def validateOfferData(request: Request, createOfferRequest: CreateOfferReq
         raise HTTPException(status_code=500, detail="Failed to validate offer data")
 
 # === END OFFER MANAGEMENT ENDPOINTS ===
+
+# === PRODUCT MANAGEMENT ENDPOINTS ===
+
+@app.get("/getStoreProducts/{storeId}", tags=["Game API"])
+async def getStoreProducts(request: Request, storeId: int,
+                          current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Get all products for a store. Requires JWT authentication."""
+    try:
+        products = productsDatabase.getProductsByStore(storeId)
+        return {"products": [product.model_dump() for product in products]}
+    except Exception as e:
+        logging.error(f"Error fetching products: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch products")
+
+@app.post("/createProduct", tags=["Game API"])
+async def createProduct(request: Request, createProductRequest: CreateProductRequest,
+                       current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Create a new product. Requires JWT authentication."""
+    try:
+        from CouponService.src.databases.ProductsDatabase import ProductData
+        
+        product_data = ProductData(
+            storeId=createProductRequest.storeId,
+            name=createProductRequest.name,
+            description=createProductRequest.description
+        )
+        product = productsDatabase.createProduct(product_data)
+        return {"success": True, "product": product.model_dump()}
+    except Exception as e:
+        logging.error(f"Error creating product: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create product")
+
+@app.put("/deactivateProduct", tags=["Game API"])
+async def deactivateProduct(request: Request, deactivateProductRequest: DeactivateProductRequest,
+                           current_user: dict = Depends(auth_deps["get_current_user"])):
+    """Deactivate a product (soft delete). Requires JWT authentication."""
+    try:
+        success = productsDatabase.deleteProduct(deactivateProductRequest.productId)
+        return {"success": success}
+    except Exception as e:
+        logging.error(f"Error deactivating product: {e}")
+        raise HTTPException(status_code=500, detail="Failed to deactivate product")
+
+# === END PRODUCT MANAGEMENT ENDPOINTS ===
 
 @app.post("/getExpiringCoupons")
 def getGamersWithExpiringCoupons():

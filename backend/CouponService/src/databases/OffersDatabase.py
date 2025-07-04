@@ -55,7 +55,7 @@ class OffersDatabase(DatabaseAdapter):
 
     def createOffer(self, offer_data: OfferData) -> OfferData:
         """Create a new offer in the database"""
-        offer_dict = offer_data.model_dump(exclude={'id'})
+        offer_dict = offer_data.model_dump(exclude={'id', 'createdAt'})
         
         # Set value to None for bogo and free offers
         if offer_data.offerType in ['bogo', 'free']:
@@ -121,7 +121,7 @@ class OffersDatabase(DatabaseAdapter):
 
     def updateOffer(self, offerId: int, offer_data: OfferData) -> OfferData:
         """Update an existing offer"""
-        offer_dict = offer_data.model_dump(exclude={'id'})
+        offer_dict = offer_data.model_dump(exclude={'id', 'createdAt'})
 
         if offer_data.offerType in ['bogo', 'free']:
             offer_dict['value'] = None
