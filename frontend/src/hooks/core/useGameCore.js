@@ -47,7 +47,8 @@ export const useGameCore = (gameType = 'trivia', onGameTypeChange = null) => {
     isAuthenticated, 
     userType, 
     login,
-    loginAsGuest
+    loginAsGuest,
+    token
   } = useAuth();
 
   // Ref to track player announcement
@@ -442,6 +443,7 @@ export const useGameCore = (gameType = 'trivia', onGameTypeChange = null) => {
     isAuthenticated,
     userType,
     loginAsGuest,
+    token,
 
     // References
     announcedPlayerRef,

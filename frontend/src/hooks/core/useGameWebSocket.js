@@ -44,6 +44,15 @@ export const useGameWebSocket = (gameId, clientId, role, onMessage, token = null
         const currentDetails = connectionDetailsRef.current;
         const currentToken = currentDetails.token || getStoredToken();
         
+        console.log("ensureConnected: Checking connection requirements", {
+            gameId: !!currentDetails.gameId,
+            clientId: !!currentDetails.clientId,
+            role: !!currentDetails.role,
+            hasProvidedToken: !!currentDetails.token,
+            hasStoredToken: !!getStoredToken(),
+            finalToken: currentToken ? currentToken.substring(0, 20) + '...' : 'null'
+        });
+        
         if (!currentDetails.gameId || !currentDetails.clientId || !currentDetails.role || !currentToken) {
             console.warn("ensureConnected called, but essential details (gameId, clientId, role, token) are missing. Aborting connection attempt.", {
                 ...currentDetails,
@@ -103,6 +112,29 @@ export const useGameWebSocket = (gameId, clientId, role, onMessage, token = null
                     token: currentToken
                 };
                 console.log("Sending WebSocket auth message:", { ...authMessage, token: currentToken ? currentToken.substring(0, 20) + '...' : 'null' });
+                
+                // Debug: Check token validity on frontend
+                if (currentToken) {
+                    try {
+                        const tokenParts = currentToken.split('.');
+                        if (tokenParts.length === 3) {
+                            const payload = JSON.parse(atob(tokenParts[1]));
+                            const now = Math.floor(Date.now() / 1000);
+                            console.log("Token payload debug:", {
+                                user_id: payload.user_id,
+                                type: payload.type,
+                                game_id: payload.game_id,
+                                exp: payload.exp,
+                                now: now,
+                                isExpired: payload.exp < now,
+                                expiresIn: payload.exp - now
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Failed to decode token payload:", e);
+                    }
+                }
+                
                 socket.send(JSON.stringify(authMessage));
             };
             

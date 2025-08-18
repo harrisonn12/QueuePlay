@@ -38,6 +38,7 @@ services:
       - "6789:6789"
     environment:
       - REDIS_HOST=redis
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
     depends_on:
       - redis
 

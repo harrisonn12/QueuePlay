@@ -2,6 +2,7 @@ import json
 import uuid
 import logging
 import time
+from dotenv import load_dotenv
 import jwt
 import os
 import websockets
@@ -27,6 +28,7 @@ class ConnectionService:
     - Handle disconnection cleanup (unsubscribe from Pub/Sub).
     '''
     def __init__(self):
+        load_dotenv()
         self.messageService: MessageService = None # Injected by MultiplayerServer
 
         # Stores websockets for clients connected to THIS server instance
@@ -35,11 +37,9 @@ class ConnectionService:
         # This is NOT the authoritative game state, just info needed for routing
         self.connectionState = {} # {clientId: {"gameId": str, "isHost": bool, "authenticated": bool}}
 
-        # JWT secret from environment
+        # JWT secret - will be set by the server during initialization
         self.jwt_secret = os.environ.get("JWT_SECRET")
-        if not self.jwt_secret:
-            logger.warning("JWT_SECRET not found in environment, using fallback for development")
-            self.jwt_secret = "dev-fallback-secret-not-secure"
+        # Don't set fallback here - let the server set the correct secret
 
         # Generate a unique ID for this server instance
         self.serverId = str(uuid.getnode())[-8:]
@@ -61,21 +61,30 @@ class ConnectionService:
         Returns payload if valid, None if invalid.
         """
         try:
+            logger.info(f"🔑 JWT VALIDATION: Validating token with secret (first 10 chars): {self.jwt_secret[:10] if self.jwt_secret else 'None'}...")
+            logger.info(f"🔑 JWT VALIDATION: Token (first 30 chars): {token[:30] if token else 'None'}...")
+            
+            if not self.jwt_secret:
+                logger.error("🔑 JWT VALIDATION: No JWT secret available!")
+                return None
+                
             payload = jwt.decode(token, self.jwt_secret, algorithms=["HS256"])
             
             # Check if token is expired
             exp = payload.get("exp")
-            if exp and time.time() > exp:
-                logger.info("JWT token expired")
+            current_time = time.time()
+            if exp and current_time > exp:
+                logger.warning(f"🔑 JWT VALIDATION: Token expired. Exp: {exp}, Now: {current_time}")
                 return None
                 
+            logger.info(f"🔑 JWT VALIDATION: Token validated successfully for user {payload.get('user_id')}")
             return payload
             
         except jwt.ExpiredSignatureError:
-            logger.info("JWT token expired")
+            logger.warning("🔑 JWT VALIDATION: Token expired (ExpiredSignatureError)")
             return None
         except jwt.InvalidTokenError as e:
-            logger.warning(f"Invalid JWT token: {e}")
+            logger.warning(f"🔑 JWT VALIDATION: Invalid JWT token: {e}")
             return None
 
     async def handleConnection(self, websocket):

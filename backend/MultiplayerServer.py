@@ -141,6 +141,7 @@ async def main(args):
     
     # Ensure JWT secret is available to ConnectionService
     connection_service.jwt_secret = JWT_SECRET
+    logger.info(f"🔑 MULTIPLAYER SERVER: Set JWT secret in ConnectionService (first 10 chars): {JWT_SECRET[:10]}")
     
     await connection_service.start()
 

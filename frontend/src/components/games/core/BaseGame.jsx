@@ -105,7 +105,7 @@ const BaseGame = ({
   // ===== WEBSOCKET CONNECTION =====
   const { ensureConnected } = useGameWebSocket(
     gameCore.gameId, gameCore.clientId, gameCore.role, 
-    handleWebSocketMessage, null
+    handleWebSocketMessage, gameCore.token
   );
 
   const sendGameMessage = useCallback((action, data) => {
@@ -207,7 +207,7 @@ const BaseGame = ({
     } finally {
       setIsStartingGame(false);
     }
-  }, [selectedGameType, sendGameMessage, gameCore.players, gameCore.gameId, gameCore.setStatus, isStartingGame]);
+  }, [selectedGameType, sendGameMessage, gameCore, isStartingGame]);
 
   const handleGameTypeSelection = useCallback((gameType) => {
     console.log(`🎮 [BaseGame] Game type selected: ${gameType}`);
