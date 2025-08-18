@@ -40,9 +40,20 @@ apt-get upgrade -y
 # Step 2: Install Docker
 if ! command -v docker &> /dev/null; then
     print_status "Installing Docker..."
-    apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    apt-get install -y apt-transport-https ca-certificates curl software-properties-common gnupg lsb-release
+    
+    # Create keyrings directory if it doesn't exist
+    mkdir -p /etc/apt/keyrings
+    
+    # Download and save Docker's GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    
+    # Add Docker repository with signed-by keyring
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
     apt-get update
     apt-get install -y docker-ce docker-ce-cli containerd.io
     systemctl start docker
