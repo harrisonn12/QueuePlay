@@ -147,7 +147,7 @@ print_status "Setting up Nginx configuration..."
 cat > /etc/nginx/sites-available/queueplay << 'EOF'
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name queueplay.io;
 
     location / {
         proxy_pass http://localhost:5173;
