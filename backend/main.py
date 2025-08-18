@@ -206,7 +206,9 @@ app = FastAPI(openapi_tags=tags_metadata)
 # CORS Middleware setup
 if appConfig.stage == Stage.PROD:
     origins = [
-        "https://queue-play-34edc7c1b26f.herokuapp.com",  # Your frontend URL
+        "https://queue-play-34edc7c1b26f.herokuapp.com",
+        "https://queueplay.io",
+          "137.184.121.229"  # Your frontend URL
     ]
 else: # DEVO stage
     origins = [

@@ -21,10 +21,10 @@ class QRCodeGenerator:
         # Dynamic frontend URL based on environment
         if appConfig.stage == Stage.PROD:
             # For production, use environment variable or default
-            self.frontend_url = os.getenv("FRONTEND_URL", "https://yourdomain.com")
+            self.frontend_url = os.getenv("FRONTEND_URL", "https://queueplay.io")
         else:
             # For development, use environment variable or default
-            self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost")
+            self.frontend_url = os.getenv("FRONTEND_URL", "http://queueplay.io")
 
         logger.info(f"QRCodeGenerator initialized with frontend URL: {self.frontend_url}")
 
