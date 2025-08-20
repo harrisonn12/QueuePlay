@@ -1,11 +1,20 @@
 // Centralized API configuration
 export const getApiBaseUrl = () => {
     console.log(`[getApiBaseUrl] Environment: PROD=${import.meta.env.PROD}, VITE_API_URL=${import.meta.env.VITE_API_URL}`);
-    // Production: Use environment variable for backend service URL
+    console.log(`[getApiBaseUrl] Window location:`, window.location.href);
+    
+    // Production: Use nginx proxy in Docker deployment
     if (import.meta.env.PROD) {
-      const url = import.meta.env.VITE_API_URL || 'https://queue-play-backend-49545a31800d.herokuapp.com';
-      console.log(`[getApiBaseUrl] Using production URL: ${url}`);
-      return url;
+      // If custom API URL is set via environment variable, use it
+      if (import.meta.env.VITE_API_URL) {
+        const url = import.meta.env.VITE_API_URL;
+        console.log(`[getApiBaseUrl] Using custom production URL: ${url}`);
+        return url;
+      }
+      
+      // Default production behavior: use nginx proxy
+      console.log(`[getApiBaseUrl] Using nginx proxy for production: /api`);
+      return '/api';
     } 
     
     // Development: Check if we're running locally or in Docker
@@ -22,20 +31,37 @@ export const getApiBaseUrl = () => {
 
 // Centralized WebSocket configuration
 export const getWebSocketUrl = () => {
-    // Production: Use environment variable for WebSocket service URL
+    console.log(`[getWebSocketUrl] Environment: PROD=${import.meta.env.PROD}, VITE_WS_URL=${import.meta.env.VITE_WS_URL}`);
+    
+    // Production: Use nginx proxy in Docker deployment
     if (import.meta.env.PROD) {
-      return import.meta.env.VITE_WS_URL || 'wss://queue-play-multiplayer-server-9ddcf88d473d.herokuapp.com';
+      // If custom WebSocket URL is set via environment variable, use it
+      if (import.meta.env.VITE_WS_URL) {
+        const url = import.meta.env.VITE_WS_URL;
+        console.log(`[getWebSocketUrl] Using custom production URL: ${url}`);
+        return url;
+      }
+      
+      // Default production behavior: use nginx proxy
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const url = `${protocol}//${host}/ws/`;
+      console.log(`[getWebSocketUrl] Using nginx proxy for production: ${url}`);
+      return url;
     } 
     
     // Development: Check if we're running locally or in Docker
     if (window.location.port === '5173' || window.location.port === '5175') {
       // Local development: Direct connection to WebSocket server
+      console.log(`[getWebSocketUrl] Using localhost for development`);
       return 'ws://localhost:6789';
     } else {
       // Docker development: Use Vite proxy
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.hostname;
-      return `${protocol}//${host}/ws/`;
+      const url = `${protocol}//${host}/ws/`;
+      console.log(`[getWebSocketUrl] Using Docker proxy: ${url}`);
+      return url;
     }
 };
 
