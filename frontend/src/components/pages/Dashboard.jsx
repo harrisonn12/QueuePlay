@@ -12,7 +12,6 @@ export const Dashboard = ({ children }) => {
             <LogoutButton />
             <Profile />
             {children}
-            {data}
         </>
     );
 };

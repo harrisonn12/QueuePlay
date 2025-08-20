@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Auth0Provider } from '@auth0/auth0-react';
-import { MainContainer } from './components/pages/MainContainer';
 import GameFactory from './components/games/GameFactory';
 
 export const App = () => {
@@ -13,19 +12,18 @@ export const App = () => {
     // Fresh start on every page load - no persistent game state
 
     return (
-        // <Auth0Provider
-        //     domain={auth0Domain}
-        //     clientId={auth0ClientID}
-        //     authorizationParams={{
-        //         redirect_uri: window.location.origin,
-        //     }}
-        // >
-        //     <MainContainer />
-        // </Auth0Provider>
-        <GameFactory 
-            key="game-factory" // Prevent unnecessary remounting
-            gameType={currentGameType} 
-            onGameTypeChange={setCurrentGameType}
-        />
+        <Auth0Provider
+            domain={_auth0Domain}
+            clientId={_auth0ClientID}
+            authorizationParams={{
+                redirect_uri: window.location.origin,
+            }}
+        >
+            {/* <GameFactory 
+                key="game-factory"
+                gameType={currentGameType} 
+                onGameTypeChange={setCurrentGameType}
+            /> */}
+        </Auth0Provider>
     );
 };
