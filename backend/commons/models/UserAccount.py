@@ -5,5 +5,5 @@ class UserAccount(BaseModel):
     name: str = ''
     phone: Optional[str] = ''
     email: str = ''
-    auth0_id: Optional[str] = None
-    stripe_customer_id: Optional[str] = None
+    auth0Id: Optional[str] = None
+    stripeCustomerId: Optional[str] = None
