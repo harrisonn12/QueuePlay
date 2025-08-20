@@ -10,8 +10,9 @@ from LobbyService.LobbyService import LobbyService
 from LobbyService.src.QRCodeGenerator import QRCodeGenerator
 from QuestionService.QuestionService import QuestionService
 from QuestionService.src.QuestionAnswerSetGenerator import QuestionAnswerSetGenerator
-from PaymentService.PaymentService import PaymentService # Keep commented for now
-from commons.adapters.StripeAdapter import StripeAdapter # Keep commented for now
+from routers.PaymentServiceRouter import router as PaymentServiceRouter
+from routers.PaymentDatabaseRouter import router as PaymentDatabaseRouter
+from routers.StripeRouter import router as StripeRouter
 from commons.adapters.RedisAdapter import RedisAdapter
 from configuration.RedisConfig import RedisConfig
 from CouponService.src.adapters.AvailableOffersAdapter import AvailableOffersAdapter
@@ -37,17 +38,17 @@ import uvicorn
 import secrets
 from datetime import datetime, timedelta
 
-# import stripe # Keep commented for now
-
 # Basic logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # Load environment variables
 load_dotenv()
 
 # Determine the stage (dev/prod)
 stage_str = os.environ.get("STAGE", "DEVO").lower()
-stage = Stage.PROD if stage_str == 'prod' else Stage.DEVO
+stage = Stage.PROD if stage_str == "prod" else Stage.DEVO
 appConfig = AppConfig(stage=stage)
 logging.info(f"Running in {appConfig.stage.name} stage.")
 
@@ -58,20 +59,24 @@ if not JWT_SECRET:
         raise ValueError("JWT_SECRET environment variable is required in production")
     else:
         JWT_SECRET = secrets.token_urlsafe(32)
-        logging.warning("Using generated JWT secret for development. Set JWT_SECRET env var for production.")
+        logging.warning(
+            "Using generated JWT secret for development. Set JWT_SECRET env var for production."
+        )
 
 # Initialize all services
 try:
     qrCodeGenerator = QRCodeGenerator(appConfig)
     redis_config = RedisConfig(stage=stage)
     redis_adapter = RedisAdapter(redis_config=redis_config)
-    lobbyService = LobbyService(qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter)
+    lobbyService = LobbyService(
+        qrCodeGenerator=qrCodeGenerator, redis_adapter=redis_adapter
+    )
     chatGptAdapter = ChatGptAdapter()
     questionAnswerSetGenerator = QuestionAnswerSetGenerator(chatGptAdapter)
     questionService = QuestionService(chatGptAdapter, questionAnswerSetGenerator)
     usernameService = UsernameService(chatGptAdapter)
     wordValidationService = WordValidationService(chatGptAdapter)
-    
+
     # Initialize coupon service components
     supabaseDatabaseAdapter = SupabaseDatabaseAdapter()
     offersDatabase = OffersDatabase(supabaseDatabaseAdapter)
@@ -81,16 +86,22 @@ try:
     couponIdGenerator = CouponIdGenerator()
     couponsDatabase = CouponsDatabase(supabaseDatabaseAdapter)
     gamersDatabase = GamersDatabase(supabaseDatabaseAdapter)
-    couponService = CouponService(availableOffersAdapter, offerSelectionProcessor, couponIdGenerator, couponsDatabase, gamersDatabase)
+    couponService = CouponService(
+        availableOffersAdapter,
+        offerSelectionProcessor,
+        couponIdGenerator,
+        couponsDatabase,
+        gamersDatabase,
+    )
     offerManagementService = OfferManagementService(offersDatabase)
-    
+
     # Initialize new security services
     auth_service = AuthService(redis_adapter, JWT_SECRET)
     rate_limit_service = RateLimitService(redis_adapter)
-    
+
     # Create auth dependencies
     auth_deps = create_auth_dependencies(auth_service, rate_limit_service)
-    
+
     logging.info("Initialized all services including security and coupon services.")
 except Exception as e:
     logging.error(f"Error initializing services: {e}", exc_info=True)
@@ -98,75 +109,101 @@ except Exception as e:
 
 tags_metadata = [
     {"name": "Authentication", "description": "JWT token management and user sessions"},
-    {"name": "Game API", "description": "Protected game endpoints requiring authentication"},
-    {"name": "Public API", "description": "Public endpoints that don't require authentication"},
-    {"name": "Payment Service", "description": "User accounts, billing, membership, UI"},
+    {
+        "name": "Game API",
+        "description": "Protected game endpoints requiring authentication",
+    },
+    {
+        "name": "Public API",
+        "description": "Public endpoints that don't require authentication",
+    },
+    {
+        "name": "Payment Service",
+        "description": "User accounts, billing, membership, UI",
+    },
     {"name": "Payment Service: Stripe Adapter", "description": "Stripe object actions"},
     {"name": "Payment Service: Supabase", "description": "Database actions"},
     {"name": "Username Service", "description": "Username generation and validation"},
 ]
 
+
 class CreateCouponRequest(BaseModel):
     storeId: int
     gameId: str
+
 
 class AssignCouponRequest(BaseModel):
     couponId: str
     winnerId: str
 
+
 class GetCouponRequest(BaseModel):
     storeId: int
     gamerId: str
 
+
 class DestroyCouponRequest(BaseModel):
     couponId: str
+
 
 class GenerateUsernameRequest(BaseModel):
     pass  # No parameters needed
 
+
 class ValidateUsernameRequest(BaseModel):
     username: str
 
+
 class CreateLobbyRequest(BaseModel):
-   hostId: str
-   gameType: str
+    hostId: str
+    gameType: str
+
 
 class LoginRequest(BaseModel):
     user_id: str
     username: str = None
 
+
 class TokenRequest(BaseModel):
     pass  # No parameters needed, uses session cookie
+
 
 class GuestTokenRequest(BaseModel):
     game_id: str
     player_name: str = None
     phone_number: str = None
 
+
 class JoinGameRequest(BaseModel):
     game_id: str
     player_name: str
     phone_number: str = None
+
 
 class SubmitAnswerRequest(BaseModel):
     game_id: str
     question_index: int
     answer_index: int
 
+
 class LeaveGameRequest(BaseModel):
     game_id: str
+
 
 class PlayerActionRequest(BaseModel):
     game_id: str
     action: str
     data: dict = None
 
+
 class ValidateWordRequest(BaseModel):
     word: str
     category: str
 
+
 class ValidateWordsRequest(BaseModel):
     word_category_pairs: list  # List of {"word": str, "category": str}
+
 
 class CreateOfferRequest(BaseModel):
     storeId: int
@@ -175,6 +212,7 @@ class CreateOfferRequest(BaseModel):
     count: int
     productId: int
     expirationDate: str
+
 
 class UpdateOfferRequest(BaseModel):
     offerId: int
@@ -185,50 +223,60 @@ class UpdateOfferRequest(BaseModel):
     productId: int
     expirationDate: str
 
+
 class DeleteOfferRequest(BaseModel):
     offerId: int
     storeId: int
+
 
 class CreateProductRequest(BaseModel):
     storeId: int
     name: str
     description: Optional[str] = None
 
+
 class DeactivateProductRequest(BaseModel):
     productId: int
     storeId: int
 
+
 app = FastAPI(openapi_tags=tags_metadata)
-# app.include_router(PaymentServiceRouter.router)
-# app.include_router(PaymentDatabaseRouter.router)
-# app.include_router(StripeRouter.router)
+app.include_router(PaymentServiceRouter)
+app.include_router(PaymentDatabaseRouter)
+app.include_router(StripeRouter)
 
 # CORS Middleware setup
 if appConfig.stage == Stage.PROD:
     origins = [
         "https://queue-play-34edc7c1b26f.herokuapp.com",
         "https://queueplay.io",
-          "137.184.121.229"  # Your frontend URL
+        "137.184.121.229",  # Your frontend URL
     ]
-else: # DEVO stage
+else:  # DEVO stage
     origins = [
         "http://localhost:5173",
-        "http://localhost:5174", 
+        "http://localhost:5174",
         "http://localhost:5175",
         "http://localhost:5176",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
-        "http://127.0.0.1:5176"
+        "http://127.0.0.1:5176",
     ]
-    
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+    ],
 )
 logging.info(f"CORS configured with origins: {origins}")
 
@@ -236,10 +284,12 @@ logging.info(f"CORS configured with origins: {origins}")
 
 # === HEALTH CHECK ===
 
+
 @app.get("/health", tags=["Public API"])
 async def health_check():
     """Simple health check endpoint."""
     return {"status": "healthy", "message": "QueuePlay API is running"}
+
 
 @app.post("/test-cors")
 async def test_cors_post():
@@ -247,7 +297,9 @@ async def test_cors_post():
     logging.info("TEST CORS POST CALLED!")
     return {"message": "CORS test successful"}
 
+
 # === AUTHENTICATION ENDPOINTS ===
+
 
 @app.post("/auth/login", tags=["Authentication"])
 async def login(request: Request, login_data: LoginRequest, response: Response):
@@ -256,9 +308,11 @@ async def login(request: Request, login_data: LoginRequest, response: Response):
     This simulates login - in production, you'd verify credentials here.
     """
     client_ip = auth_deps["middleware"].get_client_ip(request)
-    
+
     # Check login attempt rate limit
-    is_allowed, limit_info = await rate_limit_service.check_login_attempt_limit(client_ip)
+    is_allowed, limit_info = await rate_limit_service.check_login_attempt_limit(
+        client_ip
+    )
     if not is_allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -266,10 +320,10 @@ async def login(request: Request, login_data: LoginRequest, response: Response):
             headers={
                 "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
                 "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
-                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
-            }
+                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0)),
+            },
         )
-    
+
     # CORS validation temporarily disabled until OAuth is implemented
     # cors_valid = await auth_deps["validate_cors_and_referer"](request)
     # if not cors_valid:
@@ -277,25 +331,28 @@ async def login(request: Request, login_data: LoginRequest, response: Response):
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Request not allowed from this origin"
     #     )
-    
+
     # Create session
     session_id = await auth_service.create_session(
         user_id=login_data.user_id,
-        metadata={"username": login_data.username, "ip": client_ip}
+        metadata={"username": login_data.username, "ip": client_ip},
     )
-    
+
     # put session_id in httpOnly cookie
     response.set_cookie(
         key="session_id",
         value=session_id,
-        httponly=True, #js can't access it
-        secure=(appConfig.stage == Stage.PROD), #HTTPS only in prod
-        samesite="none" if appConfig.stage == Stage.PROD else "lax", #Allow cross-site in prod, lax in dev
-        max_age=24 * 3600  # 24 hours
+        httponly=True,  # js can't access it
+        secure=(appConfig.stage == Stage.PROD),  # HTTPS only in prod
+        samesite=(
+            "none" if appConfig.stage == Stage.PROD else "lax"
+        ),  # Allow cross-site in prod, lax in dev
+        max_age=24 * 3600,  # 24 hours
     )
-    
+
     logging.info(f"User {login_data.user_id} logged in from {client_ip}")
     return {"success": True, "message": "Login successful"}
+
 
 @app.post("/auth/token", tags=["Authentication"])
 async def get_token(request: Request):
@@ -306,14 +363,15 @@ async def get_token(request: Request):
     session_id = request.cookies.get("session_id")
     if not session_id:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No active session"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="No active session"
         )
-    
+
     client_ip = auth_deps["middleware"].get_client_ip(request)
-    
+
     # Check token generation rate limit
-    is_allowed, limit_info = await rate_limit_service.check_token_generation_limit(client_ip)
+    is_allowed, limit_info = await rate_limit_service.check_token_generation_limit(
+        client_ip
+    )
     if not is_allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -321,19 +379,23 @@ async def get_token(request: Request):
             headers={
                 "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
                 "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
-                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
-            }
+                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0)),
+            },
         )
-    
+
     # Generate JWT token
     token = await auth_service.generate_jwt_token(session_id)
     if not token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid session"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session"
         )
-    
-    return {"access_token": token, "token_type": "bearer", "expires_in": 900}  # 15 minutes
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": 900,
+    }  # 15 minutes
+
 
 @app.post("/auth/logout", tags=["Authentication"])
 async def logout(request: Request, response: Response):
@@ -341,10 +403,11 @@ async def logout(request: Request, response: Response):
     session_id = request.cookies.get("session_id")
     if session_id:
         await auth_service.invalidate_session(session_id)
-    
+
     # Clear session cookie
     response.delete_cookie("session_id")
     return {"success": True, "message": "Logout successful"}
+
 
 @app.get("/auth/test-host-login", tags=["Auth"])
 async def get_test_host_token(request: Request):
@@ -353,7 +416,7 @@ async def get_test_host_token(request: Request):
     This is for development purposes to bypass OAuth.
     """
     import jwt
-    
+
     client_ip = request.client.host
     logging.info(f"Generating test host token for IP: {client_ip}")
 
@@ -362,31 +425,33 @@ async def get_test_host_token(request: Request):
     #     raise HTTPException(status_code=404, detail="Not Found")
 
     host_user_id = f"test-host-{secrets.token_hex(4)}"
-    
+
     # Create JWT token directly (similar to guest token creation)
     now = datetime.utcnow()
     payload = {
         "user_id": host_user_id,
         "username": "Test Host",
         "iat": now,
-        "exp": now + timedelta(hours=1), # 1-hour expiry for testing
-        "type": "host"
+        "exp": now + timedelta(hours=1),  # 1-hour expiry for testing
+        "type": "host",
     }
-    
+
     # Generate JWT token using the same secret as the auth service
     host_token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-    
+
     logging.info(f"Generated test host token for user {host_user_id}")
-    
+
     return {
         "message": "Test host token generated successfully. Use this for testing host-only endpoints.",
         "access_token": host_token,
         "token_type": "bearer",
         "user_id": host_user_id,
-        "expires_in": 3600 # 1 hour
+        "expires_in": 3600,  # 1 hour
     }
 
+
 # === PLAYER AUTHENTICATION ENDPOINTS ===
+
 
 @app.post("/auth/guest-token", tags=["Authentication"])
 async def get_guest_token(request: Request, guest_data: GuestTokenRequest):
@@ -395,9 +460,11 @@ async def get_guest_token(request: Request, guest_data: GuestTokenRequest):
     No signup required - just game ID and optional player info.
     """
     client_ip = auth_deps["middleware"].get_client_ip(request)
-    
+
     # Check token generation rate limit (per IP for guests)
-    is_allowed, limit_info = await rate_limit_service.check_token_generation_limit(client_ip)
+    is_allowed, limit_info = await rate_limit_service.check_token_generation_limit(
+        client_ip
+    )
     if not is_allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -405,64 +472,73 @@ async def get_guest_token(request: Request, guest_data: GuestTokenRequest):
             headers={
                 "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
                 "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
-                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
-            }
+                "X-RateLimit-Reset": str(limit_info.get("reset_time", 0)),
+            },
         )
-    
+
     # Validate that the game exists (using lobby service)
     try:
         lobby_exists = await lobbyService.lobby_exists(guest_data.game_id)
         if not lobby_exists:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Game not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Game not found"
             )
     except Exception as e:
         logging.error(f"Error checking lobby existence: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid game ID"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid game ID"
         )
-    
+
     # Generate guest token (30-minute expiry, limited scope)
     guest_user_id = f"guest_{guest_data.game_id}_{secrets.token_urlsafe(8)}"
     guest_token = await auth_service.create_guest_jwt_token(
         user_id=guest_user_id,
         game_id=guest_data.game_id,
         player_name=guest_data.player_name,
-        metadata={"type": "guest", "ip": client_ip}
+        metadata={"type": "guest", "ip": client_ip},
     )
-    
+
     logging.info(f"Generated guest token for game {guest_data.game_id}")
-    
+
     return {
         "token": guest_token,
         "user_id": guest_user_id,
-        "expires_in": 1800  # 30 minutes in seconds
+        "expires_in": 1800,  # 30 minutes in seconds
     }
+
 
 # === PROTECTED GAME ENDPOINTS ===
 
+
 @app.post("/createLobby", tags=["Game API"])
-async def createLobby(request: Request, request_data: CreateLobbyRequest,
-                     current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+async def createLobby(
+    request: Request,
+    request_data: CreateLobbyRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+) -> dict:
     """Creates a new lobby and returns its ID. Requires authentication."""
     user_id = current_user["user_id"]
-    logging.info(f"User {user_id} creating lobby: hostId={request_data.hostId}, gameType={request_data.gameType}")
- 
-    
+    logging.info(
+        f"User {user_id} creating lobby: hostId={request_data.hostId}, gameType={request_data.gameType}"
+    )
+
     # Ensure lobbyService is initialized before calling
-    if 'lobbyService' not in globals():
+    if "lobbyService" not in globals():
         logging.error("LobbyService not initialized!")
         return {"error": "Server configuration error"}
-    lobby_details = await lobbyService.create_lobby(host_id=request_data.hostId, game_type=request_data.gameType)
+    lobby_details = await lobbyService.create_lobby(
+        host_id=request_data.hostId, game_type=request_data.gameType
+    )
     logging.info(f"lobbyService.create_lobby returned: {lobby_details}")
-    if lobby_details and 'gameId' in lobby_details:
+    if lobby_details and "gameId" in lobby_details:
         logging.info(f"Lobby created successfully: {lobby_details['gameId']}")
         return {"gameId": lobby_details["gameId"]}
     else:
-        logging.error(f"Failed to create lobby in LobbyService. Details: {lobby_details}")
+        logging.error(
+            f"Failed to create lobby in LobbyService. Details: {lobby_details}"
+        )
         return {"error": "Failed to create lobby"}
+
 
 @app.get("/getLobbyInfo", tags=["Game API"])
 async def getLobbyInfo(gameId: str) -> dict:
@@ -471,16 +547,15 @@ async def getLobbyInfo(gameId: str) -> dict:
         lobby_info = await lobbyService.get_lobby_info(gameId)
         if not lobby_info:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Game not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Game not found"
             )
-        
+
         return {
             "success": True,
             "gameId": gameId,
             "gameType": lobby_info.get("gameType"),
             "hostId": lobby_info.get("hostId"),
-            "exists": True
+            "exists": True,
         }
     except HTTPException:
         raise
@@ -488,15 +563,19 @@ async def getLobbyInfo(gameId: str) -> dict:
         logging.error(f"Error getting lobby info for {gameId}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get lobby information"
+            detail="Failed to get lobby information",
         )
 
+
 @app.get("/getLobbyQRCode", tags=["Game API"])
-def getLobbyQRCode(request: Request, gameId: str,
-                   current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+def getLobbyQRCode(
+    request: Request,
+    gameId: str,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+) -> dict:
     """Get QR code for a lobby. Requires authentication."""
     # Ensure lobbyService is initialized
-    if 'lobbyService' not in globals():
+    if "lobbyService" not in globals():
         logging.error("LobbyService not initialized!")
         return {"error": "Server configuration error"}
     qr_data = lobbyService.generateLobbyQRCode(gameId)
@@ -506,15 +585,20 @@ def getLobbyQRCode(request: Request, gameId: str,
         logging.error(f"Failed to generate QR code for gameId: {gameId}")
         return {"error": "QR code generation failed"}
 
+
 @app.get("/getQuestions", tags=["Game API"])
-async def getQuestions(request: Request, gameId: str, count: int = 10,
-                      current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+async def getQuestions(
+    request: Request,
+    gameId: str,
+    count: int = 10,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+) -> dict:
     """Fetches a set of questions. Requires authentication and rate limiting."""
     user_id = current_user["user_id"]
-    
+
     # Check question generation rate limit
     await auth_deps["check_question_generation_limit"](user_id)
-    
+
     # CORS validation temporarily disabled until OAuth is implemented
     # cors_valid = await auth_deps["validate_cors_and_referer"](request)
     # if not cors_valid:
@@ -522,21 +606,28 @@ async def getQuestions(request: Request, gameId: str, count: int = 10,
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Request not allowed from this origin"
     #     )
-    
+
     # Ensure questionService is initialized
-    if 'questionService' not in globals():
+    if "questionService" not in globals():
         logging.error("QuestionService not initialized!")
         return {"error": "Server configuration error"}
 
     try:
-        logging.info(f"🎯 [HEROKU-BACKEND] Requesting questions for gameId: {gameId}, count: {count}")
+        logging.info(
+            f"🎯 [HEROKU-BACKEND] Requesting questions for gameId: {gameId}, count: {count}"
+        )
 
         # Add extensive error handling around questionService call
         try:
             question_set = questionService.getQuestionAnswerSet(count)
-            logging.info(f"QuestionService.getQuestionAnswerSet returned: {type(question_set)}")
+            logging.info(
+                f"QuestionService.getQuestionAnswerSet returned: {type(question_set)}"
+            )
         except Exception as e:
-            logging.error(f"CRITICAL ERROR in questionService.getQuestionAnswerSet: {str(e)}", exc_info=True)
+            logging.error(
+                f"CRITICAL ERROR in questionService.getQuestionAnswerSet: {str(e)}",
+                exc_info=True,
+            )
             return {"error": f"Question service error: {str(e)}"}
 
         if question_set and "questions" in question_set:
@@ -544,19 +635,25 @@ async def getQuestions(request: Request, gameId: str, count: int = 10,
             logging.info(f"Returning {question_count} questions for gameId: {gameId}")
             return {"questions": question_set["questions"]}
         else:
-            logging.error(f"Failed to retrieve questions for gameId: {gameId}. Return value: {question_set}")
+            logging.error(
+                f"Failed to retrieve questions for gameId: {gameId}. Return value: {question_set}"
+            )
             return {"error": "Failed to retrieve questions"}
     except Exception as outer_e:
-        logging.error(f"Unhandled exception in getQuestions route: {str(outer_e)}", exc_info=True)
+        logging.error(
+            f"Unhandled exception in getQuestions route: {str(outer_e)}", exc_info=True
+        )
         return {"error": f"Server error: {str(outer_e)}"}
 
+
 # === PUBLIC ENDPOINTS (No Authentication Required) ===
+
 
 # Username Service Endpoints
 @app.post("/username/generate", tags=["Public API"])
 async def generate_username(request_data: GenerateUsernameRequest = None) -> dict:
     """Generate a new username with moderation and validation. Public endpoint."""
-    if 'usernameService' not in globals():
+    if "usernameService" not in globals():
         logging.error("UsernameService not initialized!")
         return {"error": "Server configuration error"}
 
@@ -570,10 +667,11 @@ async def generate_username(request_data: GenerateUsernameRequest = None) -> dic
         logging.error(f"Error generating username: {e}", exc_info=True)
         return {"error": f"Username generation failed: {str(e)}"}
 
+
 @app.post("/username/validate", tags=["Public API"])
 async def validate_username(request_data: ValidateUsernameRequest) -> dict:
     """Validate a username with format checking and moderation. Public endpoint."""
-    if 'usernameService' not in globals():
+    if "usernameService" not in globals():
         logging.error("UsernameService not initialized!")
         return {"error": "Server configuration error"}
 
@@ -587,28 +685,37 @@ async def validate_username(request_data: ValidateUsernameRequest) -> dict:
         logging.error(f"Error validating username: {e}", exc_info=True)
         return {"error": f"Username validation failed: {str(e)}"}
 
+
 # === USER USAGE STATISTICS ===
 
+
 @app.get("/user/stats", tags=["Game API"])
-async def get_user_stats(current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+async def get_user_stats(
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+) -> dict:
     """Get current usage statistics for the authenticated user."""
     user_id = current_user["user_id"]
     stats = await rate_limit_service.get_user_usage_stats(user_id)
     return {"user_id": user_id, "usage_stats": stats}
 
+
 # === WORD VALIDATION ENDPOINTS ===
 
+
 @app.post("/validate-word", tags=["Game API"])
-async def validate_word(request: Request, validation_data: ValidateWordRequest,
-                       current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+async def validate_word(
+    request: Request,
+    validation_data: ValidateWordRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+) -> dict:
     """
     Validate if a word belongs to a category using ConceptNet + AI fallback.
-    
+
     This endpoint is used by the Category Game to validate player answers.
     """
     try:
         client_ip = auth_deps["middleware"].get_client_ip(request)
-        
+
         # Rate limiting for word validation (higher limit for games)
         is_allowed, limit_info = await rate_limit_service.check_word_validation_limit(
             current_user["user_id"]
@@ -620,53 +727,62 @@ async def validate_word(request: Request, validation_data: ValidateWordRequest,
                 headers={
                     "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
                     "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
-                    "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
-                }
+                    "X-RateLimit-Reset": str(limit_info.get("reset_time", 0)),
+                },
             )
-        
+
         # Validate the word
-        logging.info(f"🔍 [HEROKU-BACKEND] Validating word: '{validation_data.word}' in category: '{validation_data.category}'")
+        logging.info(
+            f"🔍 [HEROKU-BACKEND] Validating word: '{validation_data.word}' in category: '{validation_data.category}'"
+        )
         try:
             is_valid, source, explanation = wordValidationService.validate_word(
-                validation_data.word, 
-                validation_data.category
+                validation_data.word, validation_data.category
             )
             logging.info(f"Validation result: {is_valid} from {source}")
         except Exception as e:
-            logging.error(f"WordValidationService.validate_word failed: {e}", exc_info=True)
+            logging.error(
+                f"WordValidationService.validate_word failed: {e}", exc_info=True
+            )
             raise
-        
-        logging.info(f"Word validation: '{validation_data.word}' in '{validation_data.category}' = {is_valid} (source: {source})")
-        
+
+        logging.info(
+            f"Word validation: '{validation_data.word}' in '{validation_data.category}' = {is_valid} (source: {source})"
+        )
+
         return {
             "word": validation_data.word,
             "category": validation_data.category,
             "is_valid": is_valid,
             "confidence_source": source,
             "explanation": explanation,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except Exception as e:
         logging.error(f"Word validation failed: {e}", exc_info=True)
         logging.error(f"WordValidationService object: {wordValidationService}")
         logging.error(f"WordValidationService type: {type(wordValidationService)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Word validation service temporarily unavailable: {str(e)}"
+            detail=f"Word validation service temporarily unavailable: {str(e)}",
         )
 
+
 @app.post("/validate-words-batch", tags=["Game API"])
-async def validate_words_batch(request: Request, validation_data: ValidateWordsRequest,
-                              current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+async def validate_words_batch(
+    request: Request,
+    validation_data: ValidateWordsRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+) -> dict:
     """
     Validate multiple word-category pairs in a single request.
-    
+
     This endpoint is used for batch validation of multiple player answers.
     """
     try:
         client_ip = auth_deps["middleware"].get_client_ip(request)
-        
+
         # Rate limiting for batch validation (using word validation limit)
         is_allowed, limit_info = await rate_limit_service.check_word_validation_limit(
             current_user["user_id"]
@@ -678,58 +794,64 @@ async def validate_words_batch(request: Request, validation_data: ValidateWordsR
                 headers={
                     "X-RateLimit-Limit": str(limit_info.get("limit", 0)),
                     "X-RateLimit-Remaining": str(limit_info.get("remaining", 0)),
-                    "X-RateLimit-Reset": str(limit_info.get("reset_time", 0))
-                }
+                    "X-RateLimit-Reset": str(limit_info.get("reset_time", 0)),
+                },
             )
-        
+
         # Limit batch size to prevent abuse
         if len(validation_data.word_category_pairs) > 20:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Batch size limited to 20 word-category pairs"
+                detail="Batch size limited to 20 word-category pairs",
             )
-        
+
         # Convert to tuples for the service
         word_category_pairs = [
-            (pair["word"], pair["category"]) 
+            (pair["word"], pair["category"])
             for pair in validation_data.word_category_pairs
         ]
-        
+
         # Validate all pairs
         results = wordValidationService.validate_batch(word_category_pairs)
-        
+
         # Format response
         validation_results = []
         for i, (word, category) in enumerate(word_category_pairs):
             is_valid, source, explanation = results[i]
-            validation_results.append({
-                "word": word,
-                "category": category,
-                "is_valid": is_valid,
-                "confidence_source": source,
-                "explanation": explanation
-            })
-        
-        logging.info(f"🔍 [HEROKU-BACKEND] Batch validation completed: {len(validation_results)} word-category pairs")
-        
+            validation_results.append(
+                {
+                    "word": word,
+                    "category": category,
+                    "is_valid": is_valid,
+                    "confidence_source": source,
+                    "explanation": explanation,
+                }
+            )
+
+        logging.info(
+            f"🔍 [HEROKU-BACKEND] Batch validation completed: {len(validation_results)} word-category pairs"
+        )
+
         return {
             "results": validation_results,
             "total_validated": len(validation_results),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logging.error(f"Batch word validation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Batch word validation service temporarily unavailable"
+            detail="Batch word validation service temporarily unavailable",
         )
 
+
 @app.get("/word-validation-stats", tags=["Game API"])
-async def get_word_validation_stats(request: Request,
-                                   current_user: dict = Depends(auth_deps["get_current_user"])) -> dict:
+async def get_word_validation_stats(
+    request: Request, current_user: dict = Depends(auth_deps["get_current_user"])
+) -> dict:
     """
     Get word validation service statistics (for monitoring).
     """
@@ -738,83 +860,112 @@ async def get_word_validation_stats(request: Request,
         return {
             "cache_stats": stats,
             "service_status": "operational",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         logging.error(f"Failed to get word validation stats: {e}")
         return {
             "cache_stats": {"error": "unavailable"},
             "service_status": "degraded",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
+
 
 # Keep payment routes commented out
 @app.post("/createNewUser", tags=["Payment Service"])
 def createNewUser(name: str, email: str):
-    pass # Placeholder
+    pass  # Placeholder
+
 
 @app.get("/listPaymentMethods", tags=["Payment Service: Stripe Adapter"])
 def listPaymentMethod(customerId: str):
-    pass # Placeholder
+    pass  # Placeholder
+
 
 @app.put("/createPaymentIntent", tags=["Payment Service: Stripe Adapter"])
 def createPaymentIntent(customerId, paymentMethodId, charge):
-    pass # Placeholder
+    pass  # Placeholder
+
 
 @app.post("/addPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def addPaymentMethod(customerId: str, paymentId: str, defaultMethod: bool):
-    pass # Placeholder
+    pass  # Placeholder
+
 
 @app.post("/createPaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def createPaymentMethod(
-    cardNumber: str,
-    expMonth: str = "04",
-    expYear: str = "2044",
-    cvc: str = "939"):
-    pass # Placeholder
+    cardNumber: str, expMonth: str = "04", expYear: str = "2044", cvc: str = "939"
+):
+    pass  # Placeholder
+
 
 @app.delete("/deletePaymentMethod", tags=["Payment Service: Stripe Adapter"])
 def deletePaymentMethod(paymentMethodId):
-    pass # Placeholder
+    pass  # Placeholder
+
 
 @app.post("/createCoupon", tags=["Game API"])
-async def createCoupon(request: Request, createCouponRequest: CreateCouponRequest,
-                      current_user: dict = Depends(auth_deps["get_current_user"])):
+async def createCoupon(
+    request: Request,
+    createCouponRequest: CreateCouponRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Create a coupon for a game. Requires JWT authentication."""
     try:
-        return couponService.createCoupon(createCouponRequest.storeId, createCouponRequest.gameId)
+        return couponService.createCoupon(
+            createCouponRequest.storeId, createCouponRequest.gameId
+        )
     except Exception as e:
         logging.error(f"Error creating coupon: {e}")
         # Return a fallback response instead of failing completely
         return {
             "success": False,
             "error": "Coupon service temporarily unavailable",
-            "value": "Special Offer Available!"
+            "value": "Special Offer Available!",
         }
 
+
 @app.post("/assignCoupon", tags=["Game API"])
-async def assignCoupon(request: Request, assignCouponRequest: AssignCouponRequest,
-                      current_user: dict = Depends(auth_deps["get_current_user"])):
+async def assignCoupon(
+    request: Request,
+    assignCouponRequest: AssignCouponRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Assign a coupon to a winner. Requires JWT authentication."""
-    return couponService.assignCoupon(assignCouponRequest.couponId, assignCouponRequest.winnerId)
+    return couponService.assignCoupon(
+        assignCouponRequest.couponId, assignCouponRequest.winnerId
+    )
+
 
 @app.post("/getCoupons", tags=["Game API"])
-async def getCoupons(request: Request, getCouponRequest: GetCouponRequest,
-                    current_user: dict = Depends(auth_deps["get_current_user"])):
+async def getCoupons(
+    request: Request,
+    getCouponRequest: GetCouponRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Get coupons for a gamer. Requires JWT authentication."""
     return couponService.getCoupons(getCouponRequest.storeId, getCouponRequest.gamerId)
 
+
 @app.post("/destroyCoupon", tags=["Game API"])
-async def destroyCoupon(request: Request, destroyCouponRequest: DestroyCouponRequest,
-                       current_user: dict = Depends(auth_deps["get_current_user"])):
+async def destroyCoupon(
+    request: Request,
+    destroyCouponRequest: DestroyCouponRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Destroy a coupon. Requires JWT authentication."""
     return couponService.destroyCoupon(destroyCouponRequest.couponId)
 
+
 # === OFFER MANAGEMENT ENDPOINTS ===
 
+
 @app.post("/createOffer", tags=["Game API"])
-async def createOffer(request: Request, createOfferRequest: CreateOfferRequest,
-                     current_user: dict = Depends(auth_deps["get_current_user"])):
+async def createOffer(
+    request: Request,
+    createOfferRequest: CreateOfferRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Create a new offer for a store. Requires JWT authentication."""
     try:
         offer = offerManagementService.createOffer(
@@ -823,7 +974,7 @@ async def createOffer(request: Request, createOfferRequest: CreateOfferRequest,
             value=createOfferRequest.value,
             count=createOfferRequest.count,
             productId=createOfferRequest.productId,
-            expirationDate=createOfferRequest.expirationDate
+            expirationDate=createOfferRequest.expirationDate,
         )
         return {"success": True, "offer": offer.model_dump()}
     except ValueError as e:
@@ -832,9 +983,13 @@ async def createOffer(request: Request, createOfferRequest: CreateOfferRequest,
         logging.error(f"Error creating offer: {e}")
         raise HTTPException(status_code=500, detail="Failed to create offer")
 
+
 @app.get("/getStoreOffers/{storeId}", tags=["Game API"])
-async def getStoreOffers(request: Request, storeId: int,
-                        current_user: dict = Depends(auth_deps["get_current_user"])):
+async def getStoreOffers(
+    request: Request,
+    storeId: int,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Get all offers for a store. Requires JWT authentication."""
     try:
         offers = offerManagementService.getStoreOffers(storeId)
@@ -843,9 +998,13 @@ async def getStoreOffers(request: Request, storeId: int,
         logging.error(f"Error fetching store offers: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch offers")
 
+
 @app.put("/updateOffer", tags=["Game API"])
-async def updateOffer(request: Request, updateOfferRequest: UpdateOfferRequest,
-                     current_user: dict = Depends(auth_deps["get_current_user"])):
+async def updateOffer(
+    request: Request,
+    updateOfferRequest: UpdateOfferRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Update an existing offer. Requires JWT authentication."""
     try:
         offer = offerManagementService.updateOffer(
@@ -855,7 +1014,7 @@ async def updateOffer(request: Request, updateOfferRequest: UpdateOfferRequest,
             value=updateOfferRequest.value,
             count=updateOfferRequest.count,
             productId=updateOfferRequest.productId,
-            expirationDate=updateOfferRequest.expirationDate
+            expirationDate=updateOfferRequest.expirationDate,
         )
         return {"success": True, "offer": offer.model_dump()}
     except ValueError as e:
@@ -863,6 +1022,7 @@ async def updateOffer(request: Request, updateOfferRequest: UpdateOfferRequest,
     except Exception as e:
         logging.error(f"Error updating offer: {e}")
         raise HTTPException(status_code=500, detail="Failed to update offer")
+
 
 # @app.delete("/deleteOffer", tags=["Game API"])
 # async def deleteOffer(request: Request, deleteOfferRequest: DeleteOfferRequest,
@@ -880,14 +1040,17 @@ async def updateOffer(request: Request, updateOfferRequest: UpdateOfferRequest,
 #         logging.error(f"Error deleting offer: {e}")
 #         raise HTTPException(status_code=500, detail="Failed to delete offer")
 
+
 @app.delete("/deleteOffer", tags=["Game API"])
-async def deleteOffer(request: Request, deleteOfferRequest: DeleteOfferRequest,
-                     current_user: dict = Depends(auth_deps["get_current_user"])):
+async def deleteOffer(
+    request: Request,
+    deleteOfferRequest: DeleteOfferRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     print("DELETE /deleteOffer endpoint called")
     try:
         success = offerManagementService.deleteOffer(
-            offerId=deleteOfferRequest.offerId,
-            storeId=deleteOfferRequest.storeId
+            offerId=deleteOfferRequest.offerId, storeId=deleteOfferRequest.storeId
         )
         return {"success": success}
     except ValueError as e:
@@ -896,9 +1059,13 @@ async def deleteOffer(request: Request, deleteOfferRequest: DeleteOfferRequest,
         logging.error(f"Error deleting offer: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete offer")
 
+
 @app.post("/validateOfferData", tags=["Game API"])
-async def validateOfferData(request: Request, createOfferRequest: CreateOfferRequest,
-                           current_user: dict = Depends(auth_deps["get_current_user"])):
+async def validateOfferData(
+    request: Request,
+    createOfferRequest: CreateOfferRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Validate offer data without creating. Requires JWT authentication."""
     try:
         validation_result = offerManagementService.validateOfferData(
@@ -906,20 +1073,25 @@ async def validateOfferData(request: Request, createOfferRequest: CreateOfferReq
             value=createOfferRequest.value,
             count=createOfferRequest.count,
             productId=createOfferRequest.productId,
-            expirationDate=createOfferRequest.expirationDate
+            expirationDate=createOfferRequest.expirationDate,
         )
         return validation_result
     except Exception as e:
         logging.error(f"Error validating offer data: {e}")
         raise HTTPException(status_code=500, detail="Failed to validate offer data")
 
+
 # === END OFFER MANAGEMENT ENDPOINTS ===
 
 # === PRODUCT MANAGEMENT ENDPOINTS ===
 
+
 @app.get("/getStoreProducts/{storeId}", tags=["Game API"])
-async def getStoreProducts(request: Request, storeId: int,
-                          current_user: dict = Depends(auth_deps["get_current_user"])):
+async def getStoreProducts(
+    request: Request,
+    storeId: int,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Get all products for a store. Requires JWT authentication."""
     try:
         products = productsDatabase.getProductsByStore(storeId)
@@ -928,17 +1100,21 @@ async def getStoreProducts(request: Request, storeId: int,
         logging.error(f"Error fetching products: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch products")
 
+
 @app.post("/createProduct", tags=["Game API"])
-async def createProduct(request: Request, createProductRequest: CreateProductRequest,
-                       current_user: dict = Depends(auth_deps["get_current_user"])):
+async def createProduct(
+    request: Request,
+    createProductRequest: CreateProductRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Create a new product. Requires JWT authentication."""
     try:
         from CouponService.src.databases.ProductsDatabase import ProductData
-        
+
         product_data = ProductData(
             storeId=createProductRequest.storeId,
             name=createProductRequest.name,
-            description=createProductRequest.description
+            description=createProductRequest.description,
         )
         product = productsDatabase.createProduct(product_data)
         return {"success": True, "product": product.model_dump()}
@@ -946,9 +1122,13 @@ async def createProduct(request: Request, createProductRequest: CreateProductReq
         logging.error(f"Error creating product: {e}")
         raise HTTPException(status_code=500, detail="Failed to create product")
 
+
 @app.put("/deactivateProduct", tags=["Game API"])
-async def deactivateProduct(request: Request, deactivateProductRequest: DeactivateProductRequest,
-                           current_user: dict = Depends(auth_deps["get_current_user"])):
+async def deactivateProduct(
+    request: Request,
+    deactivateProductRequest: DeactivateProductRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """Deactivate a product (soft delete). Requires JWT authentication."""
     try:
         success = productsDatabase.deleteProduct(deactivateProductRequest.productId)
@@ -957,38 +1137,43 @@ async def deactivateProduct(request: Request, deactivateProductRequest: Deactiva
         logging.error(f"Error deactivating product: {e}")
         raise HTTPException(status_code=500, detail="Failed to deactivate product")
 
+
 # === END PRODUCT MANAGEMENT ENDPOINTS ===
+
 
 @app.post("/getExpiringCoupons")
 def getGamersWithExpiringCoupons():
-    pass # Placeholder - was: return gamerManagementService.getGamersWithExpiringCoupons()
+    pass  # Placeholder - was: return gamerManagementService.getGamersWithExpiringCoupons()
+
 
 # === PROTECTED PLAYER ENDPOINTS ===
 
+
 @app.post("/joinGame", tags=["Game API"])
-async def join_game(request: Request, join_data: JoinGameRequest,
-                   current_user: dict = Depends(auth_deps["get_current_user"])):
+async def join_game(
+    request: Request,
+    join_data: JoinGameRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """
     Join a game lobby. Requires JWT authentication (host token or guest token).
     """
     user_id = current_user.get("user_id")
     game_id = join_data.game_id
-    
+
     # Validate game exists
     try:
         lobby_exists = await lobbyService.lobby_exists(game_id)
         if not lobby_exists:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Game not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Game not found"
             )
     except Exception as e:
         logging.error(f"Error joining game {game_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to join game"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to join game"
         )
-    
+
     # For guest tokens, validate they're for the correct game
     token_type = current_user.get("type", "host")
     if token_type == "guest":
@@ -996,24 +1181,23 @@ async def join_game(request: Request, join_data: JoinGameRequest,
         if token_game_id != game_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token not valid for this game"
+                detail="Token not valid for this game",
             )
-    
+
     # Add player to lobby
     try:
         result = await lobbyService.add_player_to_lobby(
             game_id=game_id,
             player_id=user_id,
             player_name=join_data.player_name,
-            phone_number=join_data.phone_number
+            phone_number=join_data.phone_number,
         )
     except Exception as e:
         logging.error(f"Error adding player to lobby: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to join game"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to join game"
         )
-    
+
     # Get lobby info to return game type to the player
     try:
         lobby_info = await lobbyService.get_lobby_info(game_id)
@@ -1021,23 +1205,27 @@ async def join_game(request: Request, join_data: JoinGameRequest,
     except Exception as e:
         logging.error(f"Error getting lobby info for game type: {e}")
         game_type = None
-    
+
     return {
         "success": True,
         "message": "Successfully joined game",
         "game_id": game_id,
         "player_id": user_id,
-        "game_type": game_type
+        "game_type": game_type,
     }
 
+
 @app.post("/submitAnswer", tags=["Game API"])
-async def submit_answer(request: Request, answer_data: SubmitAnswerRequest,
-                       current_user: dict = Depends(auth_deps["get_current_user"])):
+async def submit_answer(
+    request: Request,
+    answer_data: SubmitAnswerRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """
     Submit an answer to a question. Requires JWT authentication.
     """
     user_id = current_user.get("user_id")
-    
+
     # Validate guest token is for correct game
     token_type = current_user.get("type", "host")
     if token_type == "guest":
@@ -1045,35 +1233,40 @@ async def submit_answer(request: Request, answer_data: SubmitAnswerRequest,
         if token_game_id != answer_data.game_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token not valid for this game"
+                detail="Token not valid for this game",
             )
-    
+
     # Basic validation
     if answer_data.answer_index < 0:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid answer index"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid answer index"
         )
-    
+
     # Log the answer submission (could be stored in Redis for game state)
-    logging.info(f"Answer submitted: User {user_id}, Game {answer_data.game_id}, Q{answer_data.question_index}, Answer {answer_data.answer_index}")
-    
+    logging.info(
+        f"Answer submitted: User {user_id}, Game {answer_data.game_id}, Q{answer_data.question_index}, Answer {answer_data.answer_index}"
+    )
+
     return {
         "success": True,
         "message": "Answer submitted successfully",
         "game_id": answer_data.game_id,
         "question_index": answer_data.question_index,
-        "answer_index": answer_data.answer_index
+        "answer_index": answer_data.answer_index,
     }
 
+
 @app.post("/leaveGame", tags=["Game API"])
-async def leave_game(request: Request, leave_data: LeaveGameRequest,
-                    current_user: dict = Depends(auth_deps["get_current_user"])):
+async def leave_game(
+    request: Request,
+    leave_data: LeaveGameRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """
     Leave a game lobby. Requires JWT authentication.
     """
     user_id = current_user.get("user_id")
-    
+
     # Validate guest token is for correct game
     token_type = current_user.get("type", "host")
     if token_type == "guest":
@@ -1081,36 +1274,38 @@ async def leave_game(request: Request, leave_data: LeaveGameRequest,
         if token_game_id != leave_data.game_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token not valid for this game"
+                detail="Token not valid for this game",
             )
-    
+
     # Remove player from lobby
     try:
         await lobbyService.remove_player_from_lobby(
-            game_id=leave_data.game_id,
-            player_id=user_id
+            game_id=leave_data.game_id, player_id=user_id
         )
     except Exception as e:
         logging.error(f"Error removing player from lobby: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to leave game"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to leave game"
         )
-    
+
     return {
         "success": True,
         "message": "Successfully left game",
-        "game_id": leave_data.game_id
+        "game_id": leave_data.game_id,
     }
 
+
 @app.post("/playerAction", tags=["Game API"])
-async def player_action(request: Request, action_data: PlayerActionRequest,
-                       current_user: dict = Depends(auth_deps["get_current_user"])):
+async def player_action(
+    request: Request,
+    action_data: PlayerActionRequest,
+    current_user: dict = Depends(auth_deps["get_current_user"]),
+):
     """
     Generic endpoint for player actions during gameplay. Requires JWT authentication.
     """
     user_id = current_user.get("user_id")
-    
+
     # Validate guest token is for correct game
     token_type = current_user.get("type", "host")
     if token_type == "guest":
@@ -1118,32 +1313,45 @@ async def player_action(request: Request, action_data: PlayerActionRequest,
         if token_game_id != action_data.game_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token not valid for this game"
+                detail="Token not valid for this game",
             )
-    
+
     # Log the action (could trigger different game logic based on action type)
-    logging.info(f"Player action: User {user_id}, Game {action_data.game_id}, Action {action_data.action}")
-    
+    logging.info(
+        f"Player action: User {user_id}, Game {action_data.game_id}, Action {action_data.action}"
+    )
+
     return {
         "success": True,
         "message": f"Action '{action_data.action}' processed successfully",
         "game_id": action_data.game_id,
-        "action": action_data.action
+        "action": action_data.action,
     }
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
 
     # Basic logging configuration
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
 
-    parser = argparse.ArgumentParser(description='Configure environment for the application.')
-    parser.add_argument('--env', type=str, choices=['dev', 'prod'], default='dev', help='Select the environment: dev or prod')
+    parser = argparse.ArgumentParser(
+        description="Configure environment for the application."
+    )
+    parser.add_argument(
+        "--env",
+        type=str,
+        choices=["dev", "prod"],
+        default="dev",
+        help="Select the environment: dev or prod",
+    )
     args = parser.parse_args()
 
     # Services are already initialized at the top of the file
     # Only handle environment-specific configuration here
-    
-    if args.env == 'prod':
+
+    if args.env == "prod":
         # Update appConfig for production if needed
         logging.info("Running in production mode")
     else:
@@ -1152,8 +1360,8 @@ if __name__ == '__main__':
     # All services already initialized at module level
     # Just start the server
     port = int(os.environ.get("PORT", 8000))
-    
-    if args.env == 'prod':
+
+    if args.env == "prod":
         # For production, use string import to avoid the warning
         uvicorn.run("main:app", host="0.0.0.0", port=port)
     else:

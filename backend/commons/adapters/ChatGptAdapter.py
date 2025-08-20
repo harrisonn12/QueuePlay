@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 class ChatGptAdapter:
   def __init__(self):
     logger.info("Attempting to initialize ChatGptAdapter...")
-    apiKey = os.environ.get('CHATGPT_KEY')
+    apiKey = os.environ.get('OPENAI_API_KEY')
     if not apiKey:
-      logger.error("FATAL: Environment variable 'CHATGPT_KEY' not found!")
-      raise ValueError("Missing required environment variable: CHATGPT_KEY")
+      logger.error("FATAL: Environment variable 'OPENAI_API_KEY' not found!")
+      raise ValueError("Missing required environment variable: OPENAI_API_KEY")
     else:
       try:
         self.client = OpenAI(api_key=apiKey)
